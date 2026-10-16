@@ -12,13 +12,20 @@ export const LANGS = [['en', 'English'], ['he', 'עברית'], ['ru', 'Русс�
 const RTL = new Set(['he']);
 
 let lang = 'en';
+// Layout direction: 'auto' (mirror for Hebrew), or fixed 'ltr' / 'rtl' so
+// the tabs and buttons stay in the same place whatever the language.
+let dirPref = 'auto';
 
 export function getLang() { return lang; }
+export function getDirPref() { return dirPref; }
 
 // Phone language on first run; afterwards whatever was picked in Settings.
 export async function initLang() {
   let saved = null;
-  try { saved = await storage.getValue('ui_lang'); } catch { /* use default */ }
+  try {
+    saved = await storage.getValue('ui_lang');
+    dirPref = (await storage.getValue('ui_dir')) || 'auto';
+  } catch { /* use defaults */ }
   const phone = (navigator.language || 'en').slice(0, 2).toLowerCase();
   const guess = phone === 'iw' ? 'he' : phone;
   apply(saved || (LANGS.some(([c]) => c === guess) ? guess : 'en'));
@@ -29,10 +36,24 @@ export async function setLang(code) {
   await storage.setValue('ui_lang', code);
 }
 
+export async function setDirPref(pref) {
+  dirPref = ['ltr', 'rtl'].includes(pref) ? pref : 'auto';
+  apply(lang);
+  await storage.setValue('ui_dir', dirPref);
+}
+
 function apply(code) {
   lang = LANGS.some(([c]) => c === code) ? code : 'en';
-  document.documentElement.lang = lang;
-  document.documentElement.dir = RTL.has(lang) ? 'rtl' : 'ltr';
+  const natural = RTL.has(lang) ? 'rtl' : 'ltr';
+  const dir = dirPref === 'auto' ? natural : dirPref;
+  const root = document.documentElement;
+  root.lang = lang;
+  root.dir = dir;
+  // Layout direction differs from the language's own direction (e.g.
+  // Hebrew in a fixed left-to-right layout): let each piece of text pick
+  // its own direction from its content, so Hebrew still reads and aligns
+  // right-to-left while the layout stays put.
+  root.classList.toggle('bidi-plain', dir !== natural);
 }
 
 export function t(key, vars = {}) {
@@ -74,6 +95,11 @@ const DICT = {
   'Today': { he: 'היום', ru: 'Сегодня' },
   'Yesterday': { he: 'אתמול', ru: 'Вчера' },
   'Language': { he: 'שפה', ru: 'Язык' },
+  'Layout': { he: 'פריסה', ru: 'Расположение' },
+  'Automatic': { he: 'אוטומטי', ru: 'Авто' },
+  'Left → right': { he: 'שמאל ← ימין', ru: 'Слева → направо' },
+  'Right → left': { he: 'ימין ← שמאל', ru: 'Справа → налево' },
+  'LAYOUT_HINT': { en: 'Automatic mirrors the screen for Hebrew. Pick a fixed direction to keep tabs and buttons in the same place in every language.', he: 'אוטומטי הופך את המסך בעברית. בחר כיוון קבוע כדי שהלשוניות והכפתורים יישארו באותו מקום בכל שפה.', ru: 'Авто отражает экран для иврита. Выберите фиксированное направление, чтобы вкладки и кнопки не меняли место при смене языка.' },
 
   // --- common buttons ---
   'Undo': { he: 'ביטול', ru: 'Отменить' },

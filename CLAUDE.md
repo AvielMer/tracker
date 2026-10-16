@@ -169,6 +169,10 @@ Example:
   it that way. Names typed by the user are never translated. Starting
   config per language: default_config.json / .he.json / .ru.json (same
   ids). Config validation errors stay English (they name JSON keys).
+  Settings → Layout: Automatic (Hebrew mirrors) / Left → right /
+  Right → left (kv "ui_dir"). When the layout direction differs from
+  the language's, <html> gets class "bidi-plain" so each text picks its
+  own direction (unicode-bidi: plaintext) while the layout stays put.
 - Event buttons can have "color": "#rrggbb" (validated; editor offers
   10 swatches in config.js COLORS). Missing color = plain gray button.
 - ts includes milliseconds (…T15:03:05.123+03:00) so entries made in
