@@ -10,6 +10,7 @@ const ASK_OPTIONS = [
   ['choice', 'Type — pick from a list (e.g. which medicine)'],
   ['amount', 'Amount — e.g. 400 mg'],
   ['count', 'How many (1–10) — e.g. several at once'],
+  ['bp', 'Blood pressure + pulse — a series of readings with a rest timer (only combines with Note)'],
   ['note', 'Note (free text)'],
 ];
 
@@ -59,6 +60,9 @@ export function openEventEditor(ctx, ev) {
     const choices = splitList(f('choices').value);
     const unit = f('unit').value.trim();
     const values = splitList(f('values').value).map((v) => Number(v.replace(/[^0-9.]/g, '')));
+    if (chosen.includes('bp') && chosen.some((a) => a !== 'bp' && a !== 'note')) {
+      ctx.toast('Blood pressure can only be combined with Note'); return;
+    }
     if (chosen.includes('choice') && !choices.length) { ctx.toast('Type at least one type, e.g. Paracetamol'); return; }
     if (chosen.includes('amount')) {
       if (!unit) { ctx.toast('Type a unit for the amount, e.g. mg'); return; }
