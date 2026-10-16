@@ -278,3 +278,20 @@ select.input { appearance: auto; }
 .swatch.none { background: var(--card2); color: var(--muted); font-size: 16px; }
 .swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--bg) inset; }
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); margin-right: 8px; vertical-align: middle; }
+
+/* --- recent entries under the event buttons --- */
+.recent-row { display: flex; align-items: stretch; border-top: 1px solid var(--line); }
+.card .recent-row:first-child { border-top: 0; }
+.recent-main {
+  flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px;
+  border: 0; background: none; color: var(--text); font: inherit; text-align: left;
+  padding: 12px 6px 12px 14px; min-height: 52px;
+}
+.recent-main:active, .recent-x:active { background: var(--card2); }
+.recent-name { font-weight: 600; white-space: nowrap; }
+.recent-sub { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-x {
+  flex: none; width: 56px; border: 0; border-left: 1px solid var(--line);
+  background: none; color: var(--danger); font-size: 18px;
+}
+.day a { text-decoration: none; }

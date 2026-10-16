@@ -12,7 +12,7 @@ let shown = PAGE;
 
 // Label shown ON SCREEN. Private items show their displayLabel; the real
 // item_name is only used if the item no longer exists in the config.
-function screenLabel(state, e) {
+export function screenLabel(state, e) {
   if (e.kind === 'session_start') return `▶ ${e.item_name} — started`;
   if (e.kind === 'session_end') return `■ ${e.item_name} — finished`;
   const lists = [...state.config.events, ...state.config.exercises];
@@ -22,7 +22,7 @@ function screenLabel(state, e) {
   return e.item_name || e.kind;
 }
 
-function details(e) {
+export function details(e) {
   const parts = [];
   if (e.nth_today) parts.push(`#${e.nth_today}`);
   if (e.set_no && e.bp_sys != null) parts.push(`reading ${e.set_no}`);
@@ -95,7 +95,7 @@ const EDIT_FIELDS = [
 // Tap an entry: see it, edit it, or delete it.
 // Editing and deleting are the ONLY ways an existing entry ever changes
 // (the log is otherwise append-only), and delete can be undone.
-function openDetails(ctx, e) {
+export function openDetails(ctx, e) {
   const { state } = ctx;
   const item = state.config.events.find((x) => x.id === e.item_id);
   const ask = new Set(item?.ask || []);
@@ -185,31 +185,36 @@ function openDetails(ctx, e) {
     ctx.toast('Changes saved');
   });
 
-  root.querySelector('[data-act="delete"]').addEventListener('click', async () => {
-    let removed;
-    try {
-      removed = await storage.deleteEntry(e.id);
-    } catch (err) {
-      ctx.toast(`NOT deleted: ${err.message}`, { error: true });
-      return;
-    }
-    state.entries = state.entries.filter((x) => x.id !== e.id);
-    ctx.closeSheet();
-    ctx.refresh();
-    ctx.toast(`Deleted ${screenLabel(state, e)} ${hhmm(e.time)}`, {
-      actionLabel: 'Undo',
-      onAction: async () => {
-        try {
-          await storage.restoreEntry(removed || e);
-        } catch (err) {
-          ctx.toast(`Undo failed: ${err.message}`, { error: true });
-          return;
-        }
-        state.entries.push(removed || e);
-        state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
-        ctx.refresh();
-        ctx.toast('Restored');
-      },
-    });
+  root.querySelector('[data-act="delete"]').addEventListener('click', () => deleteWithUndo(ctx, e));
+}
+
+// Delete one entry; the toast offers Undo, which puts it back unchanged.
+// Shared by the Log screen and the "Recent" list on the Events screen.
+export async function deleteWithUndo(ctx, e) {
+  const { state } = ctx;
+  let removed;
+  try {
+    removed = await storage.deleteEntry(e.id);
+  } catch (err) {
+    ctx.toast(`NOT deleted: ${err.message}`, { error: true });
+    return;
+  }
+  state.entries = state.entries.filter((x) => x.id !== e.id);
+  ctx.closeSheet();
+  ctx.refresh();
+  ctx.toast(`Deleted ${screenLabel(state, e)} ${hhmm(e.time)}`, {
+    actionLabel: 'Undo',
+    onAction: async () => {
+      try {
+        await storage.restoreEntry(removed || e);
+      } catch (err) {
+        ctx.toast(`Undo failed: ${err.message}`, { error: true });
+        return;
+      }
+      state.entries.push(removed || e);
+      state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+      ctx.refresh();
+      ctx.toast('Restored');
+    },
   });
 }
