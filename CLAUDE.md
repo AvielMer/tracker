@@ -157,6 +157,8 @@ Example:
   {"id", "sets", "reps"}. Settings has editors for exercises and
   routines, plus "Add missing preset exercises & routines" (merges
   default_config.json by id, changes nothing existing).
+- Event buttons can have "color": "#rrggbb" (validated; editor offers
+  10 swatches in config.js COLORS). Missing color = plain gray button.
 - ts includes milliseconds (…T15:03:05.123+03:00) so entries made in
   the same second sort correctly.
 - `.gitignore` blocks exported logs/backups so personal data can't be

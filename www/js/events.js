@@ -42,7 +42,10 @@ export function renderEvents(el, ctx) {
     const last = mine[mine.length - 1];
     // "How many" answers count as that many (2 pills logged once = 2).
     const total = mine.reduce((n, e) => n + (e.count || 1), 0) - (mine.length - occurrences(mine));
-    return `<button class="ev" data-id="${esc(ev.id)}">
+    // Colour comes from the config and is validated as #rrggbb there, so
+    // it's safe to put into the style attribute.
+    const col = ev.color ? ` has-color" style="--c:${ev.color}` : '';
+    return `<button class="ev${col}" data-id="${esc(ev.id)}">
       <span class="ev-count${total ? '' : ' zero'}">${total}</span>
       <span class="ev-name">${esc(eventLabel(ev))}</span>
       <span class="ev-last">${last ? 'last ' + hhmm(last.time) : '&nbsp;'}</span>
