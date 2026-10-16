@@ -1,14 +1,14 @@
 {
   "events": [
-    { "id": "headache", "name": "Headache", "ask": ["intensity"] },
-    { "id": "panic", "name": "Panic attack", "ask": ["intensity", "duration_min"] },
+    { "id": "headache", "name": "Headache", "color": "#e5534b", "ask": ["intensity"] },
+    { "id": "panic", "name": "Panic attack", "color": "#b06ad9", "ask": ["intensity", "duration_min"] },
     {
-      "id": "medicine", "name": "Medicine", "ask": ["choice", "amount"],
+      "id": "medicine", "name": "Medicine", "color": "#2bb5a0", "ask": ["choice", "amount"],
       "choices": ["Paracetamol", "Ibuprofen"],
       "amount": { "unit": "mg", "values": [200, 400, 500, 1000] }
     },
-    { "id": "blood_pressure", "name": "Blood pressure", "ask": ["bp"] },
-    { "id": "coffee", "name": "Coffee", "ask": ["count"] },
+    { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp"] },
+    { "id": "coffee", "name": "Coffee", "color": "#d4a72c", "ask": ["count"] },
     { "id": "example_private", "name": "Example private item", "displayLabel": "X", "private": true }
   ],
   "exercises": [

@@ -1,7 +1,9 @@
 // Add / edit one event button: its name, privacy, and what it asks
 // after a tap. Everything ends up in the config, nothing is hardcoded.
 
-import { eventLabel, makeId, saveConfig } from './config.js';
+import {
+  COLORS, eventLabel, makeId, saveConfig,
+} from './config.js';
 import { esc } from './util.js';
 
 const ASK_OPTIONS = [
@@ -28,6 +30,11 @@ export function openEventEditor(ctx, ev) {
     <label class="check"><input type="checkbox" data-f="private" ${cur.private ? 'checked' : ''}> Private — show only a short label on screen</label>
     <input class="input" data-f="label" value="${esc(cur.displayLabel || '')}" placeholder="Label shown on screen (e.g. X)" ${cur.private ? '' : 'hidden'}>
 
+    <div class="label" style="margin-top:12px">Color</div>
+    <div class="swatches">
+      <button class="swatch none${cur.color ? '' : ' on'}" data-color="" aria-label="No color">✕</button>
+      ${COLORS.map(([hex, nm]) => `<button class="swatch${cur.color?.toLowerCase() === hex ? ' on' : ''}" data-color="${hex}" style="--c:${hex}" aria-label="${nm}"></button>`).join('')}
+    </div>
     <div class="label" style="margin-top:12px">After a tap, ask:</div>
     ${ASK_OPTIONS.map(([k, text]) => `
       <label class="check"><input type="checkbox" data-ask="${k}" ${ask.has(k) ? 'checked' : ''}> ${esc(text)}</label>
@@ -46,6 +53,12 @@ export function openEventEditor(ctx, ev) {
     </div>`);
 
   const f = (k) => root.querySelector(`[data-f="${k}"]`);
+  let color = cur.color || '';
+  root.querySelectorAll('.swatch').forEach((sw) => sw.addEventListener('click', () => {
+    root.querySelectorAll('.swatch').forEach((x) => x.classList.remove('on'));
+    sw.classList.add('on');
+    color = sw.dataset.color;
+  }));
   f('private').addEventListener('change', () => { f('label').hidden = !f('private').checked; });
   root.querySelectorAll('[data-ask]').forEach((box) => box.addEventListener('change', () => {
     const cfg = root.querySelector(`[data-cfg="${box.dataset.ask}"]`);
@@ -75,6 +88,7 @@ export function openEventEditor(ctx, ev) {
     const item = isNew ? { id: makeId(cfg.events, f('private').checked ? '' : name) } : cfg.events.find((x) => x.id === ev.id);
     if (!item) { ctx.closeSheet(); return; }
     item.name = name;
+    if (color) item.color = color; else delete item.color;
     if (f('private').checked) {
       item.private = true;
       item.displayLabel = f('label').value.trim() || name.slice(0, 1).toUpperCase();

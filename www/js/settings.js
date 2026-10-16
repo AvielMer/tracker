@@ -31,7 +31,7 @@ export async function renderSettings(el, ctx) {
   </div>
 
   <h2 class="day">Event buttons</h2>
-  ${manageList('events', events, (ev) => esc(eventLabel(ev)) + (ev.private ? ' <span class="tag">private</span>' : ''))}
+  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ' <span class="tag">private</span>' : ''))}
   <button class="btn primary wide" data-act="add">+ Add a button</button>
   <p class="small muted">✎ changes a button's name and what it asks after a tap (type, amount, how many, duration…).</p>
 

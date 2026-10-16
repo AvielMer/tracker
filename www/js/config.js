@@ -71,6 +71,9 @@ export function validateConfig(obj) {
         errors.push(`${at}: "amount" must look like { "unit": "mg", "values": [200, 400] }`);
       }
     }
+    if ('color' in ev && !(typeof ev.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(ev.color))) {
+      errors.push(`${at}: "color" must look like "#e5534b"`);
+    }
     if ('private' in ev && typeof ev.private !== 'boolean') errors.push(`${at}: "private" must be true or false`);
     if ('displayLabel' in ev && typeof ev.displayLabel !== 'string') errors.push(`${at}: "displayLabel" must be text`);
   });
@@ -215,3 +218,12 @@ export async function addMissingPresets(current) {
   }
   return added;
 }
+
+// Button colours offered in the editor. Any "#rrggbb" works in the config;
+// these are picked to stay readable on the dark background.
+export const COLORS = [
+  ['#e5534b', 'Red'], ['#e8833a', 'Orange'], ['#d4a72c', 'Yellow'],
+  ['#46b450', 'Green'], ['#2bb5a0', 'Teal'], ['#4f9cf9', 'Blue'],
+  ['#7b6cf6', 'Indigo'], ['#b06ad9', 'Purple'], ['#e0559a', 'Pink'],
+  ['#8b949e', 'Gray'],
+];
