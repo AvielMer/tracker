@@ -55,7 +55,7 @@ export async function renderSettings(el, ctx) {
     </div>
     <button class="btn wide danger" data-act="cfg-reset">Reset config to default</button>
   </div>
-  <p class="small muted center">Tracker · step 1.1</p>`;
+  <p class="small muted center">Tracker · step 3</p>`;
 
   const on = (act, fn, evt = 'click') => {
     const n = el.querySelector(`[data-act="${act}"]`);

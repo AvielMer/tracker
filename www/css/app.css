@@ -199,3 +199,7 @@ main { padding: 8px 12px; max-width: 720px; margin: 0 auto; }
 .bp-list th { width: auto; }
 .rest { margin: 6px 0 2px; color: var(--muted); }
 .rest b { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.edit-grid label, .label-block { display: block; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.label-block textarea { resize: vertical; min-height: 64px; }
+.input[type="date"], .input[type="time"] { color-scheme: dark; }

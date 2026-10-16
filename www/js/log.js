@@ -1,8 +1,11 @@
-// Log screen: newest first, grouped by day. Tap an entry for details.
-// (Edit and delete arrive in step 3.)
+// Log screen: newest first, grouped by day.
+// Tap an entry to edit it or delete it (with undo).
 
+import * as storage from './storage.js';
 import { eventLabel } from './config.js';
-import { esc, friendlyDay, hhmm } from './util.js';
+import {
+  esc, friendlyDay, hhmm, isoWithTz, localDate, localTime,
+} from './util.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -49,7 +52,7 @@ export function renderLog(el, ctx) {
       if (day !== null) html += '</div>';
       day = e.date;
       const n = all.filter((x) => x.date === day && x.kind === 'event').length;
-      html += `<h2 class="day">${esc(friendlyDay(day))}<span class="muted">${n ? n + ' events' : ''}</span></h2><div class="card">`;
+      html += `<h2 class="day">${esc(friendlyDay(day))}<span class="muted">${n ? n + (n === 1 ? ' event' : ' events') : ''}</span></h2><div class="card">`;
     }
     html += `<button class="row" data-id="${esc(e.id)}">
       <span class="row-time">${esc(hhmm(e.time))}</span>
@@ -69,29 +72,140 @@ export function renderLog(el, ctx) {
   if (more) more.addEventListener('click', () => { shown += PAGE; renderLog(el, ctx); });
 }
 
+// Fields that can be edited, in display order. "ask" = the event setting
+// that makes the field relevant even while it's still empty.
+const EDIT_FIELDS = [
+  ['bp_sys', 'Blood pressure — upper', 'num', 'bp'],
+  ['bp_dia', 'Blood pressure — lower', 'num', 'bp'],
+  ['pulse', 'Pulse', 'num', 'bp'],
+  ['choice', 'Type', 'text', 'choice'],
+  ['amount', 'Amount', 'num', 'amount'],
+  ['count', 'How many', 'num', 'count'],
+  ['intensity', 'Intensity (1–10)', 'num', 'intensity'],
+  ['duration_min', 'Duration (minutes)', 'num', 'duration_min'],
+  ['reps', 'Reps', 'num', null],
+  ['seconds', 'Seconds', 'num', null],
+  ['weight', 'Weight (kg)', 'num', null],
+];
+
+// Tap an entry: see it, edit it, or delete it.
+// Editing and deleting are the ONLY ways an existing entry ever changes
+// (the log is otherwise append-only), and delete can be undone.
 function openDetails(ctx, e) {
-  const rows = [
-    ['What', screenLabel(ctx.state, e)],
-    ['Date', friendlyDay(e.date) + ` (${e.date})`],
-    ['Time', e.time],
-    ['Number that day', e.nth_today],
-    ['Blood pressure', e.bp_sys != null ? `${e.bp_sys}/${e.bp_dia}` : null],
-    ['Pulse', e.pulse],
-    ['Reading in series', e.bp_sys != null ? e.set_no : null],
-    ['Type', e.choice],
-    ['Amount', e.amount != null ? `${e.amount} ${e.unit || ''}`.trim() : null],
-    ['How many', e.count],
-    ['Intensity', e.intensity],
-    ['Duration (min)', e.duration_min],
-    ['Reps', e.reps],
-    ['Seconds', e.seconds],
-    ['Weight', e.weight],
-    ['Note', e.note],
-  ].filter(([, v]) => v != null && v !== '');
+  const { state } = ctx;
+  const item = state.config.events.find((x) => x.id === e.item_id);
+  const ask = new Set(item?.ask || []);
+  const fields = EDIT_FIELDS.filter(([k, , , a]) => e[k] != null || (a && ask.has(a)));
+  const unit = e.unit || item?.amount?.unit || '';
+  const info = [
+    e.nth_today ? `#${e.nth_today} that day` : '',
+    e.bp_sys != null && e.set_no ? `reading ${e.set_no} of a series` : '',
+  ].filter(Boolean).join(' · ');
+
   const root = ctx.openSheet(`
-    <div class="sheet-head"><b>Entry details</b></div>
-    <table class="kv">${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('')}</table>
-    <p class="muted small">Editing and deleting entries arrives in step 3.</p>
-    <div class="sheet-actions"><button class="btn primary" data-act="close">Close</button></div>`);
+    <div class="sheet-head">
+      <div><b>${esc(screenLabel(state, e))}</b><br><span class="muted">${esc(friendlyDay(e.date))}${info ? ' · ' + esc(info) : ''}</span></div>
+      <button class="btn danger" data-act="delete">Delete</button>
+    </div>
+    <div class="edit-grid">
+      <label>Date<input class="input" type="date" data-e="date" value="${esc(e.date)}"></label>
+      <label>Time<input class="input" type="time" step="1" data-e="time" value="${esc(e.time)}"></label>
+      ${fields.map(([k, lbl, type]) => `<label>${esc(lbl)}${k === 'amount' && unit ? ` (${esc(unit)})` : ''}
+        <input class="input" data-e="${k}" ${type === 'num' ? 'inputmode="decimal"' : ''} value="${esc(e[k] ?? '')}"
+          ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
+    </div>
+    ${item?.choices ? `<datalist id="choice-list">${item.choices.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>` : ''}
+    <label class="label-block">Note<textarea class="input" data-e="note" rows="2">${esc(e.note ?? '')}</textarea></label>
+    <div class="sheet-actions">
+      <button class="btn" data-act="close">Cancel</button>
+      <button class="btn primary" data-act="save">Save changes</button>
+    </div>`);
+
+  const val = (k) => root.querySelector(`[data-e="${k}"]`).value.trim();
+
   root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
+
+  root.querySelector('[data-act="save"]').addEventListener('click', async () => {
+    const patch = {};
+    for (const [k, lbl, type] of fields) {
+      const raw = val(k);
+      let v = raw === '' ? null : raw;
+      if (v != null && type === 'num') {
+        v = Number(raw.replace(',', '.'));
+        if (!(v > 0)) { ctx.toast(`${lbl}: please type a number`); return; }
+        if (k === 'intensity' && v > 10) { ctx.toast('Intensity goes from 1 to 10'); return; }
+      }
+      if (v !== e[k]) patch[k] = v;
+    }
+    if ('amount' in patch) patch.unit = patch.amount == null ? null : unit || null;
+    const note = val('note') || null;
+    if (note !== e.note) patch.note = note;
+
+    // Date/time: rebuild ts so it keeps the correct timezone offset for
+    // that moment (e.g. across a summer-time change).
+    const date = val('date');
+    const time = val('time');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
+      ctx.toast('Please fill in a valid date and time'); return;
+    }
+    const fullTime = time.length === 5 ? `${time}:00` : time;
+    if (date !== e.date || fullTime !== e.time) {
+      const [Y, M, D] = date.split('-').map(Number);
+      const [h, m, sec] = fullTime.split(':').map(Number);
+      const d = new Date(Y, M - 1, D, h, m, sec);
+      if (d > new Date(Date.now() + 60000)) { ctx.toast('That time is in the future'); return; }
+      patch.ts = isoWithTz(d);
+      patch.date = localDate(d);
+      patch.time = localTime(d);
+      if (patch.date !== e.date && e.nth_today != null) {
+        // Moved to another day: give it its number within THAT day.
+        const before = state.entries.filter((x) => x.id !== e.id && x.item_id === e.item_id
+          && x.date === patch.date && Date.parse(x.ts) < d.getTime());
+        patch.nth_today = new Set(before.map((x) => x.session_id || x.id)).size + 1;
+      }
+    }
+
+    if (!Object.keys(patch).length) { ctx.closeSheet(); return; }
+    try {
+      const updated = await storage.updateEntry(e.id, patch);
+      if (!updated) throw new Error('entry not found');
+      const i = state.entries.findIndex((x) => x.id === e.id);
+      if (i >= 0) state.entries[i] = updated;
+      state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    } catch (err) {
+      ctx.toast(`NOT saved: ${err.message}`, { error: true });
+      return;
+    }
+    ctx.closeSheet();
+    ctx.refresh();
+    ctx.toast('Changes saved');
+  });
+
+  root.querySelector('[data-act="delete"]').addEventListener('click', async () => {
+    let removed;
+    try {
+      removed = await storage.deleteEntry(e.id);
+    } catch (err) {
+      ctx.toast(`NOT deleted: ${err.message}`, { error: true });
+      return;
+    }
+    state.entries = state.entries.filter((x) => x.id !== e.id);
+    ctx.closeSheet();
+    ctx.refresh();
+    ctx.toast(`Deleted ${screenLabel(state, e)} ${hhmm(e.time)}`, {
+      actionLabel: 'Undo',
+      onAction: async () => {
+        try {
+          await storage.restoreEntry(removed || e);
+        } catch (err) {
+          ctx.toast(`Undo failed: ${err.message}`, { error: true });
+          return;
+        }
+        state.entries.push(removed || e);
+        state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+        ctx.refresh();
+        ctx.toast('Restored');
+      },
+    });
+  });
 }

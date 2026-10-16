@@ -140,6 +140,10 @@ Example:
 - When changing any file in `www/`, bump `VERSION` in `www/sw.js`
   (and add new files to its `SHELL` list), otherwise phones keep
   serving the old cached copy.
+- Step 3 done: Log screen → tap an entry → edit date, time, every
+  value it has (or its button asks for) and the note, or Delete (with
+  Undo in the toast). Moving an entry to another day renumbers only
+  that entry's nth_today; other entries are never touched.
 - `.gitignore` blocks exported logs/backups so personal data can't be
   committed by accident.
 - Reference: `reference/watch_drift.py` (Termux/curses app) and
