@@ -1,0 +1,19 @@
+{
+  "events": [
+    { "id": "headache", "name": "Headache", "ask": ["intensity"] },
+    { "id": "panic", "name": "Panic attack", "ask": ["intensity", "duration_min"] },
+    { "id": "coffee", "name": "Coffee" },
+    { "id": "example_private", "name": "Example private item", "displayLabel": "X", "private": true }
+  ],
+  "exercises": [
+    { "id": "pullups", "name": "Pull-ups", "type": "reps" },
+    { "id": "pushups", "name": "Push-ups", "type": "reps" },
+    { "id": "dips", "name": "Dips", "type": "reps", "allowWeight": true },
+    { "id": "squats", "name": "Squats", "type": "reps" },
+    { "id": "plank", "name": "Plank", "type": "seconds" }
+  ],
+  "routines": [
+    { "id": "upper", "name": "Upper body", "exercises": ["pullups", "dips", "pushups"] },
+    { "id": "full", "name": "Full body", "exercises": ["pullups", "pushups", "squats", "plank"] }
+  ]
+}

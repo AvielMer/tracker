@@ -1,0 +1,19 @@
+# Personal data must never be committed. These are the files the app
+# exports/uses; keep them out of the repo even if copied in by accident.
+tracker_log*.jsonl
+tracker_log*.csv
+tracker_backup*.json
+*.csv
+*.jsonl
+
+# Signing keys and secrets (APK step)
+*.jks
+*.keystore
+*.p12
+keystore.properties
+local.properties
+
+# Build output / tooling
+node_modules/
+android/app/build/
+.DS_Store
