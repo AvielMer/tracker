@@ -8,6 +8,7 @@ import { openEventEditor } from './eventEditor.js';
 import { openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
+import { getLang, LANGS, setLang, t } from './i18n.js';
 
 export async function renderSettings(el, ctx) {
   const { state } = ctx;
@@ -16,50 +17,51 @@ export async function renderSettings(el, ctx) {
   const nEvents = state.entries.filter((e) => e.kind === 'event').length;
 
   el.innerHTML = `
-  <h2 class="day">Your data</h2>
+  <h2 class="day">${t('Language')}</h2>
+  <div class="lang-row">${LANGS.map(([code, nm]) => `<button class="btn${code === getLang() ? ' primary' : ''}" data-lang="${code}">${nm}</button>`).join('')}</div>
+
+  <h2 class="day">${t('Your data')}</h2>
   <div class="card pad">
-    <p>${state.entries.length} entries saved on this phone (${nEvents} events).</p>
-    <p class="small ${persisted ? 'ok' : 'warn'}">${persisted
-      ? '✓ Protected storage: the browser won\'t delete your data to free space.'
-      : '⚠ Storage not protected yet. Install the app to the home screen, then tap "Protect".'}</p>
-    ${persisted ? '' : '<button class="btn" data-act="persist">Protect</button>'}
+    <p>${esc(t('Entries saved on this phone: {n} (events: {e}).', { n: state.entries.length, e: nEvents }))}</p>
+    <p class="small ${persisted ? 'ok' : 'warn'}">${esc(t(persisted ? 'PROTECTED_YES' : 'PROTECTED_NO'))}</p>
+    ${persisted ? '' : `<button class="btn" data-act="persist">${t('Protect')}</button>`}
     <div class="btn-row">
-      <button class="btn" data-act="csv">Export CSV</button>
-      <button class="btn" data-act="backup">Full backup (JSON)</button>
+      <button class="btn" data-act="csv">${t('Export CSV')}</button>
+      <button class="btn" data-act="backup">${t('Full backup (JSON)')}</button>
     </div>
-    <label class="btn wide file">Import / restore backup<input type="file" accept=".json,.jsonl,application/json" data-act="import" hidden></label>
+    <label class="btn wide file">${t('Import / restore backup')}<input type="file" accept=".json,.jsonl,application/json" data-act="import" hidden></label>
   </div>
 
-  <h2 class="day">Event buttons</h2>
-  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ' <span class="tag">private</span>' : ''))}
-  <button class="btn primary wide" data-act="add">+ Add a button</button>
-  <p class="small muted">✎ changes a button's name and what it asks after a tap (type, amount, how many, duration…).</p>
+  <h2 class="day">${t('Event buttons')}</h2>
+  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ` <span class="tag">${t('private')}</span>` : ''))}
+  <button class="btn primary wide" data-act="add">${t('+ Add a button')}</button>
+  <p class="small muted">${esc(t('EDIT_BUTTON_HINT'))}</p>
 
-  <h2 class="day" id="training-settings">Exercises</h2>
+  <h2 class="day" id="training-settings">${t('Exercises')}</h2>
   ${manageList('exercises', state.config.exercises, (x) => esc(x.name)
-    + (x.type === 'seconds' ? ' <span class="tag">seconds</span>' : '')
-    + (x.allowWeight ? ' <span class="tag">+kg</span>' : ''))}
-  <button class="btn primary wide" data-act="add-ex">+ Add an exercise</button>
+    + (x.type === 'seconds' ? ` <span class="tag">${t('seconds')}</span>` : '')
+    + (x.allowWeight ? ` <span class="tag">+${t('kg')}</span>` : ''))}
+  <button class="btn primary wide" data-act="add-ex">${t('+ Add an exercise')}</button>
 
-  <h2 class="day">Routines</h2>
+  <h2 class="day">${t('Routines')}</h2>
   ${manageList('routines', state.config.routines, (r) => esc(r.name)
-    + ` <span class="tag">${(r.exercises || []).length} exercises</span>`)}
-  <button class="btn primary wide" data-act="add-routine">+ New routine</button>
-  <button class="btn wide" data-act="presets">Add missing preset exercises &amp; routines</button>
+    + ` <span class="tag">${esc(t('exercises: {n}', { n: (r.exercises || []).length }))}</span>`)}
+  <button class="btn primary wide" data-act="add-routine">${t('+ New routine')}</button>
+  <button class="btn wide" data-act="presets">${esc(t('Add missing preset exercises & routines'))}</button>
 
-  <h2 class="day">Config file</h2>
+  <h2 class="day">${t('Config file')}</h2>
   <div class="card pad">
     ${state.configErrors.length
-      ? `<p class="warn">⚠ Config has problems — using the last good version.</p><ul class="errors">${state.configErrors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>`
-      : '<p class="ok small">✓ Config OK.</p>'}
-    <p class="small muted">${events.length} events, ${state.config.exercises.length} exercises, ${state.config.routines.length} routines. A JSON editor comes in step 4.</p>
+      ? `<p class="warn">${t('⚠ Config has problems — using the last good version.')}</p><ul class="errors">${state.configErrors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>`
+      : `<p class="ok small">${t('✓ Config OK.')}</p>`}
+    <p class="small muted">${esc(t('Events: {a} · Exercises: {b} · Routines: {c}', { a: events.length, b: state.config.exercises.length, c: state.config.routines.length }))}</p>
     <div class="btn-row">
-      <button class="btn" data-act="cfg-export">Export config</button>
-      <label class="btn file">Import config<input type="file" accept=".json,application/json" data-act="cfg-import" hidden></label>
+      <button class="btn" data-act="cfg-export">${t('Export config')}</button>
+      <label class="btn file">${t('Import config')}<input type="file" accept=".json,application/json" data-act="cfg-import" hidden></label>
     </div>
-    <button class="btn wide danger" data-act="cfg-reset">Reset config to default</button>
+    <button class="btn wide danger" data-act="cfg-reset">${t('Reset config to default')}</button>
   </div>
-  <p class="small muted center">Tracker · step 2 + 3</p>`;
+  <p class="small muted center">Tracker</p>`;
 
   // Scroll target from the Training screen's "Edit exercises & routines".
   if (ctx.state.scrollTo) {
@@ -73,9 +75,14 @@ export async function renderSettings(el, ctx) {
     if (n) n.addEventListener(evt, fn);
   };
 
+  el.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', async () => {
+    await setLang(b.dataset.lang);
+    ctx.refresh();
+  }));
+
   on('persist', async () => {
     const ok = await storage.requestPersistence();
-    ctx.toast(ok ? 'Storage protected' : 'Browser said no — install the app to the home screen first');
+    ctx.toast(ok ? t('Storage protected') : t('Browser said no — install the app to the home screen first'));
     ctx.refresh();
   });
 
@@ -97,15 +104,17 @@ export async function renderSettings(el, ctx) {
       // Merge, never replace: entries already on the phone are kept, so
       // importing an older backup can't erase newer data.
       const { added, skipped } = await storage.mergeEntries(records);
-      let msg = `Imported ${added} new entries` + (skipped ? `, ${skipped} already here` : '') + (invalid ? `, ${invalid} unreadable skipped` : '');
-      if (configText && confirm('The backup also contains a config (your events, exercises, routines). Replace your current config with it?')) {
+      let msg = t('Imported new entries: {n}', { n: added })
+        + (skipped ? t(', already here: {n}', { n: skipped }) : '')
+        + (invalid ? t(', unreadable skipped: {n}', { n: invalid }) : '');
+      if (configText && confirm(t('BACKUP_HAS_CONFIG'))) {
         const res = await saveConfigText(configText);
-        msg += res.ok ? '. Config restored.' : `. Config NOT restored: ${res.errors[0]}`;
+        msg += res.ok ? t('. Config restored.') : t('. Config NOT restored: {msg}', { msg: res.errors[0] });
       }
       await ctx.reloadAll();
       ctx.toast(msg);
     } catch (err) {
-      ctx.toast(`Import failed: ${err.message}`, { error: true });
+      ctx.toast(t('Import failed: {msg}', { msg: t(err.message) }), { error: true });
     }
   }, 'change');
 
@@ -113,7 +122,7 @@ export async function renderSettings(el, ctx) {
   // Every change goes through saveConfig(), which validates first, so the
   // in-app editor can never produce a config that breaks the app.
   const change = async (mutate) => {
-    if (state.configErrors.length && !confirm('Your saved config has errors. Changing events here will replace it with the last good version plus this change. Continue?')) return;
+    if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
     const cfg = JSON.parse(JSON.stringify(state.config));
     if (mutate(cfg) === false) return;
     const res = await saveConfig(cfg);
@@ -152,9 +161,9 @@ export async function renderSettings(el, ctx) {
     try {
       const n = await addMissingPresets(state.config);
       if (n) await ctx.reloadConfig();
-      ctx.toast(n ? `Added ${n} presets` : 'You already have all presets');
+      ctx.toast(n ? t('Added presets: {n}', { n }) : t('You already have all presets'));
     } catch (err) {
-      ctx.toast(`Failed: ${err.message}`, { error: true });
+      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
     }
   });
 
@@ -167,27 +176,27 @@ export async function renderSettings(el, ctx) {
     e.target.value = '';
     if (!file) return;
     const res = await saveConfigText(await readFileText(file));
-    if (res.ok) { await ctx.reloadConfig(); ctx.toast('Config imported'); }
-    else ctx.toast(`Config NOT imported: ${res.errors.slice(0, 3).join('; ')}`, { error: true, ms: 8000 });
+    if (res.ok) { await ctx.reloadConfig(); ctx.toast(t('Config imported')); }
+    else ctx.toast(t('Config NOT imported: {msg}', { msg: res.errors.slice(0, 3).join('; ') }), { error: true, ms: 8000 });
   }, 'change');
 
   on('cfg-reset', async () => {
-    if (!confirm('Replace your config with the default one? Your log entries are NOT affected, but events you added will disappear from the buttons (export the config first to keep them).')) return;
+    if (!confirm(t('RESET_CONFIRM'))) return;
     const res = await resetToDefault().catch((err) => ({ ok: false, errors: [err.message] }));
-    if (res.ok) { await ctx.reloadConfig(); ctx.toast('Config reset'); }
-    else ctx.toast(`Reset failed: ${res.errors[0]}`, { error: true });
+    if (res.ok) { await ctx.reloadConfig(); ctx.toast(t('Config reset')); }
+    else ctx.toast(t('Reset failed: {msg}', { msg: res.errors[0] }), { error: true });
   });
 }
 
 // One management list: rows with move up/down, edit and hide/show.
 function manageList(key, items, label) {
-  if (!items.length) return '<div class="card pad muted">None yet.</div>';
+  if (!items.length) return `<div class="card pad muted">${t('None yet.')}</div>`;
   return `<div class="card">${items.map((it, i) => `
     <div class="mrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}">
-      <span class="mname">${label(it)}${it.hidden ? ' <span class="tag">hidden</span>' : ''}</span>
-      <button class="ibtn" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-      <button class="ibtn" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
-      <button class="ibtn" data-act="edit" aria-label="Edit">✎</button>
-      <button class="ibtn" data-act="hide">${it.hidden ? 'Show' : 'Hide'}</button>
+      <span class="mname">${label(it)}${it.hidden ? ` <span class="tag">${t('hidden')}</span>` : ''}</span>
+      <button class="ibtn" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${t('Move up')}">↑</button>
+      <button class="ibtn" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="${t('Move down')}">↓</button>
+      <button class="ibtn" data-act="edit" aria-label="${t('Edit')}">✎</button>
+      <button class="ibtn" data-act="hide">${it.hidden ? t('Show') : t('Hide')}</button>
     </div>`).join('')}</div>`;
 }

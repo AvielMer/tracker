@@ -1,0 +1,31 @@
+{
+  "events": [
+    {"id": "example_private", "name": "דוגמה לפריט פרטי", "color": "#8b949e"},
+    {"id": "headache", "name": "כאב ראש", "ask": ["intensity"]},
+    {"id": "panic", "name": "התקף חרדה", "color": "#e5534b", "ask": ["intensity", "duration_min"]},
+    {"id": "medicine", "name": "תרופה", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["אקמול", "נורופן"], "amount": {"unit": "מ״ג", "values": [200, 400, 500, 1000]}},
+    {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp"]},
+    {"id": "coffee", "name": "קפה", "ask": ["count"]}
+  ],
+  "exercises": [
+    {"id": "pullups", "name": "מתח", "type": "reps", "allowWeight": true, "start": 8},
+    {"id": "chinups", "name": "מתח אחיזה הפוכה", "type": "reps", "allowWeight": true, "start": 8},
+    {"id": "rows", "name": "חתירה אוסטרלית", "type": "reps", "start": 12},
+    {"id": "pushups", "name": "שכיבות סמיכה", "type": "reps", "start": 15},
+    {"id": "dips", "name": "מקבילים", "type": "reps", "allowWeight": true, "start": 10},
+    {"id": "pike_pushups", "name": "שכיבות סמיכה פייק", "type": "reps", "start": 8},
+    {"id": "squats", "name": "סקוואט", "type": "reps", "allowWeight": true, "start": 20},
+    {"id": "lunges", "name": "מכרעים", "type": "reps", "start": 12},
+    {"id": "leg_raises", "name": "הרמות רגליים בתלייה", "type": "reps", "start": 10},
+    {"id": "plank", "name": "פלאנק", "type": "seconds", "start": 45},
+    {"id": "lsit", "name": "L-סיט", "type": "seconds", "start": 10},
+    {"id": "dead_hang", "name": "תלייה", "type": "seconds", "start": 30}
+  ],
+  "routines": [
+    {"id": "upper", "name": "פלג גוף עליון", "exercises": [{"id": "pullups", "sets": 3, "reps": 8}, {"id": "dips", "sets": 3, "reps": 10}, {"id": "pushups", "sets": 3, "reps": 15}]},
+    {"id": "pull", "name": "יום משיכה", "exercises": [{"id": "pullups", "sets": 4, "reps": 6}, {"id": "rows", "sets": 3, "reps": 12}, {"id": "chinups", "sets": 3, "reps": 8}, {"id": "dead_hang", "sets": 2, "reps": 30}]},
+    {"id": "push", "name": "יום דחיפה", "exercises": [{"id": "dips", "sets": 4, "reps": 10}, {"id": "pushups", "sets": 3, "reps": 15}, {"id": "pike_pushups", "sets": 3, "reps": 8}]},
+    {"id": "legs_core", "name": "רגליים ובטן", "exercises": [{"id": "squats", "sets": 3, "reps": 20}, {"id": "lunges", "sets": 3, "reps": 12}, {"id": "leg_raises", "sets": 3, "reps": 10}, {"id": "plank", "sets": 2, "reps": 45}]},
+    {"id": "full", "name": "כל הגוף", "exercises": [{"id": "pullups", "sets": 3, "reps": 8}, {"id": "pushups", "sets": 3, "reps": 15}, {"id": "squats", "sets": 3, "reps": 20}, {"id": "plank", "sets": 2, "reps": 45}]}
+  ]
+}

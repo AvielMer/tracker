@@ -160,6 +160,15 @@ Example:
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).
+- UI languages: English, Hebrew (RTL), Russian. `www/js/i18n.js`:
+  t('English text {var}', {var}) — the English text is the key, so a
+  missing translation just shows English. New UI text MUST go through
+  t() with he/ru added to DICT. Language: phone language on first run,
+  then Settings → Language (kv "ui_lang"). Hebrew sets dir="rtl"; CSS
+  uses logical properties (inline-start/end, text-align: start) — keep
+  it that way. Names typed by the user are never translated. Starting
+  config per language: default_config.json / .he.json / .ru.json (same
+  ids). Config validation errors stay English (they name JSON keys).
 - Event buttons can have "color": "#rrggbb" (validated; editor offers
   10 swatches in config.js COLORS). Missing color = plain gray button.
 - ts includes milliseconds (…T15:03:05.123+03:00) so entries made in

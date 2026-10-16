@@ -1,5 +1,7 @@
 // Small helpers shared by all screens.
 
+import { fmtDay, t } from './i18n.js';
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 
 export function esc(s) {
@@ -42,19 +44,14 @@ export function hhmm(time) {
   return (time || '').slice(0, 5);
 }
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export function friendlyDay(dateStr) {
   const today = localDate();
   const y = new Date();
   y.setDate(y.getDate() - 1);
-  if (dateStr === today) return 'Today';
-  if (dateStr === localDate(y)) return 'Yesterday';
+  if (dateStr === today) return t('Today');
+  if (dateStr === localDate(y)) return t('Yesterday');
   const [Y, M, D] = dateStr.split('-').map(Number);
-  const d = new Date(Y, M - 1, D);
-  const sameYear = Y === new Date().getFullYear();
-  return `${DAYS[d.getDay()]} ${D} ${MONTHS[M - 1]}${sameYear ? '' : ' ' + Y}`;
+  return fmtDay(new Date(Y, M - 1, D), Y !== new Date().getFullYear());
 }
 
 export function downloadFile(filename, text, mime) {

@@ -6,6 +6,7 @@ import { eventLabel } from './config.js';
 import {
   esc, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
+import { t } from './i18n.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -13,8 +14,8 @@ let shown = PAGE;
 // Label shown ON SCREEN. Private items show their displayLabel; the real
 // item_name is only used if the item no longer exists in the config.
 export function screenLabel(state, e) {
-  if (e.kind === 'session_start') return `▶ ${e.item_name} — started`;
-  if (e.kind === 'session_end') return `■ ${e.item_name} — finished`;
+  if (e.kind === 'session_start') return t('▶ {name} — started', { name: e.item_name });
+  if (e.kind === 'session_end') return t('■ {name} — finished', { name: e.item_name });
   const lists = [...state.config.events, ...state.config.exercises];
   const item = lists.find((x) => x.id === e.item_id);
   if (item && e.kind === 'event') return eventLabel(item);
@@ -25,19 +26,19 @@ export function screenLabel(state, e) {
 export function details(e) {
   const parts = [];
   if (e.nth_today) parts.push(`#${e.nth_today}`);
-  if (e.set_no && e.bp_sys != null) parts.push(`reading ${e.set_no}`);
+  if (e.set_no && e.bp_sys != null) parts.push(t('reading {n}', { n: e.set_no }));
   if (e.bp_sys != null) parts.push(`${e.bp_sys}/${e.bp_dia}`);
   if (e.pulse != null) parts.push(`♥ ${e.pulse}`);
   if (e.choice) parts.push(e.choice);
   if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
-  if (e.kind === 'set' && e.set_no) parts.push(`set ${e.set_no}`);
-  if (e.kind === 'session_end' && e.duration_min != null) parts.push(`${e.duration_min} min`);
-  if (e.reps != null) parts.push(`${e.reps} reps`);
+  if (e.kind === 'set' && e.set_no) parts.push(t('set {n}', { n: e.set_no }));
+  if (e.kind === 'session_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
+  if (e.reps != null) parts.push(t('{n} reps', { n: e.reps }));
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
-  if (e.intensity != null) parts.push(`intensity ${e.intensity}`);
-  if (e.kind !== 'session_end' && e.duration_min != null) parts.push(`${e.duration_min} min`);
+  if (e.intensity != null) parts.push(t('intensity {n}', { n: e.intensity }));
+  if (e.kind !== 'session_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
   return parts.join(' · ');
 }
 
@@ -45,7 +46,7 @@ export function renderLog(el, ctx) {
   const { state } = ctx;
   const all = [...state.entries].reverse();
   if (!all.length) {
-    el.innerHTML = '<div class="empty">Nothing logged yet.<br>Tap a button on the Events screen.</div>';
+    el.innerHTML = `<div class="empty">${esc(t('Nothing logged yet. Tap a button on the Events screen.'))}</div>`;
     return;
   }
   const list = all.slice(0, shown);
@@ -56,7 +57,7 @@ export function renderLog(el, ctx) {
       if (day !== null) html += '</div>';
       day = e.date;
       const n = all.filter((x) => x.date === day && x.kind === 'event').length;
-      html += `<h2 class="day">${esc(friendlyDay(day))}<span class="muted">${n ? n + (n === 1 ? ' event' : ' events') : ''}</span></h2><div class="card">`;
+      html += `<h2 class="day">${esc(friendlyDay(day))}<span class="muted">${n ? esc(t('{n} events', { n })) : ''}</span></h2><div class="card">`;
     }
     html += `<button class="row" data-id="${esc(e.id)}">
       <span class="row-time">${esc(hhmm(e.time))}</span>
@@ -65,7 +66,7 @@ export function renderLog(el, ctx) {
     </button>`;
   }
   html += '</div>';
-  if (all.length > shown) html += `<button class="btn wide" data-act="more">Show older (${all.length - shown} more)</button>`;
+  if (all.length > shown) html += `<button class="btn wide" data-act="more">${esc(t('Show older ({n} more)', { n: all.length - shown }))}</button>`;
   el.innerHTML = html;
 
   el.querySelectorAll('.row').forEach((row) => row.addEventListener('click', () => {
@@ -102,27 +103,27 @@ export function openDetails(ctx, e) {
   const fields = EDIT_FIELDS.filter(([k, , , a]) => e[k] != null || (a && ask.has(a)));
   const unit = e.unit || item?.amount?.unit || '';
   const info = [
-    e.nth_today ? `#${e.nth_today} that day` : '',
-    e.bp_sys != null && e.set_no ? `reading ${e.set_no} of a series` : '',
+    e.nth_today ? t('#{n} that day', { n: e.nth_today }) : '',
+    e.bp_sys != null && e.set_no ? t('reading {n} of a series', { n: e.set_no }) : '',
   ].filter(Boolean).join(' · ');
 
   const root = ctx.openSheet(`
     <div class="sheet-head">
       <div><b>${esc(screenLabel(state, e))}</b><br><span class="muted">${esc(friendlyDay(e.date))}${info ? ' · ' + esc(info) : ''}</span></div>
-      <button class="btn danger" data-act="delete">Delete</button>
+      <button class="btn danger" data-act="delete">${t('Delete')}</button>
     </div>
     <div class="edit-grid">
-      <label>Date<input class="input" type="date" data-e="date" value="${esc(e.date)}"></label>
-      <label>Time<input class="input" type="time" step="1" data-e="time" value="${esc(e.time)}"></label>
-      ${fields.map(([k, lbl, type]) => `<label>${esc(lbl)}${k === 'amount' && unit ? ` (${esc(unit)})` : ''}
+      <label>${t('Date')}<input class="input" type="date" data-e="date" value="${esc(e.date)}"></label>
+      <label>${t('Time')}<input class="input" type="time" step="1" data-e="time" value="${esc(e.time)}"></label>
+      ${fields.map(([k, lbl, type]) => `<label>${esc(t(lbl))}${k === 'amount' && unit ? ` (${esc(unit)})` : ''}
         <input class="input" data-e="${k}" ${type === 'num' ? 'inputmode="decimal"' : ''} value="${esc(e[k] ?? '')}"
           ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
     </div>
     ${item?.choices ? `<datalist id="choice-list">${item.choices.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>` : ''}
-    <label class="label-block">Note<textarea class="input" data-e="note" rows="2">${esc(e.note ?? '')}</textarea></label>
+    <label class="label-block">${t('Note')}<textarea class="input" data-e="note" rows="2">${esc(e.note ?? '')}</textarea></label>
     <div class="sheet-actions">
-      <button class="btn" data-act="close">Cancel</button>
-      <button class="btn primary" data-act="save">Save changes</button>
+      <button class="btn" data-act="close">${t('Cancel')}</button>
+      <button class="btn primary" data-act="save">${t('Save changes')}</button>
     </div>`);
 
   const val = (k) => root.querySelector(`[data-e="${k}"]`).value.trim();
@@ -136,8 +137,8 @@ export function openDetails(ctx, e) {
       let v = raw === '' ? null : raw;
       if (v != null && type === 'num') {
         v = Number(raw.replace(',', '.'));
-        if (!(v > 0)) { ctx.toast(`${lbl}: please type a number`); return; }
-        if (k === 'intensity' && v > 10) { ctx.toast('Intensity goes from 1 to 10'); return; }
+        if (!(v > 0)) { ctx.toast(t('{label}: please type a number', { label: t(lbl) })); return; }
+        if (k === 'intensity' && v > 10) { ctx.toast(t('Intensity goes from 1 to 10')); return; }
       }
       if (v !== e[k]) patch[k] = v;
     }
@@ -150,14 +151,14 @@ export function openDetails(ctx, e) {
     const date = val('date');
     const time = val('time');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
-      ctx.toast('Please fill in a valid date and time'); return;
+      ctx.toast(t('Please fill in a valid date and time')); return;
     }
     const fullTime = time.length === 5 ? `${time}:00` : time;
     if (date !== e.date || fullTime !== e.time) {
       const [Y, M, D] = date.split('-').map(Number);
       const [h, m, sec] = fullTime.split(':').map(Number);
       const d = new Date(Y, M - 1, D, h, m, sec);
-      if (d > new Date(Date.now() + 60000)) { ctx.toast('That time is in the future'); return; }
+      if (d > new Date(Date.now() + 60000)) { ctx.toast(t('That time is in the future')); return; }
       patch.ts = isoWithTz(d);
       patch.date = localDate(d);
       patch.time = localTime(d);
@@ -177,12 +178,12 @@ export function openDetails(ctx, e) {
       if (i >= 0) state.entries[i] = updated;
       state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
     } catch (err) {
-      ctx.toast(`NOT saved: ${err.message}`, { error: true });
+      ctx.toast(t('NOT saved: {msg}', { msg: err.message }), { error: true });
       return;
     }
     ctx.closeSheet();
     ctx.refresh();
-    ctx.toast('Changes saved');
+    ctx.toast(t('Changes saved'));
   });
 
   root.querySelector('[data-act="delete"]').addEventListener('click', () => deleteWithUndo(ctx, e));
@@ -196,25 +197,25 @@ export async function deleteWithUndo(ctx, e) {
   try {
     removed = await storage.deleteEntry(e.id);
   } catch (err) {
-    ctx.toast(`NOT deleted: ${err.message}`, { error: true });
+    ctx.toast(t('NOT deleted: {msg}', { msg: err.message }), { error: true });
     return;
   }
   state.entries = state.entries.filter((x) => x.id !== e.id);
   ctx.closeSheet();
   ctx.refresh();
-  ctx.toast(`Deleted ${screenLabel(state, e)} ${hhmm(e.time)}`, {
-    actionLabel: 'Undo',
+  ctx.toast(t('Deleted {label} {time}', { label: screenLabel(state, e), time: hhmm(e.time) }), {
+    actionLabel: t('Undo'),
     onAction: async () => {
       try {
         await storage.restoreEntry(removed || e);
       } catch (err) {
-        ctx.toast(`Undo failed: ${err.message}`, { error: true });
+        ctx.toast(t('Undo failed: {msg}', { msg: err.message }), { error: true });
         return;
       }
       state.entries.push(removed || e);
       state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
       ctx.refresh();
-      ctx.toast('Restored');
+      ctx.toast(t('Restored'));
     },
   });
 }

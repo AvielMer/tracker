@@ -3,9 +3,10 @@
 
 import { makeId, routineSteps, saveConfig } from './config.js';
 import { esc } from './util.js';
+import { t } from './i18n.js';
 
 async function commit(ctx, mutate, okMsg) {
-  if (ctx.state.configErrors.length && !confirm('Your saved config has errors. Saving here will replace it with the last good version plus this change. Continue?')) return false;
+  if (ctx.state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return false;
   const cfg = JSON.parse(JSON.stringify(ctx.state.config));
   if (mutate(cfg) === false) return false;
   const res = await saveConfig(cfg);
@@ -21,28 +22,28 @@ export function openExerciseEditor(ctx, ex) {
   const isNew = !ex;
   const cur = ex || { name: '', type: 'reps' };
   const root = ctx.openSheet(`
-    <div class="sheet-head"><b>${isNew ? 'Add an exercise' : 'Edit exercise'}</b></div>
-    <div class="label">Name</div>
-    <input class="input" data-f="name" value="${esc(cur.name)}" placeholder="e.g. Muscle-ups">
-    <div class="label" style="margin-top:10px">Counted in</div>
-    <label class="check"><input type="radio" name="extype" value="reps" ${cur.type !== 'seconds' ? 'checked' : ''}> Reps</label>
-    <label class="check"><input type="radio" name="extype" value="seconds" ${cur.type === 'seconds' ? 'checked' : ''}> Seconds (holds, e.g. plank)</label>
-    <label class="check"><input type="checkbox" data-f="weight" ${cur.allowWeight ? 'checked' : ''}> Can add extra weight (kg)</label>
-    <div class="label" style="margin-top:10px">Start number</div>
-    <input class="input" data-f="start" inputmode="numeric" value="${esc(cur.start ?? '')}" placeholder="e.g. 10">
-    <div class="small muted">Where the +/− starts the very first time. After that it starts from what you did last.</div>
+    <div class="sheet-head"><b>${isNew ? t('Add an exercise') : t('Edit exercise')}</b></div>
+    <div class="label">${t('Name')}</div>
+    <input class="input" data-f="name" value="${esc(cur.name)}" placeholder="${esc(t('e.g. Muscle-ups'))}">
+    <div class="label" style="margin-top:10px">${t('Counted in')}</div>
+    <label class="check"><input type="radio" name="extype" value="reps" ${cur.type !== 'seconds' ? 'checked' : ''}> ${t('Reps')}</label>
+    <label class="check"><input type="radio" name="extype" value="seconds" ${cur.type === 'seconds' ? 'checked' : ''}> ${t('Seconds (holds, e.g. plank)')}</label>
+    <label class="check"><input type="checkbox" data-f="weight" ${cur.allowWeight ? 'checked' : ''}> ${t('Can add extra weight (kg)')}</label>
+    <div class="label" style="margin-top:10px">${t('Start number')}</div>
+    <input class="input" data-f="start" inputmode="numeric" value="${esc(cur.start ?? '')}" placeholder="${esc(t('e.g. 10'))}">
+    <div class="small muted">${esc(t('START_HINT'))}</div>
     <div class="sheet-actions">
-      <button class="btn" data-act="cancel">Cancel</button>
-      <button class="btn primary" data-act="save">${isNew ? 'Add' : 'Save'}</button>
+      <button class="btn" data-act="cancel">${t('Cancel')}</button>
+      <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
     </div>`);
   const f = (k) => root.querySelector(`[data-f="${k}"]`);
   root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
   root.querySelector('[data-act="save"]').addEventListener('click', () => {
     const name = f('name').value.trim();
-    if (!name) { ctx.toast('Type a name first'); return; }
+    if (!name) { ctx.toast(t('Type a name first')); return; }
     const startRaw = f('start').value.trim();
     const start = startRaw ? Number(startRaw) : null;
-    if (startRaw && !(start > 0)) { ctx.toast('Start number must be a number'); return; }
+    if (startRaw && !(start > 0)) { ctx.toast(t('Start number must be a number')); return; }
     const type = root.querySelector('input[name="extype"]:checked').value;
     commit(ctx, (cfg) => {
       // Start from the existing item so other keys (e.g. "hidden") survive.
@@ -54,7 +55,7 @@ export function openExerciseEditor(ctx, ex) {
       if (start) item.start = Math.round(start); else delete item.start;
       if (isNew) cfg.exercises.push(item);
       return true;
-    }, `${isNew ? 'Added' : 'Saved'} "${name}"`);
+    }, t(isNew ? 'Added "{name}"' : 'Saved "{name}"', { name }));
   });
 }
 
@@ -69,29 +70,29 @@ export function openRoutineEditor(ctx, r) {
   const root = ctx.openSheet('');
   const render = () => {
     root.innerHTML = `
-      <div class="sheet-head"><b>${isNew ? 'New routine' : 'Edit routine'}</b>
-        ${isNew ? '' : '<button class="btn danger" data-act="delete">Delete</button>'}</div>
-      <div class="label">Name</div>
-      <input class="input" data-f="name" value="${esc(name)}" placeholder="e.g. Monday">
-      <div class="label" style="margin-top:10px">Exercises — goal sets × reps (or seconds), both optional</div>
-      ${steps.length ? '' : '<p class="muted small">No exercises yet — add some below.</p>'}
+      <div class="sheet-head"><b>${isNew ? t('New routine') : t('Edit routine')}</b>
+        ${isNew ? '' : `<button class="btn danger" data-act="delete">${t('Delete')}</button>`}</div>
+      <div class="label">${t('Name')}</div>
+      <input class="input" data-f="name" value="${esc(name)}" placeholder="${esc(t('e.g. Monday'))}">
+      <div class="label" style="margin-top:10px">${esc(t('ROUTINE_STEPS_LABEL'))}</div>
+      ${steps.length ? '' : `<p class="muted small">${t('No exercises yet — add some below.')}</p>`}
       ${steps.map((s, i) => `<div class="rstep" data-i="${i}">
         <span class="rstep-name">${esc(exName(s.id))}</span>
-        <input class="input mini" data-k="sets" inputmode="numeric" value="${s.sets ?? ''}" placeholder="sets" aria-label="sets">
+        <input class="input mini" data-k="sets" inputmode="numeric" value="${s.sets ?? ''}" placeholder="${t('sets')}" aria-label="${t('sets')}">
         <span class="muted">×</span>
-        <input class="input mini" data-k="reps" inputmode="numeric" value="${s.reps ?? ''}" placeholder="reps" aria-label="reps">
-        <button class="ibtn" data-mv="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-        <button class="ibtn" data-rm="1" aria-label="Remove">✕</button>
+        <input class="input mini" data-k="reps" inputmode="numeric" value="${s.reps ?? ''}" placeholder="${t('reps')}" aria-label="${t('reps')}">
+        <button class="ibtn" data-mv="-1" ${i === 0 ? 'disabled' : ''} aria-label="${t('Move up')}">↑</button>
+        <button class="ibtn" data-rm="1" aria-label="${t('Remove')}">✕</button>
       </div>`).join('')}
       <div class="add-row">
         <select class="input" data-f="pick">
-          <option value="">+ Add exercise…</option>
+          <option value="">${t('+ Add exercise…')}</option>
           ${exercises.filter((x) => !x.hidden).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
         </select>
       </div>
       <div class="sheet-actions">
-        <button class="btn" data-act="cancel">Cancel</button>
-        <button class="btn primary" data-act="save">${isNew ? 'Add routine' : 'Save'}</button>
+        <button class="btn" data-act="cancel">${t('Cancel')}</button>
+        <button class="btn primary" data-act="save">${isNew ? t('Add routine') : t('Save')}</button>
       </div>`;
 
     root.querySelector('[data-f="name"]').addEventListener('input', (e) => { name = e.target.value; });
@@ -115,8 +116,8 @@ export function openRoutineEditor(ctx, r) {
     });
     root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
     root.querySelector('[data-act="save"]').addEventListener('click', () => {
-      if (!name.trim()) { ctx.toast('Type a name first'); return; }
-      if (!steps.length) { ctx.toast('Add at least one exercise'); return; }
+      if (!name.trim()) { ctx.toast(t('Type a name first')); return; }
+      if (!steps.length) { ctx.toast(t('Add at least one exercise')); return; }
       commit(ctx, (cfg) => {
         const item = isNew ? { id: makeId(cfg.routines, name) } : cfg.routines.find((x) => x.id === r.id);
         if (!item) return false;
@@ -130,13 +131,13 @@ export function openRoutineEditor(ctx, r) {
         });
         if (isNew) cfg.routines.push(item);
         return true;
-      }, `${isNew ? 'Added' : 'Saved'} "${name.trim()}"`);
+      }, t(isNew ? 'Added "{name}"' : 'Saved "{name}"', { name: name.trim() }));
     });
     const del = root.querySelector('[data-act="delete"]');
     if (del) del.addEventListener('click', () => {
       // A routine is only a template: deleting it never touches logged sets.
-      if (!confirm(`Delete routine "${r.name}"? Your logged workouts are kept.`)) return;
-      commit(ctx, (cfg) => { cfg.routines = cfg.routines.filter((x) => x.id !== r.id); return true; }, 'Routine deleted');
+      if (!confirm(t('Delete routine "{name}"? Your logged workouts are kept.', { name: r.name }))) return;
+      commit(ctx, (cfg) => { cfg.routines = cfg.routines.filter((x) => x.id !== r.id); return true; }, t('Routine deleted'));
     });
   };
   render();

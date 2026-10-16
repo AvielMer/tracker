@@ -8,6 +8,7 @@ import { renderLog } from './log.js';
 import { renderSettings } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { $, esc } from './util.js';
+import { initLang, t } from './i18n.js';
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
@@ -33,13 +34,15 @@ function currentScreen() {
 function refresh() {
   const name = currentScreen();
   document.querySelectorAll('.nav a').forEach((a) => {
-    a.classList.toggle('on', a.getAttribute('href') === '#' + name);
+    const key = a.getAttribute('href').slice(1);
+    a.classList.toggle('on', key === name);
+    a.querySelector('.lbl').textContent = t(SCREENS[key].title);
   });
-  $('#title').textContent = SCREENS[name].title;
+  $('#title').textContent = t(SCREENS[name].title);
   const banner = $('#banner');
   if (state.configErrors.length) {
     banner.hidden = false;
-    banner.innerHTML = `⚠ Config problem — using last good version. <a href="#settings">Details</a>`;
+    banner.innerHTML = `${esc(t('⚠ Config problem — using last good version.'))} <a href="#settings">${t('Details')}</a>`;
   } else {
     banner.hidden = true;
   }
@@ -48,13 +51,13 @@ function refresh() {
   const sb = $('#session-banner');
   if (state.session && name !== 'training') {
     sb.hidden = false;
-    sb.innerHTML = `<a href="#training">▶ ${esc(state.session.item_name)} in progress — continue</a>`;
+    sb.innerHTML = `<a href="#training">${esc(t('▶ {name} in progress — continue', { name: state.session.item_name }))}</a>`;
   } else {
     sb.hidden = true;
   }
   // A bug in one screen must not take down the whole app.
   const fail = (e) => {
-    $('#screen').innerHTML = `<div class="empty warn">Something went wrong on this screen:<br>${esc(e.message)}</div>`;
+    $('#screen').innerHTML = `<div class="empty warn">${esc(t('Something went wrong on this screen:'))}<br>${esc(e.message)}</div>`;
     console.error(e);
   };
   try {
@@ -123,7 +126,7 @@ async function handleShortcut() {
   if (logId) {
     const ev = state.config.events.find((e) => e.id === logId);
     if (ev) await logEvent(ctx, ev);
-    else toast(`Shortcut: no event "${logId}" in your config`, { error: true });
+    else toast(t('Shortcut: no event "{id}" in your config', { id: logId }), { error: true });
   }
 }
 
@@ -133,7 +136,7 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW failed', e));
   // When a new version takes over, offer a reload (but not on first install).
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController) toast('App updated', { actionLabel: 'Reload', onAction: () => location.reload(), ms: 15000 });
+    if (hadController) toast(t('App updated'), { actionLabel: t('Reload'), onAction: () => location.reload(), ms: 15000 });
   });
 }
 
@@ -141,10 +144,11 @@ async function start() {
   $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
   window.addEventListener('hashchange', () => { closeSheet(); refresh(); });
 
+  await initLang();
   try {
     await reloadAll();
   } catch (e) {
-    $('#screen').innerHTML = `<div class="empty warn">Could not open storage: ${esc(e.message)}<br>Try closing and reopening the app.</div>`;
+    $('#screen').innerHTML = `<div class="empty warn">${esc(t('Could not open storage: {msg}', { msg: e.message }))}<br>${esc(t('Try closing and reopening the app.'))}</div>`;
     return;
   }
   await handleShortcut();

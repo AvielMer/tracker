@@ -7,6 +7,7 @@
 // and show exactly what's wrong.
 
 import * as storage from './storage.js';
+import { getLang } from './i18n.js';
 
 const KEY_TEXT = 'config_text';      // what the user saved (may be broken)
 const KEY_GOOD = 'config_last_good'; // last version that validated
@@ -118,10 +119,20 @@ export function configToText(config) {
   return JSON.stringify(config, null, 2) + '\n';
 }
 
+// The starting config in the current UI language (same ids in every
+// language, so presets and history line up); English if that's missing.
 async function fetchDefaultText() {
-  const res = await fetch('./default_config.json', { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  const lang = getLang();
+  const files = lang === 'en' ? ['default_config.json'] : [`default_config.${lang}.json`, 'default_config.json'];
+  let last;
+  for (const f of files) {
+    try {
+      const res = await fetch(`./${f}`, { cache: 'no-cache' });
+      if (res.ok) return await res.text();
+      last = new Error(`HTTP ${res.status}`);
+    } catch (e) { last = e; }
+  }
+  throw last;
 }
 
 // Loads the config to run with. Never throws.
