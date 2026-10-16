@@ -144,6 +144,21 @@ Example:
   value it has (or its button asks for) and the note, or Delete (with
   Undo in the toast). Moving an entry to another day renumbers only
   that entry's nth_today; other entries are never touched.
+- Step 2 done (training): Training tab → routine or Free session.
+  Open session = kv "open_session" in storage (routine, steps, current
+  exercise, stepper drafts); every set is appended to the log at once,
+  so closing the app loses nothing and a banner offers "continue".
+  Records: session_start (session_id = its own id), set (item_id =
+  exercise, set_no, reps|seconds, weight, note), session_end
+  (duration_min). Stepper starts at: last set this session → first set
+  of last session → routine goal → exercise "start" → 10 reps / 30 s.
+  Reaching a routine goal jumps to the next unfinished exercise.
+  Config: exercise "start"; routine steps may be "id" or
+  {"id", "sets", "reps"}. Settings has editors for exercises and
+  routines, plus "Add missing preset exercises & routines" (merges
+  default_config.json by id, changes nothing existing).
+- ts includes milliseconds (…T15:03:05.123+03:00) so entries made in
+  the same second sort correctly.
 - `.gitignore` blocks exported logs/backups so personal data can't be
   committed by accident.
 - Reference: `reference/watch_drift.py` (Termux/curses app) and

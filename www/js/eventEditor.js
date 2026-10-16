@@ -1,7 +1,7 @@
 // Add / edit one event button: its name, privacy, and what it asks
 // after a tap. Everything ends up in the config, nothing is hardcoded.
 
-import { eventLabel, saveConfig } from './config.js';
+import { eventLabel, makeId, saveConfig } from './config.js';
 import { esc } from './util.js';
 
 const ASK_OPTIONS = [
@@ -94,16 +94,4 @@ export function openEventEditor(ctx, ev) {
     await ctx.reloadConfig();
     ctx.toast(`${isNew ? 'Added' : 'Saved'} "${eventLabel(item)}"`);
   });
-}
-
-// Readable ids for normal items ("migraine"); random ids for private items
-// so the id itself never reveals the private name in exports.
-// The id never changes after creation, so renaming keeps old entries linked.
-function makeId(list, name) {
-  const used = new Set(list.map((x) => x.id));
-  let base = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-  if (!base) base = 'p_' + Math.random().toString(36).slice(2, 7);
-  let id = base;
-  for (let n = 2; used.has(id); n++) id = `${base}_${n}`;
-  return id;
 }

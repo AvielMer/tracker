@@ -4,7 +4,7 @@
 // changes. Bump VERSION whenever any file in www/ changes, so the phone
 // downloads the new version (the app then shows "App updated · Reload").
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `tracker-${VERSION}`;
 
 const SHELL = [
@@ -23,6 +23,7 @@ const SHELL = [
   './js/settings.js',
   './js/storage.js',
   './js/training.js',
+  './js/trainingEditor.js',
   './js/util.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

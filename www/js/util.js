@@ -27,7 +27,10 @@ export function isoWithTz(d = new Date()) {
   const off = -d.getTimezoneOffset();
   const sign = off >= 0 ? '+' : '-';
   const a = Math.abs(off);
-  return `${localDate(d)}T${localTime(d)}${sign}${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
+  // Milliseconds included so two entries made in the same second (e.g.
+  // starting a workout and logging the first set) still sort correctly.
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return `${localDate(d)}T${localTime(d)}.${ms}${sign}${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
 }
 
 export function newId() {

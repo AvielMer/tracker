@@ -78,13 +78,23 @@ export function validateConfig(obj) {
   checkList('exercises', (ex, at) => {
     if (!EXERCISE_TYPES.includes(ex.type)) errors.push(`${at}: "type" must be "reps" or "seconds"`);
     if ('allowWeight' in ex && typeof ex.allowWeight !== 'boolean') errors.push(`${at}: "allowWeight" must be true or false`);
+    // "start": the number the +/- stepper starts at the first time.
+    if ('start' in ex && !(typeof ex.start === 'number' && ex.start > 0)) errors.push(`${at}: "start" must be a number above 0`);
   });
 
   const exIds = new Set((Array.isArray(obj.exercises) ? obj.exercises : []).map((e) => e && e.id));
   checkList('routines', (r, at) => {
-    if (!Array.isArray(r.exercises)) errors.push(`${at}: "exercises" must be a list of exercise ids`);
-    else r.exercises.forEach((id) => {
-      if (!exIds.has(id)) errors.push(`${at}: exercise "${id}" does not exist in "exercises"`);
+    if (!Array.isArray(r.exercises)) { errors.push(`${at}: "exercises" must be a list of exercise ids`); return; }
+    // Each step is an exercise id, or { "id": ..., "sets": 3, "reps": 8 }
+    // to set a goal ("reps" means seconds for a seconds exercise).
+    r.exercises.forEach((step, j) => {
+      const id = typeof step === 'string' ? step : step && step.id;
+      if (!exIds.has(id)) errors.push(`${at}.exercises[${j}]: exercise "${id}" does not exist in "exercises"`);
+      if (step && typeof step === 'object') {
+        for (const k of ['sets', 'reps']) {
+          if (k in step && !(Number.isInteger(step[k]) && step[k] > 0)) errors.push(`${at}.exercises[${j}]: "${k}" must be a whole number above 0`);
+        }
+      }
     });
   });
 
@@ -163,4 +173,45 @@ export async function resetToDefault() {
 export function eventLabel(ev) {
   if (ev.private) return ev.displayLabel || '•';
   return ev.name;
+}
+
+// A routine step as { id, sets, reps } whether it was written as a plain
+// id or as an object.
+export function routineSteps(routine) {
+  return (routine.exercises || []).map((s) => (typeof s === 'string'
+    ? { id: s, sets: null, reps: null }
+    : { id: s.id, sets: s.sets ?? null, reps: s.reps ?? null }));
+}
+
+// Readable ids for normal items ("pull_ups"); random ids when the name has
+// no latin letters, or for private items (so the id never reveals the
+// name). An id never changes after creation, so renaming keeps old log
+// entries linked to the item.
+export function makeId(list, name) {
+  const used = new Set(list.map((x) => x.id));
+  let base = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  if (!base) base = 'p_' + Math.random().toString(36).slice(2, 7);
+  let id = base;
+  for (let n = 2; used.has(id); n++) id = `${base}_${n}`;
+  return id;
+}
+
+// Adds exercises and routines from the shipped default config that the
+// user's config doesn't have yet (matched by id). Nothing existing is
+// changed. Returns how many were added.
+export async function addMissingPresets(current) {
+  const def = JSON.parse(await fetchDefaultText());
+  const cfg = JSON.parse(JSON.stringify(current));
+  let added = 0;
+  for (const key of ['exercises', 'routines']) {
+    const have = new Set(cfg[key].map((x) => x.id));
+    for (const item of def[key] || []) {
+      if (!have.has(item.id)) { cfg[key].push(item); added++; }
+    }
+  }
+  if (added) {
+    const res = await saveConfig(cfg);
+    if (!res.ok) throw new Error(res.errors[0]);
+  }
+  return added;
 }

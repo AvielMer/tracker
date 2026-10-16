@@ -6,7 +6,7 @@ import { loadConfig } from './config.js';
 import { renderEvents, logEvent } from './events.js';
 import { renderLog } from './log.js';
 import { renderSettings } from './settings.js';
-import { renderTraining } from './training.js';
+import { loadOpenSession, renderTraining } from './training.js';
 import { $, esc } from './util.js';
 
 const SCREENS = {
@@ -20,6 +20,7 @@ const state = {
   config: { events: [], exercises: [], routines: [] },
   configErrors: [],
   entries: [],
+  session: null, // open training session, if any (see training.js)
 };
 
 const ctx = { state, toast, openSheet, closeSheet, refresh, reloadConfig, reloadAll };
@@ -42,6 +43,15 @@ function refresh() {
   } else {
     banner.hidden = true;
   }
+  // A workout left open (app closed mid-session) is one tap away from
+  // every other screen.
+  const sb = $('#session-banner');
+  if (state.session && name !== 'training') {
+    sb.hidden = false;
+    sb.innerHTML = `<a href="#training">▶ ${esc(state.session.item_name)} in progress — continue</a>`;
+  } else {
+    sb.hidden = true;
+  }
   // A bug in one screen must not take down the whole app.
   const fail = (e) => {
     $('#screen').innerHTML = `<div class="empty warn">Something went wrong on this screen:<br>${esc(e.message)}</div>`;
@@ -63,6 +73,7 @@ async function reloadConfig() {
 
 async function reloadAll() {
   state.entries = await storage.listEntries();
+  await loadOpenSession(state);
   await reloadConfig();
 }
 
