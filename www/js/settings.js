@@ -8,7 +8,9 @@ import { openEventEditor } from './eventEditor.js';
 import { openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
-import { getLang, LANGS, setLang, t } from './i18n.js';
+import {
+  getDirPref, getLang, LANGS, setDirPref, setLang, t,
+} from './i18n.js';
 
 export async function renderSettings(el, ctx) {
   const { state } = ctx;
@@ -19,6 +21,10 @@ export async function renderSettings(el, ctx) {
   el.innerHTML = `
   <h2 class="day">${t('Language')}</h2>
   <div class="lang-row">${LANGS.map(([code, nm]) => `<button class="btn${code === getLang() ? ' primary' : ''}" data-lang="${code}">${nm}</button>`).join('')}</div>
+  <div class="label" style="margin-top:12px">${t('Layout')}</div>
+  <div class="lang-row">${[['auto', 'Automatic'], ['ltr', 'Left → right'], ['rtl', 'Right → left']].map(([v, lbl]) =>
+    `<button class="btn${v === getDirPref() ? ' primary' : ''}" data-dir="${v}">${esc(t(lbl))}</button>`).join('')}</div>
+  <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
 
   <h2 class="day">${t('Your data')}</h2>
   <div class="card pad">
@@ -77,6 +83,10 @@ export async function renderSettings(el, ctx) {
 
   el.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', async () => {
     await setLang(b.dataset.lang);
+    ctx.refresh();
+  }));
+  el.querySelectorAll('[data-dir]').forEach((b) => b.addEventListener('click', async () => {
+    await setDirPref(b.dataset.dir);
     ctx.refresh();
   }));
 

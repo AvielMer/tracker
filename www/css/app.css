@@ -302,3 +302,12 @@ select.input { appearance: auto; }
 .lang-row .btn { flex: 1 1 90px; }
 /* Times and numbers stay left-to-right inside Hebrew text. */
 .row-time, .ev-count, .step-val b, .big-rest b, .rest b { direction: ltr; unicode-bidi: isolate; }
+
+/* Fixed layout direction that differs from the language (see i18n.js):
+   each text decides its own direction, the layout does not move. */
+.bidi-plain :where(p, span, b, h1, h2, label, a, td, th, li, small, input, textarea, .label, .empty, .toast, .btn, .ev-name) {
+  unicode-bidi: plaintext;
+}
+/* Full-width text lines on buttons so every name aligns the same way. */
+.ev-name, .ev-last { align-self: stretch; }
+.tr-name .muted { margin-inline-start: 6px; }
