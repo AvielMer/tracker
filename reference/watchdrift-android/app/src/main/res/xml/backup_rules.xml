@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- watch_drift.json holds months of unrepeatable measurements, so it is
+     explicitly included in backups. -->
+<full-backup-content>
+    <include domain="file" path="watch_drift.json" />
+    <include domain="file" path="watch_profiles.json" />
+</full-backup-content>
