@@ -13,7 +13,9 @@ const KEY_GOOD = 'config_last_good'; // last version that validated
 
 // What a button can ask after a tap. Each one fills the log field of the
 // same name ("amount" also fills "unit" from the event's config).
-export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'note'];
+// "bp" asks blood pressure + pulse as a series of readings (bp_sys,
+// bp_dia, pulse); it can be combined only with "note".
+export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'note'];
 const EXERCISE_TYPES = ['reps', 'seconds'];
 const EMPTY = { events: [], exercises: [], routines: [] };
 
@@ -52,6 +54,9 @@ export function validateConfig(obj) {
       });
     }
     const ask = Array.isArray(ev.ask) ? ev.ask : [];
+    if (ask.includes('bp') && ask.some((a) => a !== 'bp' && a !== 'note')) {
+      errors.push(`${at}: "bp" can only be combined with "note"`);
+    }
     if ('choices' in ev || ask.includes('choice')) {
       if (!Array.isArray(ev.choices) || !ev.choices.length
           || ev.choices.some((c) => typeof c !== 'string' || !c.trim())) {

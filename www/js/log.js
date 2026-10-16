@@ -20,6 +20,9 @@ function screenLabel(state, e) {
 function details(e) {
   const parts = [];
   if (e.nth_today) parts.push(`#${e.nth_today}`);
+  if (e.set_no && e.bp_sys != null) parts.push(`reading ${e.set_no}`);
+  if (e.bp_sys != null) parts.push(`${e.bp_sys}/${e.bp_dia}`);
+  if (e.pulse != null) parts.push(`♥ ${e.pulse}`);
   if (e.choice) parts.push(e.choice);
   if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
@@ -72,6 +75,9 @@ function openDetails(ctx, e) {
     ['Date', friendlyDay(e.date) + ` (${e.date})`],
     ['Time', e.time],
     ['Number that day', e.nth_today],
+    ['Blood pressure', e.bp_sys != null ? `${e.bp_sys}/${e.bp_dia}` : null],
+    ['Pulse', e.pulse],
+    ['Reading in series', e.bp_sys != null ? e.set_no : null],
     ['Type', e.choice],
     ['Amount', e.amount != null ? `${e.amount} ${e.unit || ''}`.trim() : null],
     ['How many', e.count],

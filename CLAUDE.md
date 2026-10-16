@@ -100,7 +100,7 @@ Example:
 id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
 "session_start", "session_end"), item_id, item_name, nth_today,
 session_id, set_no, reps, seconds, weight, intensity, duration_min,
-choice, amount, unit, count, note
+choice, amount, unit, count, bp_sys, bp_dia, pulse, note
 
 ## Configurable event buttons (added after step 1)
 Each event's "ask" list picks what the quick sheet asks after a tap,
@@ -109,8 +109,14 @@ the event's "choices" list, e.g. which medicine; "Other…" adds a new
 one to the list), "amount" (one-tap values from
 "amount": {"unit": "mg", "values": [200, 400]}, or type any number),
 "count" (how many at once, 1-10; the button's daily total adds these
-up), "note". If only one question is asked, one tap on the answer
-saves. All of this is editable in Settings → ✎ / + Add a button.
+up), "bp" (blood pressure + pulse, see below), "note". If only one
+question is asked, one tap on the answer saves.
+Blood pressure ("ask": ["bp"], combinable only with "note"): one tap
+starts a SERIES of readings (measure, rest, measure again — numbers
+settle as you relax). Each reading is its own log entry with its own
+time; all share session_id = the first entry's id, and set_no is the
+reading number (1, 2, 3...). A rest timer shows time since the last
+reading. The button's daily count counts a series once. All of this is editable in Settings → ✎ / + Add a button.
 Example:
   { "id": "medicine", "name": "Medicine", "ask": ["choice", "amount"],
     "choices": ["Paracetamol", "Ibuprofen"],
