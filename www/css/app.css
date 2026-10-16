@@ -186,3 +186,9 @@ main { padding: 8px 12px; max-width: 720px; margin: 0 auto; }
 .kv { width: 100%; border-collapse: collapse; }
 .kv th { text-align: left; color: var(--muted); font-weight: 400; padding: 6px 12px 6px 0; vertical-align: top; width: 40%; }
 .kv td { padding: 6px 0; word-break: break-word; }
+.chips.wide { grid-template-columns: repeat(2, 1fr); }
+.chip small { font-size: 12px; font-weight: 400; margin-left: 2px; }
+.chip.other { font-size: 13px; font-weight: 600; color: var(--muted); }
+.chips.wide .chip { font-size: 16px; padding: 0 8px; }
+.ask-cfg { margin: 4px 0 8px 32px; }
+.ask-cfg[hidden] { display: none; }

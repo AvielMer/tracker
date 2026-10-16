@@ -1,7 +1,7 @@
 // Events screen: big buttons, one tap = logged.
 
 import * as storage from './storage.js';
-import { eventLabel } from './config.js';
+import { ASK_FIELDS, eventLabel, saveConfig } from './config.js';
 import { makeRecord } from './record.js';
 import { esc, hhmm, localDate } from './util.js';
 
@@ -34,8 +34,10 @@ export function renderEvents(el, ctx) {
   el.innerHTML = `<div class="ev-grid">${events.map((ev) => {
     const mine = today.filter((e) => e.item_id === ev.id);
     const last = mine[mine.length - 1];
+    // "How many" answers count as that many (2 pills logged once = 2).
+    const total = mine.reduce((n, e) => n + (e.count || 1), 0);
     return `<button class="ev" data-id="${esc(ev.id)}">
-      <span class="ev-count${mine.length ? '' : ' zero'}">${mine.length}</span>
+      <span class="ev-count${total ? '' : ' zero'}">${total}</span>
       <span class="ev-name">${esc(eventLabel(ev))}</span>
       <span class="ev-last">${last ? 'last ' + hhmm(last.time) : '&nbsp;'}</span>
     </button>`;
@@ -108,28 +110,50 @@ async function undo(ctx, rec) {
   ctx.toast('Undone');
 }
 
-function chips(name, values, current) {
-  return `<div class="chips" data-field="${name}">${values.map((v) =>
-    `<button class="chip${current === v ? ' on' : ''}" data-v="${v}">${v}</button>`).join('')}</div>`;
+function chips(field, values, opts = {}) {
+  return `<div class="chips${opts.wide ? ' wide' : ''}" data-field="${field}">${values.map((v) =>
+    `<button class="chip" data-v="${esc(v)}">${esc(v)}${opts.suffix ? `<small>${esc(opts.suffix)}</small>` : ''}</button>`).join('')}${
+    opts.other ? '<button class="chip other" data-other="1">Other…</button>' : ''}</div>`;
 }
+
+// One sheet section per "ask" field, in the order the config lists them.
+function askSection(ev, field) {
+  switch (field) {
+    case 'intensity':
+      return ['Intensity', chips('intensity', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
+    case 'duration_min':
+      return ['Duration (minutes)', chips('duration_min', DURATION_CHIPS, { other: true })];
+    case 'choice':
+      return ['Type', chips('choice', ev.choices || [], { wide: true, other: true })];
+    case 'amount':
+      return [`Amount (${ev.amount.unit})`, chips('amount', ev.amount.values, { other: true })];
+    case 'count':
+      return ['How many', chips('count', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
+    case 'note':
+      return ['Note', '<input class="input" data-field="note" placeholder="optional">'];
+    default:
+      return null;
+  }
+}
+
+const NUMERIC = new Set(['intensity', 'duration_min', 'amount', 'count']);
 
 // Optional details after logging. The entry is ALREADY saved; this sheet
 // only adds details, so closing/skipping it never loses the event.
 function openAskSheet(ctx, ev, rec) {
   const label = eventLabel(ev);
-  const ask = ev.ask;
-  // If intensity is the only question, one chip tap saves and closes.
-  const instant = ask.length === 1 && ask[0] === 'intensity';
+  const ask = ev.ask.filter((f) => ASK_FIELDS.includes(f));
+  // A single tap-to-pick question saves on the first tap: fastest path.
+  const instant = ask.length === 1 && ask[0] !== 'note';
   const values = {};
 
+  const sections = ask.map((f) => askSection(ev, f)).filter(Boolean);
   const root = ctx.openSheet(`
     <div class="sheet-head">
       <div><b>${esc(label)} #${rec.nth_today}</b><br><span class="muted">logged ${hhmm(rec.time)}</span></div>
       <button class="btn" data-act="undo">Undo</button>
     </div>
-    ${ask.includes('intensity') ? `<div class="field"><div class="label">Intensity</div>${chips('intensity', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])}</div>` : ''}
-    ${ask.includes('duration_min') ? `<div class="field"><div class="label">Duration (minutes)</div>${chips('duration_min', DURATION_CHIPS)}</div>` : ''}
-    ${ask.includes('note') ? `<div class="field"><div class="label">Note</div><input class="input" data-field="note" placeholder="optional"></div>` : ''}
+    ${sections.map(([title, body]) => `<div class="field"><div class="label">${esc(title)}</div>${body}</div>`).join('')}
     <div class="sheet-actions">
       <button class="btn" data-act="skip">Skip</button>
       ${instant ? '' : '<button class="btn primary" data-act="save">Save</button>'}
@@ -138,6 +162,7 @@ function openAskSheet(ctx, ev, rec) {
   const save = async () => {
     const note = root.querySelector('[data-field="note"]');
     if (note && note.value.trim()) values.note = note.value.trim();
+    if (values.amount != null) values.unit = ev.amount.unit;
     ctx.closeSheet();
     if (!Object.keys(values).length) return;
     try {
@@ -153,21 +178,51 @@ function openAskSheet(ctx, ev, rec) {
     }
   };
 
+  const pick = (group, chip, field, v) => {
+    group.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
+    if (values[field] === v) { delete values[field]; return; }
+    values[field] = v;
+    chip.classList.add('on');
+    if (instant) save();
+  };
+
   root.querySelectorAll('.chips').forEach((group) => {
-    group.addEventListener('click', (e) => {
+    group.addEventListener('click', async (e) => {
       const chip = e.target.closest('.chip');
       if (!chip) return;
       const field = group.dataset.field;
-      const v = Number(chip.dataset.v);
-      const was = values[field] === v;
-      group.querySelectorAll('.chip').forEach((c) => c.classList.remove('on'));
-      if (was) delete values[field];
-      else { values[field] = v; chip.classList.add('on'); }
-      if (instant && !was) save();
+      if (chip.dataset.other) {
+        const typed = prompt(field === 'choice' ? 'Type name:' : 'Number:');
+        if (typed === null || !typed.trim()) return;
+        let v = typed.trim();
+        if (NUMERIC.has(field)) {
+          v = Number(v.replace(',', '.'));
+          if (!(v > 0)) { ctx.toast('Please type a number'); return; }
+        } else {
+          rememberChoice(ctx, ev, v);
+        }
+        pick(group, chip, field, v);
+        return;
+      }
+      const raw = chip.dataset.v;
+      pick(group, chip, field, NUMERIC.has(field) ? Number(raw) : raw);
     });
   });
   root.querySelector('[data-act="undo"]').addEventListener('click', () => undo(ctx, rec));
   root.querySelector('[data-act="skip"]').addEventListener('click', () => ctx.closeSheet());
   const saveBtn = root.querySelector('[data-act="save"]');
   if (saveBtn) saveBtn.addEventListener('click', save);
+}
+
+// A new type typed via "Other…" is added to the button's list, so next
+// time it's one tap. Runs in the background; failing only means it isn't
+// remembered — the log entry itself is unaffected.
+async function rememberChoice(ctx, ev, name) {
+  const cfg = JSON.parse(JSON.stringify(ctx.state.config));
+  const target = cfg.events.find((x) => x.id === ev.id);
+  if (!target || (target.choices || []).some((c) => c.toLowerCase() === name.toLowerCase())) return;
+  target.choices = [...(target.choices || []), name];
+  if (ctx.state.configErrors.length) return; // don't overwrite a config being fixed
+  const res = await saveConfig(cfg);
+  if (res.ok) await ctx.reloadConfig();
 }

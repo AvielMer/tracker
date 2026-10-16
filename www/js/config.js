@@ -11,7 +11,9 @@ import * as storage from './storage.js';
 const KEY_TEXT = 'config_text';      // what the user saved (may be broken)
 const KEY_GOOD = 'config_last_good'; // last version that validated
 
-export const ASK_FIELDS = ['intensity', 'duration_min', 'note'];
+// What a button can ask after a tap. Each one fills the log field of the
+// same name ("amount" also fills "unit" from the event's config).
+export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'note'];
 const EXERCISE_TYPES = ['reps', 'seconds'];
 const EMPTY = { events: [], exercises: [], routines: [] };
 
@@ -48,6 +50,21 @@ export function validateConfig(obj) {
       else ev.ask.forEach((a) => {
         if (!ASK_FIELDS.includes(a)) errors.push(`${at}: unknown ask field "${a}" (allowed: ${ASK_FIELDS.join(', ')})`);
       });
+    }
+    const ask = Array.isArray(ev.ask) ? ev.ask : [];
+    if ('choices' in ev || ask.includes('choice')) {
+      if (!Array.isArray(ev.choices) || !ev.choices.length
+          || ev.choices.some((c) => typeof c !== 'string' || !c.trim())) {
+        errors.push(`${at}: "choices" must be a list of names, e.g. ["Paracetamol", "Nurofen"]`);
+      }
+    }
+    if ('amount' in ev || ask.includes('amount')) {
+      const a = ev.amount;
+      if (!a || typeof a !== 'object' || typeof a.unit !== 'string'
+          || !Array.isArray(a.values) || !a.values.length
+          || a.values.some((v) => typeof v !== 'number' || !(v > 0))) {
+        errors.push(`${at}: "amount" must look like { "unit": "mg", "values": [200, 400] }`);
+      }
     }
     if ('private' in ev && typeof ev.private !== 'boolean') errors.push(`${at}: "private" must be true or false`);
     if ('displayLabel' in ev && typeof ev.displayLabel !== 'string') errors.push(`${at}: "displayLabel" must be text`);
