@@ -11,6 +11,7 @@ import * as storage from './storage.js';
 import { routineSteps } from './config.js';
 import { makeRecord } from './record.js';
 import { esc, friendlyDay, hhmm, localDate } from './util.js';
+import { t } from './i18n.js';
 
 const KEY = 'open_session';
 let restTimer = null;
@@ -117,14 +118,14 @@ function renderStart(el, ctx) {
         <span class="routine-name">${esc(r.name)}</span>
         <span class="routine-ex">${steps.map((s) => esc(exercise(ctx, s.id).name)
           + (s.sets ? ` <span class="muted">${s.sets}×${s.reps || '?'}</span>` : '')).join(' · ')}</span>
-        ${last ? `<span class="routine-last">last: ${esc(last)}</span>` : ''}
+        ${last ? `<span class="routine-last">${esc(t('last: {day}', { day: last }))}</span>` : ''}
       </button>`;
     }).join('')}
     <button class="routine free" data-free="1">
-      <span class="routine-name">Free session</span>
-      <span class="routine-ex">Pick exercises as you go</span>
+      <span class="routine-name">${t('Free session')}</span>
+      <span class="routine-ex">${t('Pick exercises as you go')}</span>
     </button>
-    <p class="center"><a href="#settings" data-goto="training-settings">Edit exercises &amp; routines</a></p>`;
+    <p class="center"><a href="#settings" data-goto="training-settings">${esc(t('Edit exercises & routines'))}</a></p>`;
 
   el.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => {
     startSession(ctx, routines.find((r) => r.id === b.dataset.r));
@@ -138,7 +139,7 @@ async function startSession(ctx, routine) {
   const start = makeRecord({
     kind: 'session_start',
     item_id: routine ? routine.id : 'free',
-    item_name: routine ? routine.name : 'Free session',
+    item_name: routine ? routine.name : t('Free session'),
   });
   start.session_id = start.id;
   const session = {
@@ -156,7 +157,7 @@ async function startSession(ctx, routine) {
     await saveSession(ctx);
   } catch (e) {
     ctx.state.session = null;
-    ctx.toast(`Could not start: ${e.message}`, { error: true });
+    ctx.toast(t('Could not start: {msg}', { msg: e.message }), { error: true });
     return;
   }
   ctx.state.entries.push(start);
@@ -175,31 +176,31 @@ function renderSession(el, ctx) {
       ${esc(exercise(ctx, st.id).name)} <span>${n}${st.sets ? '/' + st.sets : ''}${done ? ' ✓' : ''}</span></button>`;
   }).join('');
 
-  let card = '<div class="empty">Add an exercise to start.</div>';
+  let card = `<div class="empty">${t('Add an exercise to start.')}</div>`;
   if (ex) {
     const step = stepFor(ctx, ex.id);
     const d = draft(ctx, ex);
     const mine = sessionSets(ctx, ex.id);
     const today = todaySets(ctx, ex.id);
     const last = lastSessionSets(ctx, ex.id);
-    const unit = ex.type === 'seconds' ? 'seconds' : 'reps';
+    const unit = ex.type === 'seconds' ? t('seconds') : t('reps');
     const lastSet = mine[mine.length - 1];
     card = `<div class="card pad tr-card">
-      <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> goal ${step.sets} × ${step.reps || '?'}${ex.type === 'seconds' ? 's' : ''}</span>` : ''}</div>
-      <div class="tr-hist">Today: <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
-      <div class="tr-hist muted">Last time${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
+      <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(t('goal {sets} × {reps}', { sets: step.sets, reps: (step.reps || '?') + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
+      <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
+      <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
       <div class="stepper">
-        <button class="step-btn" data-step="-1" aria-label="Less">−</button>
+        <button class="step-btn" data-step="-1" aria-label="${t('Less')}">−</button>
         <button class="step-val" data-act="type-value"><b>${d.value}</b><small>${unit}</small></button>
-        <button class="step-btn" data-step="1" aria-label="More">+</button>
+        <button class="step-btn" data-step="1" aria-label="${t('More')}">+</button>
       </div>
-      ${ex.allowWeight ? `<div class="wstep"><span>Extra weight</span>
-        <button class="ibtn" data-w="-2.5">−</button><b>${d.weight || 0} kg</b><button class="ibtn" data-w="2.5">+</button></div>` : ''}
-      <input class="input" data-act="note" placeholder="Note for this set (optional)">
-      <button class="btn primary wide big" data-act="log">Log set ${mine.length + 1}</button>
+      ${ex.allowWeight ? `<div class="wstep"><span>${t('Extra weight')}</span>
+        <button class="ibtn" data-w="-2.5">−</button><b>${d.weight || 0} ${t('kg')}</b><button class="ibtn" data-w="2.5">+</button></div>` : ''}
+      <input class="input" data-act="note" placeholder="${esc(t('Note for this set (optional)'))}">
+      <button class="btn primary wide big" data-act="log">${t('Log set {n}', { n: mine.length + 1 })}</button>
       <div class="btn-row">
-        <button class="btn" data-act="repeat" ${lastSet ? '' : 'disabled'}>Repeat last${lastSet ? ` (${fmtSet(lastSet)})` : ''}</button>
-        <button class="btn" data-act="undo" ${lastSet ? '' : 'disabled'}>Undo last set</button>
+        <button class="btn" data-act="repeat" ${lastSet ? '' : 'disabled'}>${t('Repeat last')}${lastSet ? ` (${fmtSet(lastSet)})` : ''}</button>
+        <button class="btn" data-act="undo" ${lastSet ? '' : 'disabled'}>${t('Undo last set')}</button>
       </div>
     </div>`;
   }
@@ -208,11 +209,11 @@ function renderSession(el, ctx) {
   const lastAny = allSets[allSets.length - 1];
   el.innerHTML = `
     <div class="tr-head">
-      <div><b>${esc(s.item_name)}</b><br><span class="muted small">started ${hhmm(s.started.slice(11, 19))} · <span data-elapsed></span></span></div>
-      <button class="btn" data-act="finish">Finish</button>
+      <div><b>${esc(s.item_name)}</b><br><span class="muted small">${t('started {time}', { time: hhmm(s.started.slice(11, 19)) })} · <span data-elapsed></span></span></div>
+      <button class="btn" data-act="finish">${t('Finish')}</button>
     </div>
-    <div class="rest big-rest">${lastAny ? 'Rest' : 'Started'} <b data-timer>0:00</b>${lastAny ? '' : ' ago'}</div>
-    <div class="tr-chips">${chips}<button class="tr-chip add" data-act="add">+ Exercise</button></div>
+    <div class="rest big-rest">${lastAny ? t('Rest') : t('Since start')} <b data-timer>0:00</b></div>
+    <div class="tr-chips">${chips}<button class="tr-chip add" data-act="add">${t('+ Exercise')}</button></div>
     ${card}`;
 
   // Rest timer = time since the last set of ANY exercise in this session.
@@ -243,12 +244,12 @@ function renderSession(el, ctx) {
     el.querySelector('.step-val b').textContent = d.value;
   }));
   el.querySelector('[data-act="type-value"]').addEventListener('click', () => {
-    const v = Number(prompt(`How many ${ex.type === 'seconds' ? 'seconds' : 'reps'}?`, d.value));
+    const v = Number(prompt(t('How many?'), d.value));
     if (v > 0) { d.value = Math.round(v); el.querySelector('.step-val b').textContent = d.value; }
   });
   el.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => {
     d.weight = Math.max(0, Math.round(((d.weight || 0) + Number(b.dataset.w)) * 10) / 10);
-    el.querySelector('.wstep b').textContent = `${d.weight} kg`;
+    el.querySelector('.wstep b').textContent = `${d.weight} ${t('kg')}`;
   }));
   el.querySelector('[data-act="log"]').addEventListener('click', () => {
     const note = el.querySelector('[data-act="note"]').value.trim() || null;
@@ -269,7 +270,7 @@ let lastLogAt = 0;
 
 async function logSet(ctx, ex, value, weight, note) {
   const now = Date.now();
-  if (now - lastLogAt < SET_GUARD_MS) { ctx.toast('Double tap ignored'); return; }
+  if (now - lastLogAt < SET_GUARD_MS) { ctx.toast(t('Double tap ignored')); return; }
   lastLogAt = now;
   const s = ctx.state.session;
   const n = sessionSets(ctx, ex.id).length + 1;
@@ -288,7 +289,7 @@ async function logSet(ctx, ex, value, weight, note) {
     await storage.appendEntry(rec);
   } catch (e) {
     lastLogAt = 0;
-    ctx.toast(`Set NOT saved: ${e.message}`, { error: true });
+    ctx.toast(t('Set NOT saved: {msg}', { msg: e.message }), { error: true });
     return;
   }
   ctx.state.entries.push(rec);
@@ -297,20 +298,20 @@ async function logSet(ctx, ex, value, weight, note) {
   // Goal reached: move on to the next exercise that isn't done yet, so the
   // next set is one tap away. "Back" undoes the jump, not the set.
   const step = stepFor(ctx, ex.id);
-  let msg = `${ex.name} set ${n}: ${fmtSet(rec)}`;
+  let msg = t('{name} set {n}: {v}', { name: ex.name, n, v: fmtSet(rec) });
   let back = null;
   if (step.sets && n === step.sets) {
     const next = s.steps.find((st) => st.id !== ex.id && !(st.sets && sessionSets(ctx, st.id).length >= st.sets));
     if (next) {
       s.current = next.id;
-      msg = `${ex.name} done ✓  Next: ${exercise(ctx, next.id).name}`;
+      msg = t('{name} done ✓  Next: {next}', { name: ex.name, next: exercise(ctx, next.id).name });
       back = ex.id;
     }
   }
   saveSession(ctx).catch(() => {});
   ctx.refresh();
   ctx.toast(msg, back ? {
-    actionLabel: 'Back',
+    actionLabel: t('Back'),
     onAction: () => { s.current = back; saveSession(ctx); ctx.refresh(); },
   } : {});
 }
@@ -322,24 +323,24 @@ async function undoLastSet(ctx, ex) {
   try {
     await storage.deleteEntry(last.id);
   } catch (e) {
-    ctx.toast(`Undo failed: ${e.message}`, { error: true });
+    ctx.toast(t('Undo failed: {msg}', { msg: e.message }), { error: true });
     return;
   }
   ctx.state.entries = ctx.state.entries.filter((e) => e.id !== last.id);
   lastLogAt = 0;
   ctx.refresh();
-  ctx.toast(`Removed set ${last.set_no} (${fmtSet(last)})`);
+  ctx.toast(t('Removed set {n} ({v})', { n: last.set_no, v: fmtSet(last) }));
 }
 
 function openAddExercise(ctx) {
   const s = ctx.state.session;
   const list = ctx.state.config.exercises.filter((x) => !x.hidden);
   const root = ctx.openSheet(`
-    <div class="sheet-head"><b>Add an exercise</b></div>
+    <div class="sheet-head"><b>${t('Add an exercise')}</b></div>
     ${list.length ? `<div class="pick-list">${list.map((x) => `<button class="btn" data-pick="${esc(x.id)}">${esc(x.name)}${
-      s.steps.some((st) => st.id === x.id) ? ' <span class="muted small">(in session)</span>' : ''}</button>`).join('')}</div>`
-      : '<p class="muted">No exercises yet. Add some in Settings.</p>'}
-    <div class="sheet-actions"><button class="btn" data-act="close">Close</button></div>`);
+      s.steps.some((st) => st.id === x.id) ? ` <span class="muted small">${t('(in session)')}</span>` : ''}</button>`).join('')}</div>`
+      : `<p class="muted">${t('No exercises yet. Add some in Settings.')}</p>`}
+    <div class="sheet-actions"><button class="btn" data-act="close">${t('Close')}</button></div>`);
   root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
   root.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', async () => {
     const id = b.dataset.pick;
@@ -361,7 +362,7 @@ function summaryHtml(ctx, sets) {
     const secs = list[0].seconds != null;
     const total = list.reduce((n, e) => n + (valueOf(e) || 0), 0);
     return `<tr><th>${esc(exercise(ctx, id).name)}<br><span class="small">${list.map(fmtSet).join('  ')}</span></th>
-      <td><b>${list.length}</b> sets<br><b>${total}</b> ${secs ? 'sec' : 'reps'}</td></tr>`;
+      <td>${t('Sets')}: <b>${list.length}</b><br>${t('Total')}: <b>${total}</b> ${secs ? t('sec') : t('reps')}</td></tr>`;
   }).join('')}</table>`;
 }
 
@@ -370,17 +371,17 @@ function openFinish(ctx) {
   const sets = ctx.state.entries.filter((e) => e.kind === 'set' && e.session_id === s.id);
   if (!sets.length) {
     const root = ctx.openSheet(`
-      <div class="sheet-head"><b>No sets logged</b></div>
-      <p>Discard this empty session?</p>
-      <div class="sheet-actions"><button class="btn" data-act="keep">Keep training</button>
-      <button class="btn primary" data-act="discard">Discard</button></div>`);
+      <div class="sheet-head"><b>${t('No sets logged')}</b></div>
+      <p>${t('Discard this empty session?')}</p>
+      <div class="sheet-actions"><button class="btn" data-act="keep">${t('Keep training')}</button>
+      <button class="btn primary" data-act="discard">${t('Discard')}</button></div>`);
     root.querySelector('[data-act="keep"]').addEventListener('click', () => ctx.closeSheet());
     root.querySelector('[data-act="discard"]').addEventListener('click', async () => {
       try {
         await storage.deleteEntry(s.id);
         await storage.setValue(KEY, null);
       } catch (e) {
-        ctx.toast(`Failed: ${e.message}`, { error: true });
+        ctx.toast(t('Failed: {msg}', { msg: e.message }), { error: true });
         return;
       }
       ctx.state.entries = ctx.state.entries.filter((e) => e.id !== s.id);
@@ -392,10 +393,10 @@ function openFinish(ctx) {
   }
   const mins = Math.round((Date.now() - Date.parse(s.started)) / 60000);
   const root = ctx.openSheet(`
-    <div class="sheet-head"><b>Finish ${esc(s.item_name)}?</b><span class="muted">${mins} min</span></div>
+    <div class="sheet-head"><b>${esc(t('Finish {name}?', { name: s.item_name }))}</b><span class="muted">${t('{n} min', { n: mins })}</span></div>
     ${summaryHtml(ctx, sets)}
-    <div class="sheet-actions"><button class="btn" data-act="keep">Keep training</button>
-    <button class="btn primary" data-act="confirm-finish">Finish</button></div>`);
+    <div class="sheet-actions"><button class="btn" data-act="keep">${t('Keep training')}</button>
+    <button class="btn primary" data-act="confirm-finish">${t('Finish')}</button></div>`);
   root.querySelector('[data-act="keep"]').addEventListener('click', () => ctx.closeSheet());
   root.querySelector('[data-act="confirm-finish"]').addEventListener('click', async () => {
     const end = makeRecord({ kind: 'session_end', item_id: s.item_id, item_name: s.item_name, session_id: s.id });
@@ -404,16 +405,16 @@ function openFinish(ctx) {
       await storage.appendEntry(end);
       await storage.setValue(KEY, null);
     } catch (e) {
-      ctx.toast(`Failed: ${e.message}`, { error: true });
+      ctx.toast(t('Failed: {msg}', { msg: e.message }), { error: true });
       return;
     }
     ctx.state.entries.push(end);
     ctx.state.session = null;
     ctx.refresh();
     const done = ctx.openSheet(`
-      <div class="sheet-head"><b>Well done! 💪</b><span class="muted">${esc(s.item_name)} · ${mins} min</span></div>
+      <div class="sheet-head"><b>${t('Well done! 💪')}</b><span class="muted">${esc(s.item_name)} · ${t('{n} min', { n: mins })}</span></div>
       ${summaryHtml(ctx, sets)}
-      <div class="sheet-actions"><button class="btn primary" data-act="close">Close</button></div>`);
+      <div class="sheet-actions"><button class="btn primary" data-act="close">${t('Close')}</button></div>`);
     done.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
   });
 }

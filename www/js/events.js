@@ -5,6 +5,7 @@ import { ASK_FIELDS, eventLabel, saveConfig } from './config.js';
 import { deleteWithUndo, details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
 import { esc, friendlyDay, hhmm, localDate } from './util.js';
+import { t } from './i18n.js';
 
 // Taps on the same button closer together than this are treated as an
 // accidental double tap. WHY 3 s: long enough to catch a shaky double
@@ -34,7 +35,7 @@ export function renderEvents(el, ctx) {
   const { state } = ctx;
   const events = state.config.events.filter((e) => !e.hidden);
   if (!events.length) {
-    el.innerHTML = `<div class="empty">No events yet.<br>Add some in <a href="#settings">Settings</a>.</div>`;
+    el.innerHTML = `<div class="empty"><a href="#settings">${esc(t('No events yet. Add some in Settings.'))}</a></div>`;
     return;
   }
   const today = todayEvents(state);
@@ -49,7 +50,7 @@ export function renderEvents(el, ctx) {
     return `<button class="ev${col}" data-id="${esc(ev.id)}">
       <span class="ev-count${total ? '' : ' zero'}">${total}</span>
       <span class="ev-name">${esc(eventLabel(ev))}</span>
-      <span class="ev-last">${last ? 'last ' + hhmm(last.time) : '&nbsp;'}</span>
+      <span class="ev-last">${last ? esc(t('last {time}', { time: hhmm(last.time) })) : '&nbsp;'}</span>
     </button>`;
   }).join('')}</div>`;
 
@@ -86,10 +87,10 @@ function recentHtml(state) {
       <button class="recent-main"><span class="row-time">${esc(when)}</span>
         <span class="recent-name">${esc(screenLabel(state, e))}</span>
         <span class="recent-sub">${esc(sub)}</span></button>
-      <button class="recent-x" aria-label="Delete this entry">✕</button>
+      <button class="recent-x" aria-label="${esc(t('Delete this entry'))}">✕</button>
     </div>`;
   }).join('');
-  return `<h2 class="day">Recent<a class="small" href="#log">all →</a></h2><div class="card">${rows}</div>`;
+  return `<h2 class="day">${t('Recent')}<a class="small" href="#log">${t('all →')}</a></h2><div class="card">${rows}</div>`;
 }
 
 // Logs one event. Also used by the home-screen shortcut (?log=<id>).
@@ -103,7 +104,7 @@ export async function logEvent(ctx, ev) {
   const lastMs = Math.max(lastTap.get(ev.id) || 0, lastEntry ? Date.parse(lastEntry.ts) : 0);
   if (nowMs - lastMs < DOUBLE_TAP_MS) {
     const secs = Math.max(1, Math.round((nowMs - lastMs) / 1000));
-    ctx.toast(`Double tap ignored — ${label} was logged ${secs}s ago`);
+    ctx.toast(t('Double tap ignored — {label} was logged {secs}s ago', { label, secs }));
     return;
   }
   lastTap.set(ev.id, nowMs);
@@ -120,7 +121,7 @@ export async function logEvent(ctx, ev) {
     await storage.appendEntry(rec);
   } catch (e) {
     lastTap.delete(ev.id);
-    ctx.toast(`NOT saved: ${e.message}`, { error: true });
+    ctx.toast(t('NOT saved: {msg}', { msg: e.message }), { error: true });
     return;
   }
   state.entries.push(rec);
@@ -132,8 +133,8 @@ export async function logEvent(ctx, ev) {
   } else if (ev.ask && ev.ask.length) {
     openAskSheet(ctx, ev, rec);
   } else {
-    ctx.toast(`${label} #${nth} logged ${hhmm(rec.time)}`, {
-      actionLabel: 'Undo',
+    ctx.toast(t('{label} #{n} logged {time}', { label, n: nth, time: hhmm(rec.time) }), {
+      actionLabel: t('Undo'),
       onAction: () => undo(ctx, rec),
     });
   }
@@ -143,37 +144,37 @@ async function undo(ctx, rec) {
   try {
     await storage.deleteEntry(rec.id);
   } catch (e) {
-    ctx.toast(`Undo failed: ${e.message}`, { error: true });
+    ctx.toast(t('Undo failed: {msg}', { msg: e.message }), { error: true });
     return;
   }
   ctx.state.entries = ctx.state.entries.filter((e) => e.id !== rec.id);
   lastTap.delete(rec.item_id);
   ctx.closeSheet();
   ctx.refresh();
-  ctx.toast('Undone');
+  ctx.toast(t('Undone'));
 }
 
 function chips(field, values, opts = {}) {
   return `<div class="chips${opts.wide ? ' wide' : ''}" data-field="${field}">${values.map((v) =>
     `<button class="chip" data-v="${esc(v)}">${esc(v)}${opts.suffix ? `<small>${esc(opts.suffix)}</small>` : ''}</button>`).join('')}${
-    opts.other ? '<button class="chip other" data-other="1">Other…</button>' : ''}</div>`;
+    opts.other ? `<button class="chip other" data-other="1">${t('Other…')}</button>` : ''}</div>`;
 }
 
 // One sheet section per "ask" field, in the order the config lists them.
 function askSection(ev, field) {
   switch (field) {
     case 'intensity':
-      return ['Intensity', chips('intensity', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
+      return [t('Intensity'), chips('intensity', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
     case 'duration_min':
-      return ['Duration (minutes)', chips('duration_min', DURATION_CHIPS, { other: true })];
+      return [t('Duration (minutes)'), chips('duration_min', DURATION_CHIPS, { other: true })];
     case 'choice':
-      return ['Type', chips('choice', ev.choices || [], { wide: true, other: true })];
+      return [t('Type'), chips('choice', ev.choices || [], { wide: true, other: true })];
     case 'amount':
-      return [`Amount (${ev.amount.unit})`, chips('amount', ev.amount.values, { other: true })];
+      return [t('Amount ({unit})', { unit: ev.amount.unit }), chips('amount', ev.amount.values, { other: true })];
     case 'count':
-      return ['How many', chips('count', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
+      return [t('How many'), chips('count', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
     case 'note':
-      return ['Note', '<input class="input" data-field="note" placeholder="optional">'];
+      return [t('Note'), `<input class="input" data-field="note" placeholder="${esc(t('optional'))}">`];
     default:
       return null;
   }
@@ -193,13 +194,13 @@ function openAskSheet(ctx, ev, rec) {
   const sections = ask.map((f) => askSection(ev, f)).filter(Boolean);
   const root = ctx.openSheet(`
     <div class="sheet-head">
-      <div><b>${esc(label)} #${rec.nth_today}</b><br><span class="muted">logged ${hhmm(rec.time)}</span></div>
-      <button class="btn" data-act="undo">Undo</button>
+      <div><b>${esc(label)} #${rec.nth_today}</b><br><span class="muted">${esc(t('logged {time}', { time: hhmm(rec.time) }))}</span></div>
+      <button class="btn" data-act="undo">${t('Undo')}</button>
     </div>
     ${sections.map(([title, body]) => `<div class="field"><div class="label">${esc(title)}</div>${body}</div>`).join('')}
     <div class="sheet-actions">
-      <button class="btn" data-act="skip">Skip</button>
-      ${instant ? '' : '<button class="btn primary" data-act="save">Save</button>'}
+      <button class="btn" data-act="skip">${t('Skip')}</button>
+      ${instant ? '' : `<button class="btn primary" data-act="save">${t('Save')}</button>`}
     </div>`);
 
   const save = async () => {
@@ -214,10 +215,10 @@ function openAskSheet(ctx, ev, rec) {
         const i = ctx.state.entries.findIndex((e) => e.id === rec.id);
         if (i >= 0) ctx.state.entries[i] = updated;
       }
-      ctx.toast(`${label} #${rec.nth_today} saved`);
+      ctx.toast(t('{label} #{n} saved', { label, n: rec.nth_today }));
       ctx.refresh();
     } catch (e) {
-      ctx.toast(`Details NOT saved: ${e.message}`, { error: true });
+      ctx.toast(t('Details NOT saved: {msg}', { msg: e.message }), { error: true });
     }
   };
 
@@ -235,12 +236,12 @@ function openAskSheet(ctx, ev, rec) {
       if (!chip) return;
       const field = group.dataset.field;
       if (chip.dataset.other) {
-        const typed = prompt(field === 'choice' ? 'Type name:' : 'Number:');
+        const typed = prompt(field === 'choice' ? t('Type name:') : t('Number:'));
         if (typed === null || !typed.trim()) return;
         let v = typed.trim();
         if (NUMERIC.has(field)) {
           v = Number(v.replace(',', '.'));
-          if (!(v > 0)) { ctx.toast('Please type a number'); return; }
+          if (!(v > 0)) { ctx.toast(t('Please type a number')); return; }
         } else {
           rememberChoice(ctx, ev, v);
         }
@@ -296,23 +297,23 @@ function openBpSheet(ctx, ev, first) {
     const t0 = Date.parse(first.ts);
     const root = ctx.openSheet(`
       <div class="sheet-head">
-        <div><b>${esc(label)} #${first.nth_today}</b><br><span class="muted">reading ${n}</span></div>
-        <button class="btn" data-act="undo">${series.length > 1 ? 'Undo all' : 'Undo'}</button>
+        <div><b>${esc(label)} #${first.nth_today}</b><br><span class="muted">${t('reading {n}', { n })}</span></div>
+        <button class="btn" data-act="undo">${series.length > 1 ? t('Undo all') : t('Undo')}</button>
       </div>
       ${series.length ? `<table class="kv bp-list">${series.map((r) => `<tr>
         <th>${r.set_no}. ${hhmm(r.time)} <span class="muted">+${mmss(Date.parse(r.ts) - t0)}</span></th>
         <td><b>${r.bp_sys}/${r.bp_dia}</b>${r.pulse != null ? ` · ♥ ${r.pulse}` : ''}</td></tr>`).join('')}</table>
-        <p class="rest">Resting: <b data-timer>0:00</b> since last reading</p>` : ''}
+        <p class="rest">${t('Resting:')} <b data-timer>0:00</b> ${t('since last reading')}</p>` : ''}
       <div class="bp-row">
-        <label>Upper<input class="input bp" data-bp="bp_sys" inputmode="numeric" placeholder="120"></label>
+        <label>${t('Upper')}<input class="input bp" data-bp="bp_sys" inputmode="numeric" placeholder="120"></label>
         <span class="bp-slash">/</span>
-        <label>Lower<input class="input bp" data-bp="bp_dia" inputmode="numeric" placeholder="80"></label>
-        <label>Pulse<input class="input bp" data-bp="pulse" inputmode="numeric" placeholder="70"></label>
+        <label>${t('Lower')}<input class="input bp" data-bp="bp_dia" inputmode="numeric" placeholder="80"></label>
+        <label>${t('Pulse')}<input class="input bp" data-bp="pulse" inputmode="numeric" placeholder="70"></label>
       </div>
-      ${askNote ? '<input class="input" data-field="note" placeholder="Note (optional)">' : ''}
+      ${askNote ? `<input class="input" data-field="note" placeholder="${esc(t('Note (optional)'))}">` : ''}
       <div class="sheet-actions">
-        <button class="btn" data-act="done">${series.length ? 'Done' : 'Skip'}</button>
-        <button class="btn primary" data-act="save">Save reading ${n}</button>
+        <button class="btn" data-act="done">${series.length ? t('Done') : t('Skip')}</button>
+        <button class="btn primary" data-act="save">${t('Save reading {n}', { n })}</button>
       </div>`);
 
     clearInterval(timer);
@@ -344,7 +345,7 @@ function openBpSheet(ctx, ev, first) {
       try {
         for (const r of [first, ...series.slice(1)]) await storage.deleteEntry(r.id);
       } catch (e) {
-        ctx.toast(`Undo failed: ${e.message}`, { error: true });
+        ctx.toast(t('Undo failed: {msg}', { msg: e.message }), { error: true });
         return;
       }
       const ids = new Set([first.id, ...series.map((r) => r.id)]);
@@ -352,20 +353,20 @@ function openBpSheet(ctx, ev, first) {
       lastTap.delete(ev.id);
       ctx.closeSheet();
       ctx.refresh();
-      ctx.toast('Undone');
+      ctx.toast(t('Undone'));
     });
     root.querySelector('[data-act="done"]').addEventListener('click', () => {
       clearInterval(timer);
       ctx.closeSheet();
-      if (series.length) ctx.toast(`${label}: ${series.length} reading${series.length > 1 ? 's' : ''} saved`);
+      if (series.length) ctx.toast(t('{label}: readings saved: {n}', { label, n: series.length }));
     });
     root.querySelector('[data-act="save"]').addEventListener('click', async () => {
       const v = {};
       for (const inp of inputs) v[inp.dataset.bp] = inp.value ? Number(inp.value) : null;
-      if (v.bp_sys == null || v.bp_dia == null) { ctx.toast('Type the upper and lower number'); return; }
+      if (v.bp_sys == null || v.bp_dia == null) { ctx.toast(t('Type the upper and lower number')); return; }
       const odd = Object.entries(v).filter(([k, x]) => x != null && (x < BP_LIMITS[k][0] || x > BP_LIMITS[k][1]));
-      if (odd.length && !confirm(`${odd.map(([, x]) => x).join(', ')} looks unusual. Save anyway?`)) return;
-      if (v.bp_sys <= v.bp_dia && !confirm('Upper is not bigger than lower — swapped? Save anyway?')) return;
+      if (odd.length && !confirm(t('{values} looks unusual. Save anyway?', { values: odd.map(([, x]) => x).join(', ') }))) return;
+      if (v.bp_sys <= v.bp_dia && !confirm(t('Upper is not bigger than lower — swapped? Save anyway?'))) return;
       const noteEl = root.querySelector('[data-field="note"]');
       if (noteEl && noteEl.value.trim()) v.note = noteEl.value.trim();
       v.session_id = first.id;
@@ -386,7 +387,7 @@ function openBpSheet(ctx, ev, first) {
         if (!saved) throw new Error('entry not found');
         series.push(saved);
       } catch (e) {
-        ctx.toast(`Reading NOT saved: ${e.message}`, { error: true });
+        ctx.toast(t('Reading NOT saved: {msg}', { msg: e.message }), { error: true });
         return;
       }
       if (navigator.vibrate) navigator.vibrate(30);
