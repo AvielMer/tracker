@@ -13,6 +13,8 @@ let shown = PAGE;
 // Label shown ON SCREEN. Private items show their displayLabel; the real
 // item_name is only used if the item no longer exists in the config.
 function screenLabel(state, e) {
+  if (e.kind === 'session_start') return `▶ ${e.item_name} — started`;
+  if (e.kind === 'session_end') return `■ ${e.item_name} — finished`;
   const lists = [...state.config.events, ...state.config.exercises];
   const item = lists.find((x) => x.id === e.item_id);
   if (item && e.kind === 'event') return eventLabel(item);
@@ -29,11 +31,13 @@ function details(e) {
   if (e.choice) parts.push(e.choice);
   if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
+  if (e.kind === 'set' && e.set_no) parts.push(`set ${e.set_no}`);
+  if (e.kind === 'session_end' && e.duration_min != null) parts.push(`${e.duration_min} min`);
   if (e.reps != null) parts.push(`${e.reps} reps`);
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
   if (e.intensity != null) parts.push(`intensity ${e.intensity}`);
-  if (e.duration_min != null) parts.push(`${e.duration_min} min`);
+  if (e.kind !== 'session_end' && e.duration_min != null) parts.push(`${e.duration_min} min`);
   return parts.join(' · ');
 }
 

@@ -12,14 +12,62 @@
     { "id": "example_private", "name": "Example private item", "displayLabel": "X", "private": true }
   ],
   "exercises": [
-    { "id": "pullups", "name": "Pull-ups", "type": "reps" },
-    { "id": "pushups", "name": "Push-ups", "type": "reps" },
-    { "id": "dips", "name": "Dips", "type": "reps", "allowWeight": true },
-    { "id": "squats", "name": "Squats", "type": "reps" },
-    { "id": "plank", "name": "Plank", "type": "seconds" }
+    { "id": "pullups", "name": "Pull-ups", "type": "reps", "allowWeight": true, "start": 8 },
+    { "id": "chinups", "name": "Chin-ups", "type": "reps", "allowWeight": true, "start": 8 },
+    { "id": "rows", "name": "Australian rows", "type": "reps", "start": 12 },
+    { "id": "pushups", "name": "Push-ups", "type": "reps", "start": 15 },
+    { "id": "dips", "name": "Dips", "type": "reps", "allowWeight": true, "start": 10 },
+    { "id": "pike_pushups", "name": "Pike push-ups", "type": "reps", "start": 8 },
+    { "id": "squats", "name": "Squats", "type": "reps", "allowWeight": true, "start": 20 },
+    { "id": "lunges", "name": "Lunges", "type": "reps", "start": 12 },
+    { "id": "leg_raises", "name": "Hanging leg raises", "type": "reps", "start": 10 },
+    { "id": "plank", "name": "Plank", "type": "seconds", "start": 45 },
+    { "id": "lsit", "name": "L-sit", "type": "seconds", "start": 10 },
+    { "id": "dead_hang", "name": "Dead hang", "type": "seconds", "start": 30 }
   ],
   "routines": [
-    { "id": "upper", "name": "Upper body", "exercises": ["pullups", "dips", "pushups"] },
-    { "id": "full", "name": "Full body", "exercises": ["pullups", "pushups", "squats", "plank"] }
+    {
+      "id": "upper", "name": "Upper body",
+      "exercises": [
+        { "id": "pullups", "sets": 3, "reps": 8 },
+        { "id": "dips", "sets": 3, "reps": 10 },
+        { "id": "pushups", "sets": 3, "reps": 15 }
+      ]
+    },
+    {
+      "id": "pull", "name": "Pull day",
+      "exercises": [
+        { "id": "pullups", "sets": 4, "reps": 6 },
+        { "id": "rows", "sets": 3, "reps": 12 },
+        { "id": "chinups", "sets": 3, "reps": 8 },
+        { "id": "dead_hang", "sets": 2, "reps": 30 }
+      ]
+    },
+    {
+      "id": "push", "name": "Push day",
+      "exercises": [
+        { "id": "dips", "sets": 4, "reps": 10 },
+        { "id": "pushups", "sets": 3, "reps": 15 },
+        { "id": "pike_pushups", "sets": 3, "reps": 8 }
+      ]
+    },
+    {
+      "id": "legs_core", "name": "Legs & core",
+      "exercises": [
+        { "id": "squats", "sets": 3, "reps": 20 },
+        { "id": "lunges", "sets": 3, "reps": 12 },
+        { "id": "leg_raises", "sets": 3, "reps": 10 },
+        { "id": "plank", "sets": 2, "reps": 45 }
+      ]
+    },
+    {
+      "id": "full", "name": "Full body",
+      "exercises": [
+        { "id": "pullups", "sets": 3, "reps": 8 },
+        { "id": "pushups", "sets": 3, "reps": 15 },
+        { "id": "squats", "sets": 3, "reps": 20 },
+        { "id": "plank", "sets": 2, "reps": 45 }
+      ]
+    }
   ]
 }

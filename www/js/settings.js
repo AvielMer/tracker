@@ -2,9 +2,10 @@
 
 import * as storage from './storage.js';
 import {
-  eventLabel, getConfigText, resetToDefault, saveConfig, saveConfigText,
+  addMissingPresets, eventLabel, getConfigText, resetToDefault, saveConfig, saveConfigText,
 } from './config.js';
 import { openEventEditor } from './eventEditor.js';
+import { openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
 
@@ -30,18 +31,21 @@ export async function renderSettings(el, ctx) {
   </div>
 
   <h2 class="day">Event buttons</h2>
-  <div class="card">
-    ${events.map((ev, i) => `
-    <div class="mrow${ev.hidden ? ' dim' : ''}" data-i="${i}">
-      <span class="mname">${esc(eventLabel(ev))}${ev.private ? ' <span class="tag">private</span>' : ''}${ev.hidden ? ' <span class="tag">hidden</span>' : ''}</span>
-      <button class="ibtn" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-      <button class="ibtn" data-act="down" ${i === events.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
-      <button class="ibtn" data-act="edit" aria-label="Edit">✎</button>
-      <button class="ibtn" data-act="hide">${ev.hidden ? 'Show' : 'Hide'}</button>
-    </div>`).join('')}
-  </div>
+  ${manageList('events', events, (ev) => esc(eventLabel(ev)) + (ev.private ? ' <span class="tag">private</span>' : ''))}
   <button class="btn primary wide" data-act="add">+ Add a button</button>
   <p class="small muted">✎ changes a button's name and what it asks after a tap (type, amount, how many, duration…).</p>
+
+  <h2 class="day" id="training-settings">Exercises</h2>
+  ${manageList('exercises', state.config.exercises, (x) => esc(x.name)
+    + (x.type === 'seconds' ? ' <span class="tag">seconds</span>' : '')
+    + (x.allowWeight ? ' <span class="tag">+kg</span>' : ''))}
+  <button class="btn primary wide" data-act="add-ex">+ Add an exercise</button>
+
+  <h2 class="day">Routines</h2>
+  ${manageList('routines', state.config.routines, (r) => esc(r.name)
+    + ` <span class="tag">${(r.exercises || []).length} exercises</span>`)}
+  <button class="btn primary wide" data-act="add-routine">+ New routine</button>
+  <button class="btn wide" data-act="presets">Add missing preset exercises &amp; routines</button>
 
   <h2 class="day">Config file</h2>
   <div class="card pad">
@@ -55,7 +59,14 @@ export async function renderSettings(el, ctx) {
     </div>
     <button class="btn wide danger" data-act="cfg-reset">Reset config to default</button>
   </div>
-  <p class="small muted center">Tracker · step 3</p>`;
+  <p class="small muted center">Tracker · step 2 + 3</p>`;
+
+  // Scroll target from the Training screen's "Edit exercises & routines".
+  if (ctx.state.scrollTo) {
+    const t = el.querySelector('#' + ctx.state.scrollTo);
+    ctx.state.scrollTo = null;
+    if (t) t.scrollIntoView();
+  }
 
   const on = (act, fn, evt = 'click') => {
     const n = el.querySelector(`[data-act="${act}"]`);
@@ -112,16 +123,22 @@ export async function renderSettings(el, ctx) {
 
   el.querySelectorAll('.mrow').forEach((row) => {
     const i = Number(row.dataset.i);
+    const key = row.dataset.list;
     row.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
       if (!act) return;
-      if (act === 'edit') { openEventEditor(ctx, state.config.events[i]); return; }
+      const item = state.config[key][i];
+      if (act === 'edit') {
+        if (key === 'events') openEventEditor(ctx, item);
+        else if (key === 'exercises') openExerciseEditor(ctx, item);
+        else openRoutineEditor(ctx, item);
+        return;
+      }
       change((cfg) => {
-        const list = cfg.events;
-        const ev = list[i];
+        const list = cfg[key];
         if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
         else if (act === 'down' && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
-        else if (act === 'hide') ev.hidden = !ev.hidden;
+        else if (act === 'hide') list[i].hidden = !list[i].hidden;
         else return false;
         return true;
       });
@@ -129,6 +146,17 @@ export async function renderSettings(el, ctx) {
   });
 
   on('add', () => openEventEditor(ctx, null));
+  on('add-ex', () => openExerciseEditor(ctx, null));
+  on('add-routine', () => openRoutineEditor(ctx, null));
+  on('presets', async () => {
+    try {
+      const n = await addMissingPresets(state.config);
+      if (n) await ctx.reloadConfig();
+      ctx.toast(n ? `Added ${n} presets` : 'You already have all presets');
+    } catch (err) {
+      ctx.toast(`Failed: ${err.message}`, { error: true });
+    }
+  });
 
   on('cfg-export', async () => {
     downloadFile('tracker_config.json', await getConfigText(), 'application/json');
@@ -149,4 +177,17 @@ export async function renderSettings(el, ctx) {
     if (res.ok) { await ctx.reloadConfig(); ctx.toast('Config reset'); }
     else ctx.toast(`Reset failed: ${res.errors[0]}`, { error: true });
   });
+}
+
+// One management list: rows with move up/down, edit and hide/show.
+function manageList(key, items, label) {
+  if (!items.length) return '<div class="card pad muted">None yet.</div>';
+  return `<div class="card">${items.map((it, i) => `
+    <div class="mrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}">
+      <span class="mname">${label(it)}${it.hidden ? ' <span class="tag">hidden</span>' : ''}</span>
+      <button class="ibtn" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+      <button class="ibtn" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+      <button class="ibtn" data-act="edit" aria-label="Edit">✎</button>
+      <button class="ibtn" data-act="hide">${it.hidden ? 'Show' : 'Hide'}</button>
+    </div>`).join('')}</div>`;
 }
