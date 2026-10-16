@@ -2,7 +2,12 @@
   "events": [
     { "id": "headache", "name": "Headache", "ask": ["intensity"] },
     { "id": "panic", "name": "Panic attack", "ask": ["intensity", "duration_min"] },
-    { "id": "coffee", "name": "Coffee" },
+    {
+      "id": "medicine", "name": "Medicine", "ask": ["choice", "amount"],
+      "choices": ["Paracetamol", "Ibuprofen"],
+      "amount": { "unit": "mg", "values": [200, 400, 500, 1000] }
+    },
+    { "id": "coffee", "name": "Coffee", "ask": ["count"] },
     { "id": "example_private", "name": "Example private item", "displayLabel": "X", "private": true }
   ],
   "exercises": [

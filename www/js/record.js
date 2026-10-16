@@ -6,7 +6,7 @@ import { isoWithTz, localDate, localTime, newId } from './util.js';
 export const FIELDS = [
   'id', 'ts', 'date', 'time', 'kind', 'item_id', 'item_name', 'nth_today',
   'session_id', 'set_no', 'reps', 'seconds', 'weight', 'intensity',
-  'duration_min', 'note',
+  'duration_min', 'choice', 'amount', 'unit', 'count', 'note',
 ];
 
 export const KINDS = ['event', 'set', 'session_start', 'session_end'];

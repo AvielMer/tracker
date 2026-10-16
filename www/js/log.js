@@ -20,6 +20,9 @@ function screenLabel(state, e) {
 function details(e) {
   const parts = [];
   if (e.nth_today) parts.push(`#${e.nth_today}`);
+  if (e.choice) parts.push(e.choice);
+  if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
+  if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
   if (e.reps != null) parts.push(`${e.reps} reps`);
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
@@ -69,6 +72,9 @@ function openDetails(ctx, e) {
     ['Date', friendlyDay(e.date) + ` (${e.date})`],
     ['Time', e.time],
     ['Number that day', e.nth_today],
+    ['Type', e.choice],
+    ['Amount', e.amount != null ? `${e.amount} ${e.unit || ''}`.trim() : null],
+    ['How many', e.count],
     ['Intensity', e.intensity],
     ['Duration (min)', e.duration_min],
     ['Reps', e.reps],

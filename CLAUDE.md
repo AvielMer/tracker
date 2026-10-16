@@ -100,7 +100,21 @@ Example:
 id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
 "session_start", "session_end"), item_id, item_name, nth_today,
 session_id, set_no, reps, seconds, weight, intensity, duration_min,
-note
+choice, amount, unit, count, note
+
+## Configurable event buttons (added after step 1)
+Each event's "ask" list picks what the quick sheet asks after a tap,
+in that order: "intensity" (1-10), "duration_min", "choice" (pick from
+the event's "choices" list, e.g. which medicine; "Other…" adds a new
+one to the list), "amount" (one-tap values from
+"amount": {"unit": "mg", "values": [200, 400]}, or type any number),
+"count" (how many at once, 1-10; the button's daily total adds these
+up), "note". If only one question is asked, one tap on the answer
+saves. All of this is editable in Settings → ✎ / + Add a button.
+Example:
+  { "id": "medicine", "name": "Medicine", "ask": ["choice", "amount"],
+    "choices": ["Paracetamol", "Ibuprofen"],
+    "amount": { "unit": "mg", "values": [200, 400, 500, 1000] } }
 
 ## How to work with me
 - I'm a beginner and I work from my phone. Explain every step simply.
