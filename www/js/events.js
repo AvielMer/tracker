@@ -2,8 +2,9 @@
 
 import * as storage from './storage.js';
 import { ASK_FIELDS, eventLabel, saveConfig } from './config.js';
+import { deleteWithUndo, details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
-import { esc, hhmm, localDate } from './util.js';
+import { esc, friendlyDay, hhmm, localDate } from './util.js';
 
 // Taps on the same button closer together than this are treated as an
 // accidental double tap. WHY 3 s: long enough to catch a shaky double
@@ -52,12 +53,43 @@ export function renderEvents(el, ctx) {
     </button>`;
   }).join('')}</div>`;
 
+  el.insertAdjacentHTML('beforeend', recentHtml(state));
+  el.querySelectorAll('.recent-row').forEach((row) => {
+    const entry = () => state.entries.find((x) => x.id === row.dataset.id);
+    row.querySelector('.recent-main').addEventListener('click', () => { const e = entry(); if (e) openDetails(ctx, e); });
+    row.querySelector('.recent-x').addEventListener('click', () => {
+      const e = entry();
+      if (e) { lastTap.delete(e.item_id); deleteWithUndo(ctx, e); }
+    });
+  });
+
   el.querySelectorAll('.ev').forEach((btn) => {
     btn.addEventListener('click', () => {
       const ev = state.config.events.find((e) => e.id === btn.dataset.id);
       if (ev) logEvent(ctx, ev);
     });
   });
+}
+
+// The last few events, so a wrong tap can be cancelled (✕) or fixed (tap
+// the row) right here, without going to the Log.
+const RECENT = 5;
+
+function recentHtml(state) {
+  const recent = state.entries.filter((e) => e.kind === 'event').slice(-RECENT).reverse();
+  if (!recent.length) return '';
+  const today = localDate();
+  const rows = recent.map((e) => {
+    const sub = details(e);
+    const when = e.date === today ? hhmm(e.time) : `${friendlyDay(e.date)} ${hhmm(e.time)}`;
+    return `<div class="recent-row" data-id="${esc(e.id)}">
+      <button class="recent-main"><span class="row-time">${esc(when)}</span>
+        <span class="recent-name">${esc(screenLabel(state, e))}</span>
+        <span class="recent-sub">${esc(sub)}</span></button>
+      <button class="recent-x" aria-label="Delete this entry">✕</button>
+    </div>`;
+  }).join('');
+  return `<h2 class="day">Recent<a class="small" href="#log">all →</a></h2><div class="card">${rows}</div>`;
 }
 
 // Logs one event. Also used by the home-screen shortcut (?log=<id>).
