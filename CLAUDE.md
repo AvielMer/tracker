@@ -122,9 +122,38 @@ note
   serving the old cached copy.
 - `.gitignore` blocks exported logs/backups so personal data can't be
   committed by accident.
-- Reference files: `reference/watch_drift.py` and
-  `WatchDrift-android.zip` were NOT in the repo when the project was
-  set up (step 1). Upload them to the repo root and ask Claude to move
-  them into `reference/` (unzip the zip into
-  `reference/watchdrift-android/`, strip any keystores/passwords/
-  personal data, note anything useful for the APK step here).
+- Reference: `reference/watch_drift.py` (Termux/curses app) and
+  `reference/watchdrift-android/` (its native Kotlin/Compose port, from
+  WatchDrift-android.zip). Removed from the port because they were my
+  personal data: `app/src/test/resources/watch_drift.json` (real
+  readings), `reference.json` (derived from it) and
+  `app/src/main/assets/watch_profiles.json` (my watches). So its
+  StatsTest no longer runs — it's reference code only, not built.
+  There were no keystores or passwords in it.
+
+### Lessons from the reference apps (for storage and the APK, step 5)
+- DON'T copy `watch_drift.py`'s `save_data()`: it rewrites the whole
+  file in place (a crash mid-write loses everything), and `load_data()`
+  returns an EMPTY dataset on a parse error, so the next save wipes the
+  log. Never treat an unreadable log as empty.
+- DO copy the Android port's `data/DataStore.kt` pattern for the
+  Capacitor Filesystem storage: write to `.tmp`, keep a `.bak` of the
+  last good file, then rename; on load, fall back to `.bak` if the main
+  file is missing or broken. For `tracker_log.jsonl` prefer appending
+  one line per entry; skip (and report) unreadable lines instead of
+  failing the whole file. Rewrite the whole file (tmp + rename) only
+  for explicit edit/delete.
+- Import = merge by id, existing entry wins (DataStore.merge). The web
+  app already does this.
+- Config live-reload: `load_profiles()` re-reads only when the file's
+  mtime changes, and a malformed file never stops the app. Ours goes
+  further and keeps the last good config.
+- `res/xml/backup_rules.xml` + `data_extraction_rules.xml`: include the
+  data files in Android auto-backup. Worth adding to the Capacitor
+  android project.
+- The port has NO signing config. For a downloadable APK from GitHub
+  Actions, a debug-signed APK is enough to install on my phone; if a
+  release keystore is ever made, keep it in GitHub Secrets, never in
+  the repo.
+- The port targets compileSdk 34, minSdk 26, Java 17 — a sane baseline
+  for the Capacitor android project too.
