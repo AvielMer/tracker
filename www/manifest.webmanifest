@@ -1,0 +1,31 @@
+{
+  "name": "Tracker",
+  "short_name": "Tracker",
+  "description": "One-tap personal event and training log",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121418",
+  "theme_color": "#121418",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log headache",
+      "short_name": "Headache",
+      "url": "./?log=headache",
+      "icons": [{ "src": "icons/shortcut-event.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "Start training",
+      "short_name": "Training",
+      "url": "./?go=training",
+      "icons": [{ "src": "icons/shortcut-training.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ]
+}
