@@ -44,6 +44,15 @@ export function hhmm(time) {
   return (time || '').slice(0, 5);
 }
 
+// "45 min", "3 h 20 min", "2 d 4 h" — for start/finish buttons that can
+// run from minutes to weeks.
+export function fmtDuration(min) {
+  const m = Math.max(0, Math.round(min));
+  if (m < 60) return t('{n} min', { n: m });
+  if (m < 24 * 60) return t('{h} h {m} min', { h: Math.floor(m / 60), m: m % 60 });
+  return t('{d} d {h} h', { d: Math.floor(m / 1440), h: Math.floor((m % 1440) / 60) });
+}
+
 export function friendlyDay(dateStr) {
   const today = localDate();
   const y = new Date();

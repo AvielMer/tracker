@@ -4,7 +4,9 @@ import * as storage from './storage.js';
 import { ASK_FIELDS, eventLabel, saveConfig } from './config.js';
 import { deleteWithUndo, details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
-import { esc, friendlyDay, hhmm, localDate } from './util.js';
+import {
+  esc, fmtDuration, friendlyDay, hhmm, localDate,
+} from './util.js';
 import { t } from './i18n.js';
 
 // Taps on the same button closer together than this are treated as an
@@ -26,9 +28,25 @@ function occurrences(entries) {
   return new Set(entries.map((e) => e.session_id || e.id)).size;
 }
 
+// What counts as "one time" on a button today: a normal event, or the
+// start of a start/finish button.
+const COUNTED = new Set(['event', 'event_start']);
+
 function todayEvents(state) {
   const today = localDate();
-  return state.entries.filter((e) => e.kind === 'event' && e.date === today);
+  return state.entries.filter((e) => COUNTED.has(e.kind) && e.date === today);
+}
+
+// The running (started, not finished) entry of a start/finish button.
+// Worked out from the log itself, so nothing extra has to be saved and a
+// crash can't leave it in a wrong state.
+export function openSpan(state, evId) {
+  const ended = new Set(state.entries.filter((e) => e.kind === 'event_end').map((e) => e.session_id));
+  for (let i = state.entries.length - 1; i >= 0; i--) {
+    const e = state.entries[i];
+    if (e.kind === 'event_start' && e.item_id === evId && !ended.has(e.id)) return e;
+  }
+  return null;
 }
 
 export function renderEvents(el, ctx) {
@@ -46,11 +64,16 @@ export function renderEvents(el, ctx) {
     const total = mine.reduce((n, e) => n + (e.count || 1), 0) - (mine.length - occurrences(mine));
     // Colour comes from the config and is validated as #rrggbb there, so
     // it's safe to put into the style attribute.
-    const col = ev.color ? ` has-color" style="--c:${ev.color}` : '';
-    return `<button class="ev${col}" data-id="${esc(ev.id)}">
+    const cls = `ev${ev.color ? ' has-color' : ''}`;
+    const style = ev.color ? ` style="--c:${ev.color}"` : '';
+    const run = ev.span ? openSpan(state, ev.id) : null;
+    let sub = last ? esc(t('last {time}', { time: hhmm(last.time) })) : '&nbsp;';
+    if (run) sub = `▶ ${esc(t('running {d}', { d: fmtDuration((Date.now() - Date.parse(run.ts)) / 60000) }))}`;
+    else if (ev.span) sub = esc(t('tap to start'));
+    return `<button class="${cls}${run ? ' running' : ''}"${style} data-id="${esc(ev.id)}">
       <span class="ev-count${total ? '' : ' zero'}">${total}</span>
       <span class="ev-name">${esc(eventLabel(ev))}</span>
-      <span class="ev-last">${last ? esc(t('last {time}', { time: hhmm(last.time) })) : '&nbsp;'}</span>
+      <span class="ev-last">${sub}</span>
     </button>`;
   }).join('')}</div>`;
 
@@ -67,7 +90,10 @@ export function renderEvents(el, ctx) {
   el.querySelectorAll('.ev').forEach((btn) => {
     btn.addEventListener('click', () => {
       const ev = state.config.events.find((e) => e.id === btn.dataset.id);
-      if (ev) logEvent(ctx, ev);
+      if (!ev) return;
+      const run = ev.span ? openSpan(state, ev.id) : null;
+      if (run) openFinishSheet(ctx, ev, run);
+      else logEvent(ctx, ev);
     });
   });
 }
@@ -77,7 +103,8 @@ export function renderEvents(el, ctx) {
 const RECENT = 5;
 
 function recentHtml(state) {
-  const recent = state.entries.filter((e) => e.kind === 'event').slice(-RECENT).reverse();
+  const recent = state.entries.filter((e) => e.kind === 'event' || e.kind === 'event_start' || e.kind === 'event_end')
+    .slice(-RECENT).reverse();
   if (!recent.length) return '';
   const today = localDate();
   const rows = recent.map((e) => {
@@ -100,7 +127,7 @@ export async function logEvent(ctx, ev) {
   const nowMs = Date.now();
 
   const lastEntry = [...state.entries].reverse()
-    .find((e) => e.kind === 'event' && e.item_id === ev.id);
+    .find((e) => COUNTED.has(e.kind) && e.item_id === ev.id);
   const lastMs = Math.max(lastTap.get(ev.id) || 0, lastEntry ? Date.parse(lastEntry.ts) : 0);
   if (nowMs - lastMs < DOUBLE_TAP_MS) {
     const secs = Math.max(1, Math.round((nowMs - lastMs) / 1000));
@@ -111,7 +138,7 @@ export async function logEvent(ctx, ev) {
 
   const nth = occurrences(todayEvents(state).filter((e) => e.item_id === ev.id)) + 1;
   const rec = makeRecord({
-    kind: 'event',
+    kind: ev.span ? 'event_start' : 'event',
     item_id: ev.id,
     item_name: ev.name, // real name: goes to the log/exports, never on screen
     nth_today: nth,
@@ -133,7 +160,7 @@ export async function logEvent(ctx, ev) {
   } else if (ev.ask && ev.ask.length) {
     openAskSheet(ctx, ev, rec);
   } else {
-    ctx.toast(t('{label} #{n} logged {time}', { label, n: nth, time: hhmm(rec.time) }), {
+    ctx.toast(t(ev.span ? '{label} started {time}' : '{label} #{n} logged {time}', { label, n: nth, time: hhmm(rec.time) }), {
       actionLabel: t('Undo'),
       onAction: () => undo(ctx, rec),
     });
@@ -435,4 +462,46 @@ function openBpSheet(ctx, ev, first) {
     });
   };
   render();
+}
+
+// --- start / finish buttons ------------------------------------------------
+// Finishing takes two taps (button, then "Finish now") on purpose: a
+// finish closes something that may have run for days, so an accidental
+// brush of the button must not do it.
+function openFinishSheet(ctx, ev, start) {
+  const label = eventLabel(ev);
+  const mins = () => (Date.now() - Date.parse(start.ts)) / 60000;
+  const root = ctx.openSheet(`
+    <div class="sheet-head"><div><b>${esc(label)}</b><br>
+      <span class="muted">${esc(t('started {when}', { when: `${friendlyDay(start.date)} ${hhmm(start.time)}` }))}</span></div></div>
+    <p class="rest">${esc(t('Running for'))} <b>${esc(fmtDuration(mins()))}</b></p>
+    <div class="sheet-actions">
+      <button class="btn" data-act="cancel">${t('Cancel')}</button>
+      <button class="btn primary" data-act="finish">${t('Finish now')}</button>
+    </div>`);
+  root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
+  root.querySelector('[data-act="finish"]').addEventListener('click', async () => {
+    const end = makeRecord({
+      kind: 'event_end',
+      item_id: ev.id,
+      item_name: ev.name,
+      session_id: start.id,
+      duration_min: Math.round(mins()),
+    });
+    try {
+      await storage.appendEntry(end);
+    } catch (e) {
+      ctx.toast(t('NOT saved: {msg}', { msg: e.message }), { error: true });
+      return;
+    }
+    ctx.state.entries.push(end);
+    lastTap.set(ev.id, Date.now()); // a fast re-tap must not start a new one
+    if (navigator.vibrate) navigator.vibrate(30);
+    ctx.closeSheet();
+    ctx.refresh();
+    ctx.toast(t('{label} finished after {d}', { label, d: fmtDuration(end.duration_min) }), {
+      actionLabel: t('Undo'),
+      onAction: () => undo(ctx, end),
+    });
+  });
 }

@@ -319,3 +319,9 @@ select.input { appearance: auto; }
 .mdef { display: flex; gap: 6px; align-items: center; }
 .mdef .input { margin: 4px 0; }
 .mdef .mini-unit { flex: 0 0 90px; }
+
+/* Start/finish button that is running: a soft pulsing outline. */
+.ev.running { box-shadow: inset 0 0 0 3px var(--c, var(--accent)); animation: running 2s ease-in-out infinite; }
+@keyframes running { 50% { box-shadow: inset 0 0 0 3px transparent; } }
+@media (prefers-reduced-motion: reduce) { .ev.running { animation: none; } }
+.recent-main .row-time { white-space: nowrap; }

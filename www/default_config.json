@@ -9,6 +9,7 @@
       "amount": { "unit": "mg", "values": [200, 400, 500, 1000] }
     },
     { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}] },
+    {"id": "water_bottle", "name": "Water bottle", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "L", "values": [0.5, 1, 1.5, 2]}},
     { "id": "coffee", "name": "Coffee", "ask": ["count"] }
   ],
   "exercises": [

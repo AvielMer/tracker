@@ -5,6 +5,7 @@
     {"id": "panic", "name": "התקף חרדה", "color": "#e5534b", "ask": ["intensity", "duration_min"]},
     {"id": "medicine", "name": "תרופה", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["אקמול", "נורופן"], "amount": {"unit": "מ״ג", "values": [200, 400, 500, 1000]}},
     {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "משקל", "unit": "ק״ג"}]},
+    {"id": "water_bottle", "name": "בקבוק מים", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "ל׳", "values": [0.5, 1, 1.5, 2]}},
     {"id": "coffee", "name": "קפה", "ask": ["count"]}
   ],
   "exercises": [
