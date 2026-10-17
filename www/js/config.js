@@ -86,6 +86,9 @@ export function validateConfig(obj) {
     if ('color' in ev && !(typeof ev.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(ev.color))) {
       errors.push(`${at}: "color" must look like "#e5534b"`);
     }
+    // "span": true makes a start/finish button (see record.js event_start).
+    if ('span' in ev && typeof ev.span !== 'boolean') errors.push(`${at}: "span" must be true or false`);
+    if (ev.span && ask.includes('bp')) errors.push(`${at}: a start/finish button ("span") can't ask "bp"`);
     if ('private' in ev && typeof ev.private !== 'boolean') errors.push(`${at}: "private" must be true or false`);
     if ('displayLabel' in ev && typeof ev.displayLabel !== 'string') errors.push(`${at}: "displayLabel" must be text`);
   });

@@ -98,7 +98,7 @@ Example:
 
 ## Log record fields
 id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
-"session_start", "session_end"), item_id, item_name, nth_today,
+"session_start", "session_end", "event_start", "event_end"), item_id, item_name, nth_today,
 session_id, set_no, reps, seconds, weight, intensity, duration_min,
 choice, amount, unit, count, bp_sys, bp_dia, pulse, measures, note
 ("measures" = { measure_id: number } for a button's own number fields;
@@ -122,6 +122,12 @@ settle as you relax). Each reading is its own log entry with its own
 time; all share session_id = the first entry's id, and set_no is the
 reading number (1, 2, 3...). A rest timer shows time since the last
 reading. The button's daily count counts a series once. All of this is editable in Settings → ✎ / + Add a button.
+Start/finish buttons ("span": true, not combinable with "bp"): first tap
+logs kind "event_start" (asks the button's questions), button shows
+"running 1 d 4 h"; next tap opens a sheet with "Finish now" (two taps on
+purpose) which logs "event_end" with session_id = start id and
+duration_min. The running start is worked out from the log (a start
+with no end). Editing either time recalculates the end's duration_min.
 Example:
   { "id": "medicine", "name": "Medicine", "ask": ["choice", "amount"],
     "choices": ["Paracetamol", "Ibuprofen"],

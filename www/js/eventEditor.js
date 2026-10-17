@@ -40,6 +40,7 @@ export function openEventEditor(ctx, ev) {
     <input class="input" data-f="name" value="${esc(cur.name)}" placeholder="${esc(t('e.g. Medicine'))}">
     <label class="check"><input type="checkbox" data-f="private" ${cur.private ? 'checked' : ''}> ${t('Private — show only a short label on screen')}</label>
     <input class="input" data-f="label" value="${esc(cur.displayLabel || '')}" placeholder="${esc(t('Label shown on screen (e.g. X)'))}" ${cur.private ? '' : 'hidden'}>
+    <label class="check"><input type="checkbox" data-f="span" ${cur.span ? 'checked' : ''}> ${esc(t('SPAN_OPTION'))}</label>
 
     <div class="label" style="margin-top:12px">${t('Color')}</div>
     <div class="swatches">
@@ -96,6 +97,7 @@ export function openEventEditor(ctx, ev) {
     if (chosen.includes('bp') && chosen.some((a) => !['bp', 'measures', 'note'].includes(a))) {
       ctx.toast(t('Blood pressure can only be combined with your own numbers and Note')); return;
     }
+    if (f('span').checked && chosen.includes('bp')) { ctx.toast(t('A start/finish button can\'t ask blood pressure')); return; }
     // Keep each number field's id once created (old entries refer to it);
     // new rows get an id made from their name.
     const measures = [];
@@ -122,6 +124,7 @@ export function openEventEditor(ctx, ev) {
     if (!item) { ctx.closeSheet(); return; }
     item.name = name;
     if (color) item.color = color; else delete item.color;
+    if (f('span').checked) item.span = true; else delete item.span;
     if (f('private').checked) {
       item.private = true;
       item.displayLabel = f('label').value.trim() || name.slice(0, 1).toUpperCase();

@@ -13,7 +13,10 @@ export const FIELDS = [
 // fields (e.g. { "weight": 78.5 }). In CSV it becomes one column per id,
 // named m_<id>, so it stays easy to analyse in a spreadsheet.
 
-export const KINDS = ['event', 'set', 'session_start', 'session_end'];
+// event_start / event_end: a start/finish button ("span"), e.g. a water
+// bottle opened today and finished tomorrow. The end's session_id is the
+// start's id and its duration_min is the time between them.
+export const KINDS = ['event', 'set', 'session_start', 'session_end', 'event_start', 'event_end'];
 
 export function makeRecord(fields, now = new Date()) {
   const rec = {};

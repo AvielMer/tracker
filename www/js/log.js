@@ -4,7 +4,7 @@
 import * as storage from './storage.js';
 import { eventLabel } from './config.js';
 import {
-  esc, friendlyDay, hhmm, isoWithTz, localDate, localTime,
+  esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
 import { t } from './i18n.js';
 import { measuresHtml, readMeasures } from './events.js';
@@ -19,6 +19,11 @@ export function screenLabel(state, e) {
   if (e.kind === 'session_end') return t('■ {name} — finished', { name: e.item_name });
   const lists = [...state.config.events, ...state.config.exercises];
   const item = lists.find((x) => x.id === e.item_id);
+  // Start/finish buttons: private labels still apply.
+  if (e.kind === 'event_start' || e.kind === 'event_end') {
+    const name = item ? eventLabel(item) : e.item_name;
+    return t(e.kind === 'event_start' ? '▶ {name} — started' : '■ {name} — finished', { name });
+  }
   if (item && e.kind === 'event') return eventLabel(item);
   if (item) return item.name;
   return e.item_name || e.kind;
@@ -50,11 +55,12 @@ export function details(e, state) {
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
   if (e.kind === 'set' && e.set_no) parts.push(t('set {n}', { n: e.set_no }));
   if (e.kind === 'session_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
+  if (e.kind === 'event_end' && e.duration_min != null) parts.push(t('lasted {d}', { d: fmtDuration(e.duration_min) }));
   if (e.reps != null) parts.push(t('{n} reps', { n: e.reps }));
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
   if (e.intensity != null) parts.push(t('intensity {n}', { n: e.intensity }));
-  if (e.kind !== 'session_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
+  if (e.kind !== 'session_end' && e.kind !== 'event_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
   return parts.join(' · ');
 }
 
@@ -72,7 +78,7 @@ export function renderLog(el, ctx) {
     if (e.date !== day) {
       if (day !== null) html += '</div>';
       day = e.date;
-      const n = all.filter((x) => x.date === day && x.kind === 'event').length;
+      const n = all.filter((x) => x.date === day && (x.kind === 'event' || x.kind === 'event_start')).length;
       html += `<h2 class="day">${esc(friendlyDay(day))}<span class="muted">${n ? esc(t('{n} events', { n })) : ''}</span></h2><div class="card">`;
     }
     html += `<button class="row" data-id="${esc(e.id)}">
@@ -116,7 +122,9 @@ export function openDetails(ctx, e) {
   const { state } = ctx;
   const item = state.config.events.find((x) => x.id === e.item_id);
   const ask = new Set(item?.ask || []);
-  const fields = EDIT_FIELDS.filter(([k, , , a]) => e[k] != null || (a && ask.has(a)));
+  // An end's duration is worked out from the two times, not typed.
+  const fields = EDIT_FIELDS.filter(([k, , , a]) => (e[k] != null || (a && ask.has(a)))
+    && !(e.kind === 'event_end' && k === 'duration_min'));
   const mDefs = ask.has('measures') || e.measures ? measureDefs(state, e) : [];
   const unit = e.unit || item?.amount?.unit || '';
   const info = [
@@ -199,6 +207,7 @@ export function openDetails(ctx, e) {
       if (!updated) throw new Error('entry not found');
       const i = state.entries.findIndex((x) => x.id === e.id);
       if (i >= 0) state.entries[i] = updated;
+      if (patch.ts) await fixSpanDuration(state, updated);
       state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
     } catch (err) {
       ctx.toast(t('NOT saved: {msg}', { msg: err.message }), { error: true });
@@ -210,6 +219,27 @@ export function openDetails(ctx, e) {
   });
 
   root.querySelector('[data-act="delete"]').addEventListener('click', () => deleteWithUndo(ctx, e));
+}
+
+// Changing the time of a start or a finish changes how long it lasted, so
+// the finish's duration_min is recalculated (the only case where editing
+// one entry updates another — they are two halves of one thing).
+async function fixSpanDuration(state, e) {
+  let start = null;
+  let end = null;
+  if (e.kind === 'event_start') {
+    start = e;
+    end = state.entries.find((x) => x.kind === 'event_end' && x.session_id === e.id);
+  } else if (e.kind === 'event_end') {
+    end = e;
+    start = state.entries.find((x) => x.id === e.session_id);
+  }
+  if (!start || !end) return;
+  const duration = Math.max(0, Math.round((Date.parse(end.ts) - Date.parse(start.ts)) / 60000));
+  if (duration === end.duration_min) return;
+  const upd = await storage.updateEntry(end.id, { duration_min: duration });
+  const j = state.entries.findIndex((x) => x.id === end.id);
+  if (upd && j >= 0) state.entries[j] = upd;
 }
 
 // Delete one entry; the toast offers Undo, which puts it back unchanged.
