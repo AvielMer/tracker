@@ -81,7 +81,7 @@ function recentHtml(state) {
   if (!recent.length) return '';
   const today = localDate();
   const rows = recent.map((e) => {
-    const sub = details(e);
+    const sub = details(e, state);
     const when = e.date === today ? hhmm(e.time) : `${friendlyDay(e.date)} ${hhmm(e.time)}`;
     return `<div class="recent-row" data-id="${esc(e.id)}">
       <button class="recent-main"><span class="row-time">${esc(when)}</span>
@@ -173,6 +173,8 @@ function askSection(ev, field) {
       return [t('Amount ({unit})', { unit: ev.amount.unit }), chips('amount', ev.amount.values, { other: true })];
     case 'count':
       return [t('How many'), chips('count', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
+    case 'measures':
+      return [null, measuresHtml(ev.measures || [])];
     case 'note':
       return [t('Note'), `<input class="input" data-field="note" placeholder="${esc(t('optional'))}">`];
     default:
@@ -182,13 +184,35 @@ function askSection(ev, field) {
 
 const NUMERIC = new Set(['intensity', 'duration_min', 'amount', 'count']);
 
+// The button's own number fields (e.g. Weight kg). Shared by the normal
+// sheet and the blood-pressure sheet.
+export function measuresHtml(measures, current = {}) {
+  return `<div class="mfields">${measures.map((m) => `<label>${esc(m.name)}${m.unit ? ` (${esc(m.unit)})` : ''}
+    <input class="input" data-m="${esc(m.id)}" inputmode="decimal" value="${esc(current[m.id] ?? '')}"></label>`).join('')}</div>`;
+}
+
+// Reads the number fields. Returns { measures } (null when all empty) or
+// { error } naming the field that isn't a number.
+export function readMeasures(root, measures) {
+  const out = {};
+  for (const m of measures) {
+    const inp = root.querySelector(`[data-m="${CSS.escape(m.id)}"]`);
+    const raw = inp ? inp.value.trim().replace(',', '.') : '';
+    if (!raw) continue;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return { error: t('{label}: please type a number', { label: m.name }) };
+    out[m.id] = v;
+  }
+  return { measures: Object.keys(out).length ? out : null };
+}
+
 // Optional details after logging. The entry is ALREADY saved; this sheet
 // only adds details, so closing/skipping it never loses the event.
 function openAskSheet(ctx, ev, rec) {
   const label = eventLabel(ev);
   const ask = ev.ask.filter((f) => ASK_FIELDS.includes(f));
   // A single tap-to-pick question saves on the first tap: fastest path.
-  const instant = ask.length === 1 && ask[0] !== 'note';
+  const instant = ask.length === 1 && !['note', 'measures'].includes(ask[0]);
   const values = {};
 
   const sections = ask.map((f) => askSection(ev, f)).filter(Boolean);
@@ -197,13 +221,18 @@ function openAskSheet(ctx, ev, rec) {
       <div><b>${esc(label)} #${rec.nth_today}</b><br><span class="muted">${esc(t('logged {time}', { time: hhmm(rec.time) }))}</span></div>
       <button class="btn" data-act="undo">${t('Undo')}</button>
     </div>
-    ${sections.map(([title, body]) => `<div class="field"><div class="label">${esc(title)}</div>${body}</div>`).join('')}
+    ${sections.map(([title, body]) => `<div class="field">${title ? `<div class="label">${esc(title)}</div>` : ''}${body}</div>`).join('')}
     <div class="sheet-actions">
       <button class="btn" data-act="skip">${t('Skip')}</button>
       ${instant ? '' : `<button class="btn primary" data-act="save">${t('Save')}</button>`}
     </div>`);
 
   const save = async () => {
+    if (ask.includes('measures')) {
+      const r = readMeasures(root, ev.measures || []);
+      if (r.error) { ctx.toast(r.error); return; }
+      if (r.measures) values.measures = r.measures;
+    }
     const note = root.querySelector('[data-field="note"]');
     if (note && note.value.trim()) values.note = note.value.trim();
     if (values.amount != null) values.unit = ev.amount.unit;
@@ -289,6 +318,8 @@ function mmss(ms) {
 function openBpSheet(ctx, ev, first) {
   const label = eventLabel(ev);
   const askNote = ev.ask.includes('note');
+  // Custom numbers (e.g. weight) are asked once per series, with reading 1.
+  const askMeasures = ev.ask.includes('measures') && (ev.measures || []).length;
   const series = []; // saved records of this series, in order
   let timer = null;
 
@@ -310,6 +341,7 @@ function openBpSheet(ctx, ev, first) {
         <label>${t('Lower')}<input class="input bp" data-bp="bp_dia" inputmode="numeric" placeholder="80"></label>
         <label>${t('Pulse')}<input class="input bp" data-bp="pulse" inputmode="numeric" placeholder="70"></label>
       </div>
+      ${askMeasures && !series.length ? measuresHtml(ev.measures || []) : ''}
       ${askNote ? `<input class="input" data-field="note" placeholder="${esc(t('Note (optional)'))}">` : ''}
       <div class="sheet-actions">
         <button class="btn" data-act="done">${series.length ? t('Done') : t('Skip')}</button>
@@ -336,7 +368,9 @@ function openBpSheet(ctx, ev, first) {
       inp.value = inp.value.replace(/[^0-9]/g, '').slice(0, 3);
       const v = Number(inp.value);
       const full = inp.value.length === 3 || (inp.value.length === 2 && v >= 30 && inp.dataset.bp !== 'bp_sys');
-      if (full && inputs[i + 1]) inputs[i + 1].focus();
+      // After the pulse, continue into the first custom number (weight…).
+      const next = inputs[i + 1] || root.querySelector('[data-m]');
+      if (full && next) next.focus();
     }));
     if (!series.length) setTimeout(() => inputs[0].focus(), 50);
 
@@ -369,6 +403,11 @@ function openBpSheet(ctx, ev, first) {
       if (v.bp_sys <= v.bp_dia && !confirm(t('Upper is not bigger than lower — swapped? Save anyway?'))) return;
       const noteEl = root.querySelector('[data-field="note"]');
       if (noteEl && noteEl.value.trim()) v.note = noteEl.value.trim();
+      if (askMeasures && !series.length) {
+        const r = readMeasures(root, ev.measures);
+        if (r.error) { ctx.toast(r.error); return; }
+        if (r.measures) v.measures = r.measures;
+      }
       v.session_id = first.id;
       v.set_no = series.length + 1;
       try {

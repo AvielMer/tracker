@@ -4,7 +4,7 @@
     {"id": "headache", "name": "כאב ראש", "ask": ["intensity"]},
     {"id": "panic", "name": "התקף חרדה", "color": "#e5534b", "ask": ["intensity", "duration_min"]},
     {"id": "medicine", "name": "תרופה", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["אקמול", "נורופן"], "amount": {"unit": "מ״ג", "values": [200, 400, 500, 1000]}},
-    {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp"]},
+    {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "משקל", "unit": "ק״ג"}]},
     {"id": "coffee", "name": "קפה", "ask": ["count"]}
   ],
   "exercises": [

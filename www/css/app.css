@@ -311,3 +311,11 @@ select.input { appearance: auto; }
 /* Full-width text lines on buttons so every name aligns the same way. */
 .ev-name, .ev-last { align-self: stretch; }
 .tr-name .muted { margin-inline-start: 6px; }
+
+/* --- custom number fields ("measures") --- */
+.mfields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.mfields label { display: block; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.mfields .input { font-size: 20px; font-weight: 600; }
+.mdef { display: flex; gap: 6px; align-items: center; }
+.mdef .input { margin: 4px 0; }
+.mdef .mini-unit { flex: 0 0 90px; }

@@ -7,8 +7,11 @@ export const FIELDS = [
   'id', 'ts', 'date', 'time', 'kind', 'item_id', 'item_name', 'nth_today',
   'session_id', 'set_no', 'reps', 'seconds', 'weight', 'intensity',
   'duration_min', 'choice', 'amount', 'unit', 'count', 'bp_sys', 'bp_dia',
-  'pulse', 'note',
+  'pulse', 'measures', 'note',
 ];
+// "measures" is an object { measure_id: number } for a button's own number
+// fields (e.g. { "weight": 78.5 }). In CSV it becomes one column per id,
+// named m_<id>, so it stays easy to analyse in a spreadsheet.
 
 export const KINDS = ['event', 'set', 'session_start', 'session_end'];
 
@@ -33,5 +36,6 @@ export function normalizeRecord(r) {
   if (!KINDS.includes(r.kind)) return null;
   const rec = {};
   for (const f of FIELDS) rec[f] = r[f] ?? null;
+  if (rec.measures !== null && (typeof rec.measures !== 'object' || Array.isArray(rec.measures))) rec.measures = null;
   return rec;
 }

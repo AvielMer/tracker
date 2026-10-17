@@ -15,8 +15,17 @@ const ASK_OPTIONS = [
   ['amount', 'ASK_amount'],
   ['count', 'ASK_count'],
   ['bp', 'ASK_bp'],
+  ['measures', 'ASK_measures'],
   ['note', 'ASK_note'],
 ];
+
+function measureRow(m = {}) {
+  return `<div class="mdef" data-id="${esc(m.id || '')}">
+    <input class="input" data-mn value="${esc(m.name || '')}" placeholder="${esc(t('Name, e.g. Weight'))}">
+    <input class="input mini-unit" data-mu value="${esc(m.unit || '')}" placeholder="${esc(t('Unit, e.g. kg'))}">
+    <button class="ibtn" data-mdel aria-label="${esc(t('Remove'))}">✕</button>
+  </div>`;
+}
 
 const splitList = (s) => s.split(',').map((x) => x.trim()).filter(Boolean);
 
@@ -47,6 +56,9 @@ export function openEventEditor(ctx, ev) {
         <input class="input" data-f="unit" value="${esc(cur.amount?.unit || '')}" placeholder="${esc(t('Unit, e.g. mg or pills'))}">
         <input class="input" data-f="values" value="${esc((cur.amount?.values || []).join(', '))}" placeholder="${esc(t('Quick numbers, e.g. 200, 400, 500'))}">
         <div class="small muted">${esc(t('AMOUNT_HINT'))}</div></div>` : ''}
+      ${k === 'measures' ? `<div class="ask-cfg" data-cfg="measures" ${ask.has('measures') ? '' : 'hidden'}>
+        <div data-mlist>${(cur.measures?.length ? cur.measures : [{}]).map(measureRow).join('')}</div>
+        <button class="btn" data-madd>${t('+ Add a number')}</button></div>` : ''}
     `).join('')}
     <p class="small muted">${esc(t('ONE_QUESTION_HINT'))}</p>
     <div class="sheet-actions">
@@ -66,6 +78,12 @@ export function openEventEditor(ctx, ev) {
     const cfg = root.querySelector(`[data-cfg="${box.dataset.ask}"]`);
     if (cfg) cfg.hidden = !box.checked;
   }));
+  root.querySelector('[data-madd]').addEventListener('click', () => {
+    root.querySelector('[data-mlist]').insertAdjacentHTML('beforeend', measureRow());
+  });
+  root.querySelector('[data-mlist]').addEventListener('click', (e) => {
+    if (e.target.closest('[data-mdel]')) e.target.closest('.mdef').remove();
+  });
   root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
 
   root.querySelector('[data-act="save"]').addEventListener('click', async () => {
@@ -75,9 +93,22 @@ export function openEventEditor(ctx, ev) {
     const choices = splitList(f('choices').value);
     const unit = f('unit').value.trim();
     const values = splitList(f('values').value).map((v) => Number(v.replace(/[^0-9.]/g, '')));
-    if (chosen.includes('bp') && chosen.some((a) => a !== 'bp' && a !== 'note')) {
-      ctx.toast(t('Blood pressure can only be combined with Note')); return;
+    if (chosen.includes('bp') && chosen.some((a) => !['bp', 'measures', 'note'].includes(a))) {
+      ctx.toast(t('Blood pressure can only be combined with your own numbers and Note')); return;
     }
+    // Keep each number field's id once created (old entries refer to it);
+    // new rows get an id made from their name.
+    const measures = [];
+    for (const row of root.querySelectorAll('.mdef')) {
+      const mName = row.querySelector('[data-mn]').value.trim();
+      if (!mName) continue;
+      const m = { id: row.dataset.id || makeId(measures, mName), name: mName };
+      if (measures.some((x) => x.id === m.id)) m.id = makeId(measures, mName);
+      const mUnit = row.querySelector('[data-mu]').value.trim();
+      if (mUnit) m.unit = mUnit;
+      measures.push(m);
+    }
+    if (chosen.includes('measures') && !measures.length) { ctx.toast(t('Type a name for at least one number, e.g. Weight')); return; }
     if (chosen.includes('choice') && !choices.length) { ctx.toast(t('Type at least one type, e.g. Paracetamol')); return; }
     if (chosen.includes('amount')) {
       if (!unit) { ctx.toast(t('Type a unit for the amount, e.g. mg')); return; }
@@ -100,6 +131,7 @@ export function openEventEditor(ctx, ev) {
     }
     if (chosen.length) item.ask = chosen; else delete item.ask;
     if (choices.length) item.choices = choices; else delete item.choices;
+    if (measures.length) item.measures = measures; else delete item.measures;
     if (chosen.includes('amount')) item.amount = { unit, values };
     else if (!(unit && values.length && values.every((v) => v > 0))) delete item.amount;
     if (isNew) cfg.events.push(item);

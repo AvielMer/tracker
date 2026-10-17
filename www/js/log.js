@@ -7,6 +7,7 @@ import {
   esc, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
 import { t } from './i18n.js';
+import { measuresHtml, readMeasures } from './events.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -23,12 +24,27 @@ export function screenLabel(state, e) {
   return e.item_name || e.kind;
 }
 
-export function details(e) {
+// The custom number fields to show/edit for an entry: the button's current
+// ones, plus any stored value whose field was removed from the button since.
+function measureDefs(state, e) {
+  const item = state?.config.events.find((x) => x.id === e.item_id);
+  const defs = [...(item?.measures || [])];
+  for (const id of Object.keys(e.measures || {})) {
+    if (!defs.some((m) => m.id === id)) defs.push({ id, name: id, unit: '' });
+  }
+  return defs;
+}
+
+export function details(e, state) {
   const parts = [];
   if (e.nth_today) parts.push(`#${e.nth_today}`);
   if (e.set_no && e.bp_sys != null) parts.push(t('reading {n}', { n: e.set_no }));
   if (e.bp_sys != null) parts.push(`${e.bp_sys}/${e.bp_dia}`);
   if (e.pulse != null) parts.push(`♥ ${e.pulse}`);
+  for (const m of measureDefs(state, e)) {
+    const v = e.measures?.[m.id];
+    if (v != null) parts.push(`${m.name} ${v}${m.unit ? ' ' + m.unit : ''}`);
+  }
   if (e.choice) parts.push(e.choice);
   if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
@@ -62,7 +78,7 @@ export function renderLog(el, ctx) {
     html += `<button class="row" data-id="${esc(e.id)}">
       <span class="row-time">${esc(hhmm(e.time))}</span>
       <span class="row-main"><span class="row-name">${esc(screenLabel(state, e))}</span>
-        <span class="row-sub">${esc(details(e))}${e.note ? ' · ' + esc(e.note) : ''}</span></span>
+        <span class="row-sub">${esc(details(e, state))}${e.note ? ' · ' + esc(e.note) : ''}</span></span>
     </button>`;
   }
   html += '</div>';
@@ -101,6 +117,7 @@ export function openDetails(ctx, e) {
   const item = state.config.events.find((x) => x.id === e.item_id);
   const ask = new Set(item?.ask || []);
   const fields = EDIT_FIELDS.filter(([k, , , a]) => e[k] != null || (a && ask.has(a)));
+  const mDefs = ask.has('measures') || e.measures ? measureDefs(state, e) : [];
   const unit = e.unit || item?.amount?.unit || '';
   const info = [
     e.nth_today ? t('#{n} that day', { n: e.nth_today }) : '',
@@ -119,6 +136,7 @@ export function openDetails(ctx, e) {
         <input class="input" data-e="${k}" ${type === 'num' ? 'inputmode="decimal"' : ''} value="${esc(e[k] ?? '')}"
           ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
     </div>
+    ${mDefs.length ? measuresHtml(mDefs, e.measures || {}) : ''}
     ${item?.choices ? `<datalist id="choice-list">${item.choices.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>` : ''}
     <label class="label-block">${t('Note')}<textarea class="input" data-e="note" rows="2">${esc(e.note ?? '')}</textarea></label>
     <div class="sheet-actions">
@@ -143,6 +161,11 @@ export function openDetails(ctx, e) {
       if (v !== e[k]) patch[k] = v;
     }
     if ('amount' in patch) patch.unit = patch.amount == null ? null : unit || null;
+    if (mDefs.length) {
+      const r = readMeasures(root, mDefs);
+      if (r.error) { ctx.toast(r.error); return; }
+      if (JSON.stringify(r.measures) !== JSON.stringify(e.measures ?? null)) patch.measures = r.measures;
+    }
     const note = val('note') || null;
     if (note !== e.note) patch.note = note;
 

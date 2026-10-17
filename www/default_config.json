@@ -8,7 +8,7 @@
       "choices": ["Paracetamol", "Ibuprofen"],
       "amount": { "unit": "mg", "values": [200, 400, 500, 1000] }
     },
-    { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp"] },
+    { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}] },
     { "id": "coffee", "name": "Coffee", "ask": ["count"] }
   ],
   "exercises": [
