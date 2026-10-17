@@ -4,7 +4,7 @@
     {"id": "headache", "name": "Головная боль", "ask": ["intensity"]},
     {"id": "panic", "name": "Паническая атака", "color": "#e5534b", "ask": ["intensity", "duration_min"]},
     {"id": "medicine", "name": "Лекарство", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["Парацетамол", "Ибупрофен"], "amount": {"unit": "мг", "values": [200, 400, 500, 1000]}},
-    {"id": "blood_pressure", "name": "Давление", "color": "#e0559a", "ask": ["bp"]},
+    {"id": "blood_pressure", "name": "Давление", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Вес", "unit": "кг"}]},
     {"id": "coffee", "name": "Кофе", "ask": ["count"]}
   ],
   "exercises": [

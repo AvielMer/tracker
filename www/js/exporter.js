@@ -10,8 +10,15 @@ function csvCell(v) {
 }
 
 export function toCSV(entries) {
-  const lines = [FIELDS.join(',')];
-  for (const e of entries) lines.push(FIELDS.map((f) => csvCell(e[f])).join(','));
+  // One column per custom number field (m_weight, m_temp, ...), so
+  // spreadsheets get plain numbers instead of a JSON blob.
+  const base = FIELDS.filter((f) => f !== 'measures');
+  const mKeys = [...new Set(entries.flatMap((e) => Object.keys(e.measures || {})))].sort();
+  const lines = [[...base, ...mKeys.map((k) => `m_${k}`)].join(',')];
+  for (const e of entries) {
+    const m = e.measures || {};
+    lines.push([...base.map((f) => csvCell(e[f])), ...mKeys.map((k) => csvCell(m[k]))].join(','));
+  }
   // BOM so Excel/Sheets on the phone read non-English notes correctly.
   return '﻿' + lines.join('\r\n') + '\r\n';
 }

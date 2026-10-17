@@ -15,8 +15,10 @@ const KEY_GOOD = 'config_last_good'; // last version that validated
 // What a button can ask after a tap. Each one fills the log field of the
 // same name ("amount" also fills "unit" from the event's config).
 // "bp" asks blood pressure + pulse as a series of readings (bp_sys,
-// bp_dia, pulse); it can be combined only with "note".
-export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'note'];
+// bp_dia, pulse); it can be combined only with "measures" and "note".
+// "measures" asks the button's own number fields (e.g. weight in kg),
+// stored in the record's "measures" object as { id: number }.
+export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'measures', 'note'];
 const EXERCISE_TYPES = ['reps', 'seconds'];
 const EMPTY = { events: [], exercises: [], routines: [] };
 
@@ -55,8 +57,17 @@ export function validateConfig(obj) {
       });
     }
     const ask = Array.isArray(ev.ask) ? ev.ask : [];
-    if (ask.includes('bp') && ask.some((a) => a !== 'bp' && a !== 'note')) {
-      errors.push(`${at}: "bp" can only be combined with "note"`);
+    if (ask.includes('bp') && ask.some((a) => !['bp', 'measures', 'note'].includes(a))) {
+      errors.push(`${at}: "bp" can only be combined with "measures" and "note"`);
+    }
+    if ('measures' in ev || ask.includes('measures')) {
+      const m = ev.measures;
+      const ids = new Set();
+      if (!Array.isArray(m) || !m.length || m.some((x) => !x || typeof x.id !== 'string' || !x.id
+          || typeof x.name !== 'string' || !x.name.trim() || ('unit' in x && typeof x.unit !== 'string')
+          || ids.size === ids.add(x.id).size)) {
+        errors.push(`${at}: "measures" must look like [{ "id": "weight", "name": "Weight", "unit": "kg" }] with different ids`);
+      }
     }
     if ('choices' in ev || ask.includes('choice')) {
       if (!Array.isArray(ev.choices) || !ev.choices.length
