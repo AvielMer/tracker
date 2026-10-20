@@ -355,3 +355,23 @@ select.input { appearance: auto; }
 .step-btn:disabled, .step-val:disabled { cursor: default; }
 .pick-results .label { margin-top: 14px; }
 .btn.lib { font-weight: 500; }
+
+/* --- circuits: several exercises in a row --- */
+.cparts { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 4px 0 6px; counter-reset: cp; }
+.cparts li { counter-increment: cp; background: var(--card2); border-radius: 10px; padding: 4px 10px; font-size: 14px; }
+.cparts li::before {
+  content: counter(cp); display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
+  margin-inline-end: 6px; border-radius: 9px; background: var(--line); color: var(--muted);
+  font-size: 12px; text-align: center;
+}
+.cparts b { color: var(--accent); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+.crow { display: flex; align-items: center; gap: 6px; }
+.crow [data-cn] { flex: 1; min-width: 0; }
+.crow .input.mini { flex: none; }
+.cfg-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.cfg-row span { flex: 1; }
+.cfg-row b { min-width: 64px; text-align: center; font-variant-numeric: tabular-nums; }
+.circuit-total { color: var(--accent); font-weight: 600; text-align: center; margin: 12px 0 0; }
+/* A pause between circuit exercises: amber, so it's clearly not work. */
+.timer-box.paused { background: #3a2c14; }
+.timer-box.paused .timer-big { color: var(--warn); }

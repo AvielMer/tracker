@@ -43,7 +43,8 @@ export function fromLibrary(entry, existing, lang = getLang()) {
   const ex = { id, name: libName(entry, lang), type: entry.type };
   if (entry.allowWeight) ex.allowWeight = true;
   if (entry.start) ex.start = entry.start;
-  if (entry.parts) ex.parts = [...(entry.parts[lang] || entry.parts.en)];
+  // Circuits get their own seconds per part (the library's "start" each).
+  if (entry.parts) ex.parts = (entry.parts[lang] || entry.parts.en).map((name) => ({ name, seconds: entry.start || 30 }));
   return ex;
 }
 
@@ -95,10 +96,15 @@ export async function translateBuiltInNames(current, lang = getLang()) {
       if (target && target !== it.name) { it.name = target; changed++; }
       // Circuit parts are translated only if they are still the built-in ones.
       if (entry?.parts && Array.isArray(it.parts)) {
+        const nameOf = (p) => (typeof p === 'string' ? p : p?.name);
         const same = Object.values(entry.parts).some((p) => p.length === it.parts.length
-          && p.every((x, i) => normName(x) === normName(it.parts[i])));
+          && p.every((x, i) => normName(x) === normName(nameOf(it.parts[i]))));
         const want = entry.parts[lang] || entry.parts.en;
-        if (same && want.join('|') !== it.parts.join('|')) { it.parts = [...want]; changed++; }
+        if (same && want.some((w, i) => w !== nameOf(it.parts[i]))) {
+          // Keep each part's seconds; only the names change.
+          it.parts = it.parts.map((p, i) => (typeof p === 'string' ? want[i] : { ...p, name: want[i] }));
+          changed++;
+        }
       }
     }
   }
