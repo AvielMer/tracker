@@ -17,6 +17,11 @@ async function commit(ctx, mutate, okMsg) {
   return true;
 }
 
+function partRow(name = '') {
+  return `<div class="mdef"><input class="input" data-pn value="${esc(name)}" placeholder="${esc(t('Part name, e.g. Side plank'))}">
+    <button class="ibtn" data-pdel aria-label="${esc(t('Remove'))}">✕</button></div>`;
+}
+
 // ex = existing exercise, or null for a new one.
 export function openExerciseEditor(ctx, ex) {
   const isNew = !ex;
@@ -28,6 +33,12 @@ export function openExerciseEditor(ctx, ex) {
     <div class="label" style="margin-top:10px">${t('Counted in')}</div>
     <label class="check"><input type="radio" name="extype" value="reps" ${cur.type !== 'seconds' ? 'checked' : ''}> ${t('Reps')}</label>
     <label class="check"><input type="radio" name="extype" value="seconds" ${cur.type === 'seconds' ? 'checked' : ''}> ${t('Seconds (holds, e.g. plank)')}</label>
+    <div class="ask-cfg" data-parts-box ${cur.type === 'seconds' ? '' : 'hidden'}>
+      <div class="label">${t('Circuit parts (optional)')}</div>
+      <div class="small muted">${esc(t('PARTS_HINT'))}</div>
+      <div data-plist>${(cur.parts || []).map(partRow).join('')}</div>
+      <button class="btn" data-padd>${t('+ Add a part')}</button>
+    </div>
     <label class="check"><input type="checkbox" data-f="weight" ${cur.allowWeight ? 'checked' : ''}> ${t('Can add extra weight (kg)')}</label>
     <div class="label" style="margin-top:10px">${t('Start number')}</div>
     <input class="input" data-f="start" inputmode="numeric" value="${esc(cur.start ?? '')}" placeholder="${esc(t('e.g. 10'))}">
@@ -37,6 +48,15 @@ export function openExerciseEditor(ctx, ex) {
       <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
     </div>`);
   const f = (k) => root.querySelector(`[data-f="${k}"]`);
+  root.querySelectorAll('input[name="extype"]').forEach((r) => r.addEventListener('change', () => {
+    root.querySelector('[data-parts-box]').hidden = root.querySelector('input[name="extype"]:checked').value !== 'seconds';
+  }));
+  root.querySelector('[data-padd]').addEventListener('click', () => {
+    root.querySelector('[data-plist]').insertAdjacentHTML('beforeend', partRow());
+  });
+  root.querySelector('[data-plist]').addEventListener('click', (e) => {
+    if (e.target.closest('[data-pdel]')) e.target.closest('.mdef').remove();
+  });
   root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
   root.querySelector('[data-act="save"]').addEventListener('click', () => {
     const name = f('name').value.trim();
@@ -45,6 +65,7 @@ export function openExerciseEditor(ctx, ex) {
     const start = startRaw ? Number(startRaw) : null;
     if (startRaw && !(start > 0)) { ctx.toast(t('Start number must be a number')); return; }
     const type = root.querySelector('input[name="extype"]:checked').value;
+    const parts = [...root.querySelectorAll('[data-pn]')].map((i) => i.value.trim()).filter(Boolean);
     commit(ctx, (cfg) => {
       // Start from the existing item so other keys (e.g. "hidden") survive.
       const item = isNew ? { id: makeId(cfg.exercises, name) } : cfg.exercises.find((x) => x.id === ex.id);
@@ -53,6 +74,7 @@ export function openExerciseEditor(ctx, ex) {
       item.type = type;
       if (f('weight').checked) item.allowWeight = true; else delete item.allowWeight;
       if (start) item.start = Math.round(start); else delete item.start;
+      if (type === 'seconds' && parts.length) item.parts = parts; else delete item.parts;
       if (isNew) cfg.exercises.push(item);
       return true;
     }, t(isNew ? 'Added "{name}"' : 'Saved "{name}"', { name }));

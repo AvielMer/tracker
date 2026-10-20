@@ -7,7 +7,7 @@ import {
   esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
 import { t } from './i18n.js';
-import { measuresHtml, readMeasures } from './events.js';
+import { measuresHtml, readMeasures, seriesKey } from './events.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -29,15 +29,28 @@ export function screenLabel(state, e) {
   return e.item_name || e.kind;
 }
 
+// Blood pressure asks weight (etc.) once per series, on reading 1; every
+// reading of the series shows it. Stored once, so editing it in one place
+// is enough.
+export function seriesMeasures(entries, e) {
+  if (e.measures || e.bp_sys == null) return null;
+  const key = seriesKey(e);
+  return entries.find((x) => x.measures && x.bp_sys != null && seriesKey(x) === key)?.measures || null;
+}
+
 // The custom number fields to show/edit for an entry: the button's current
 // ones, plus any stored value whose field was removed from the button since.
-function measureDefs(state, e) {
+function measureDefs(state, e, values = e.measures) {
   const item = state?.config.events.find((x) => x.id === e.item_id);
   const defs = [...(item?.measures || [])];
-  for (const id of Object.keys(e.measures || {})) {
+  for (const id of Object.keys(values || {})) {
     if (!defs.some((m) => m.id === id)) defs.push({ id, name: id, unit: '' });
   }
   return defs;
+}
+
+function fmtSec(sec) {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 export function details(e, state) {
@@ -46,8 +59,9 @@ export function details(e, state) {
   if (e.set_no && e.bp_sys != null) parts.push(t('reading {n}', { n: e.set_no }));
   if (e.bp_sys != null) parts.push(`${e.bp_sys}/${e.bp_dia}`);
   if (e.pulse != null) parts.push(`♥ ${e.pulse}`);
-  for (const m of measureDefs(state, e)) {
-    const v = e.measures?.[m.id];
+  const ms = e.measures || (state ? seriesMeasures(state.entries, e) : null);
+  for (const m of measureDefs(state, e, ms)) {
+    const v = ms?.[m.id];
     if (v != null) parts.push(`${m.name} ${v}${m.unit ? ' ' + m.unit : ''}`);
   }
   if (e.choice) parts.push(e.choice);
@@ -59,6 +73,8 @@ export function details(e, state) {
   if (e.reps != null) parts.push(t('{n} reps', { n: e.reps }));
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
+  if (e.work_sec != null && e.reps != null) parts.push(t('set time {t}', { t: fmtSec(e.work_sec) }));
+  if (e.rest_sec != null) parts.push(t('rest {t}', { t: fmtSec(e.rest_sec) }));
   if (e.intensity != null) parts.push(t('intensity {n}', { n: e.intensity }));
   if (e.kind !== 'session_end' && e.kind !== 'event_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
   return parts.join(' · ');
@@ -113,6 +129,8 @@ const EDIT_FIELDS = [
   ['reps', 'Reps', 'num', null],
   ['seconds', 'Seconds', 'num', null],
   ['weight', 'Weight (kg)', 'num', null],
+  ['work_sec', 'Set time (seconds)', 'num', null],
+  ['rest_sec', 'Rest before (seconds)', 'num', null],
 ];
 
 // Tap an entry: see it, edit it, or delete it.
@@ -125,7 +143,9 @@ export function openDetails(ctx, e) {
   // An end's duration is worked out from the two times, not typed.
   const fields = EDIT_FIELDS.filter(([k, , , a]) => (e[k] != null || (a && ask.has(a)))
     && !(e.kind === 'event_end' && k === 'duration_min'));
-  const mDefs = ask.has('measures') || e.measures ? measureDefs(state, e) : [];
+  const inherited = seriesMeasures(state.entries, e);
+  const mDefs = ask.has('measures') || e.measures || inherited ? measureDefs(state, e, e.measures || inherited) : [];
+  const otherSeries = bpSeriesNear(state, e);
   const unit = e.unit || item?.amount?.unit || '';
   const info = [
     e.nth_today ? t('#{n} that day', { n: e.nth_today }) : '',
@@ -144,7 +164,13 @@ export function openDetails(ctx, e) {
         <input class="input" data-e="${k}" ${type === 'num' ? 'inputmode="decimal"' : ''} value="${esc(e[k] ?? '')}"
           ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
     </div>
-    ${mDefs.length ? measuresHtml(mDefs, e.measures || {}) : ''}
+    ${mDefs.length ? measuresHtml(mDefs, e.measures || {}, inherited || {}) : ''}
+    ${inherited ? `<p class="small muted">${esc(t('Gray numbers come from the first reading of this series.'))}</p>` : ''}
+    ${otherSeries.length ? `<label class="label-block">${t('Series')}<select class="input" data-e-series>
+      <option value="">${esc(t('Keep as its own series'))}</option>
+      ${otherSeries.map((g) => `<option value="${esc(g.key)}">${esc(t('Join the series from {when} ({n} readings)', {
+        when: `${friendlyDay(g.head.date)} ${hhmm(g.head.time)}`, n: g.list.length }))}</option>`).join('')}
+    </select></label>` : ''}
     ${item?.choices ? `<datalist id="choice-list">${item.choices.map((c) => `<option value="${esc(c)}">`).join('')}</datalist>` : ''}
     <label class="label-block">${t('Note')}<textarea class="input" data-e="note" rows="2">${esc(e.note ?? '')}</textarea></label>
     <div class="sheet-actions">
@@ -201,24 +227,72 @@ export function openDetails(ctx, e) {
       }
     }
 
-    if (!Object.keys(patch).length) { ctx.closeSheet(); return; }
+    const joinTo = root.querySelector('[data-e-series]')?.value || '';
+    if (!Object.keys(patch).length && !joinTo) { ctx.closeSheet(); return; }
     try {
-      const updated = await storage.updateEntry(e.id, patch);
-      if (!updated) throw new Error('entry not found');
-      const i = state.entries.findIndex((x) => x.id === e.id);
-      if (i >= 0) state.entries[i] = updated;
-      if (patch.ts) await fixSpanDuration(state, updated);
-      state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+      if (Object.keys(patch).length) {
+        const updated = await storage.updateEntry(e.id, patch);
+        if (!updated) throw new Error('entry not found');
+        const i = state.entries.findIndex((x) => x.id === e.id);
+        if (i >= 0) state.entries[i] = updated;
+        if (patch.ts) await fixSpanDuration(state, updated);
+        state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+      }
+      if (joinTo) await joinSeries(state, seriesKey(state.entries.find((x) => x.id === e.id) || e), joinTo);
     } catch (err) {
       ctx.toast(t('NOT saved: {msg}', { msg: err.message }), { error: true });
       return;
     }
     ctx.closeSheet();
     ctx.refresh();
-    ctx.toast(t('Changes saved'));
+    ctx.toast(joinTo ? t('Joined into one series') : t('Changes saved'));
   });
 
   root.querySelector('[data-act="delete"]').addEventListener('click', () => deleteWithUndo(ctx, e));
+}
+
+// Other blood-pressure series of the same button within a day of this
+// entry — the ones it could be joined to (e.g. after the sheet was closed
+// by accident and a new series started).
+function bpSeriesNear(state, e) {
+  const item = state.config.events.find((x) => x.id === e.item_id);
+  if (e.kind !== 'event' || !(e.bp_sys != null || item?.ask?.includes('bp'))) return [];
+  const own = seriesKey(e);
+  const t0 = Date.parse(e.ts);
+  const groups = new Map();
+  for (const x of state.entries) {
+    if (x.kind !== 'event' || x.item_id !== e.item_id || x.bp_sys == null) continue;
+    const k = seriesKey(x);
+    if (k === own) continue;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(x);
+  }
+  return [...groups].map(([key, list]) => ({ key, list, head: list[0] }))
+    .filter((g) => Math.abs(Date.parse(g.head.ts) - t0) < 24 * 3600 * 1000)
+    .sort((a, b) => Math.abs(Date.parse(a.head.ts) - t0) - Math.abs(Date.parse(b.head.ts) - t0));
+}
+
+// Joins series fromKey into series toKey: all readings get the same
+// session_id, are renumbered 1, 2, 3… by time, and share the "#n that day"
+// of the earliest one. (Explicit edit by the user, so it may touch several
+// entries — they become one thing.)
+async function joinSeries(state, fromKey, toKey) {
+  const all = state.entries
+    .filter((x) => x.kind === 'event' && (seriesKey(x) === fromKey || seriesKey(x) === toKey))
+    .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+  if (!all.length) return;
+  const nth = all[0].nth_today;
+  for (let i = 0; i < all.length; i++) {
+    const x = all[i];
+    const patch = {};
+    if (x.session_id !== toKey) patch.session_id = toKey;
+    if (x.set_no !== i + 1) patch.set_no = i + 1;
+    if (x.nth_today !== nth) patch.nth_today = nth;
+    if (!Object.keys(patch).length) continue;
+    const upd = await storage.updateEntry(x.id, patch);
+    const j = state.entries.findIndex((y) => y.id === x.id);
+    if (upd && j >= 0) state.entries[j] = upd;
+  }
 }
 
 // Changing the time of a start or a finish changes how long it lasted, so

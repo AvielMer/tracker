@@ -6,6 +6,8 @@ import {
 } from './config.js';
 import { openEventEditor } from './eventEditor.js';
 import { openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
+import { openExercisePicker } from './exercisePicker.js';
+import { translateBuiltInNames } from './library.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
 import {
@@ -25,6 +27,8 @@ export async function renderSettings(el, ctx) {
   <div class="lang-row">${[['auto', 'Automatic'], ['ltr', 'Left → right'], ['rtl', 'Right → left']].map(([v, lbl]) =>
     `<button class="btn${v === getDirPref() ? ' primary' : ''}" data-dir="${v}">${esc(t(lbl))}</button>`).join('')}</div>
   <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
+  <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: LANGS.find(([c]) => c === getLang())[1] }))}</button>
+  <p class="small muted">${esc(t('TRANSLATE_HINT'))}</p>
 
   <h2 class="day">${t('Your data')}</h2>
   <div class="card pad">
@@ -47,7 +51,10 @@ export async function renderSettings(el, ctx) {
   ${manageList('exercises', state.config.exercises, (x) => esc(x.name)
     + (x.type === 'seconds' ? ` <span class="tag">${t('seconds')}</span>` : '')
     + (x.allowWeight ? ` <span class="tag">+${t('kg')}</span>` : ''))}
-  <button class="btn primary wide" data-act="add-ex">${t('+ Add an exercise')}</button>
+  <div class="btn-row">
+    <button class="btn primary" data-act="library">${t('+ Add from library')}</button>
+    <button class="btn" data-act="add-ex">${t('+ Add an exercise')}</button>
+  </div>
 
   <h2 class="day">${t('Routines')}</h2>
   ${manageList('routines', state.config.routines, (r) => esc(r.name)
@@ -166,6 +173,21 @@ export async function renderSettings(el, ctx) {
 
   on('add', () => openEventEditor(ctx, null));
   on('add-ex', () => openExerciseEditor(ctx, null));
+  on('library', () => openExercisePicker(ctx, { title: t('Exercise library') }));
+  on('translate', async () => {
+    if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+    try {
+      const { cfg, changed } = await translateBuiltInNames(state.config);
+      if (changed) {
+        const res = await saveConfig(cfg);
+        if (!res.ok) throw new Error(res.errors[0]);
+        await ctx.reloadConfig();
+      }
+      ctx.toast(changed ? t('Renamed: {n}', { n: changed }) : t('Nothing to rename'));
+    } catch (err) {
+      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
+    }
+  });
   on('add-routine', () => openRoutineEditor(ctx, null));
   on('presets', async () => {
     try {

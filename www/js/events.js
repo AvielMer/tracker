@@ -213,9 +213,9 @@ const NUMERIC = new Set(['intensity', 'duration_min', 'amount', 'count']);
 
 // The button's own number fields (e.g. Weight kg). Shared by the normal
 // sheet and the blood-pressure sheet.
-export function measuresHtml(measures, current = {}) {
+export function measuresHtml(measures, current = {}, hints = {}) {
   return `<div class="mfields">${measures.map((m) => `<label>${esc(m.name)}${m.unit ? ` (${esc(m.unit)})` : ''}
-    <input class="input" data-m="${esc(m.id)}" inputmode="decimal" value="${esc(current[m.id] ?? '')}"></label>`).join('')}</div>`;
+    <input class="input" data-m="${esc(m.id)}" inputmode="decimal" value="${esc(current[m.id] ?? '')}" placeholder="${esc(hints[m.id] ?? '')}"></label>`).join('')}</div>`;
 }
 
 // Reads the number fields. Returns { measures } (null when all empty) or
@@ -342,23 +342,52 @@ function mmss(ms) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+// A BP series is identified by the session_id its readings share (the
+// first reading's id).
+export function seriesKey(e) {
+  return e.session_id || e.id;
+}
+
+// The series to continue when measuring again soon after, e.g. because the
+// sheet was closed by accident: the readings (oldest first) of the latest
+// series whose last reading is less than CONTINUE_MIN minutes old.
+const CONTINUE_MIN = 30;
+function recentSeries(state, evId, excludeId) {
+  const readings = state.entries.filter((e) => e.kind === 'event' && e.item_id === evId
+    && e.id !== excludeId && e.bp_sys != null);
+  const last = readings[readings.length - 1];
+  if (!last || Date.now() - Date.parse(last.ts) > CONTINUE_MIN * 60000) return null;
+  return readings.filter((e) => seriesKey(e) === seriesKey(last));
+}
+
 function openBpSheet(ctx, ev, first) {
   const label = eventLabel(ev);
   const askNote = ev.ask.includes('note');
   // Custom numbers (e.g. weight) are asked once per series, with reading 1.
   const askMeasures = ev.ask.includes('measures') && (ev.measures || []).length;
-  const series = []; // saved records of this series, in order
+  const prev = recentSeries(ctx.state, ev.id, first.id);
+  // Measuring again within half an hour is almost always the same session,
+  // so continuing is the default (one tap to untick).
+  let join = !!prev;
+  const saved = []; // readings saved in THIS sheet, in order
   let timer = null;
+  const readings = () => (join ? [...prev, ...saved] : saved);
+  const head = () => (join ? prev[0] : first);
 
   const render = () => {
-    const n = series.length + 1;
-    const t0 = Date.parse(first.ts);
+    const all = readings();
+    const n = all.length + 1;
+    const t0 = Date.parse((all[0] || first).ts);
+    const seriesHasMeasures = join && prev.some((r) => r.measures);
+    const showMeasures = askMeasures && !saved.length && !seriesHasMeasures;
     const root = ctx.openSheet(`
       <div class="sheet-head">
-        <div><b>${esc(label)} #${first.nth_today}</b><br><span class="muted">${t('reading {n}', { n })}</span></div>
-        <button class="btn" data-act="undo">${series.length > 1 ? t('Undo all') : t('Undo')}</button>
+        <div><b>${esc(label)} #${head().nth_today}</b><br><span class="muted">${t('reading {n}', { n })}</span></div>
+        <button class="btn" data-act="undo">${saved.length > 1 ? t('Undo all') : t('Undo')}</button>
       </div>
-      ${series.length ? `<table class="kv bp-list">${series.map((r) => `<tr>
+      ${prev && !saved.length ? `<label class="check join"><input type="checkbox" data-join ${join ? 'checked' : ''}>
+        ${esc(t('Continue the series from {time} ({n} readings)', { time: hhmm(prev[0].time), n: prev.length }))}</label>` : ''}
+      ${all.length ? `<table class="kv bp-list">${all.map((r) => `<tr>
         <th>${r.set_no}. ${hhmm(r.time)} <span class="muted">+${mmss(Date.parse(r.ts) - t0)}</span></th>
         <td><b>${r.bp_sys}/${r.bp_dia}</b>${r.pulse != null ? ` · ♥ ${r.pulse}` : ''}</td></tr>`).join('')}</table>
         <p class="rest">${t('Resting:')} <b data-timer>0:00</b> ${t('since last reading')}</p>` : ''}
@@ -368,17 +397,17 @@ function openBpSheet(ctx, ev, first) {
         <label>${t('Lower')}<input class="input bp" data-bp="bp_dia" inputmode="numeric" placeholder="80"></label>
         <label>${t('Pulse')}<input class="input bp" data-bp="pulse" inputmode="numeric" placeholder="70"></label>
       </div>
-      ${askMeasures && !series.length ? measuresHtml(ev.measures || []) : ''}
+      ${showMeasures ? measuresHtml(ev.measures || []) : ''}
       ${askNote ? `<input class="input" data-field="note" placeholder="${esc(t('Note (optional)'))}">` : ''}
       <div class="sheet-actions">
-        <button class="btn" data-act="done">${series.length ? t('Done') : t('Skip')}</button>
+        <button class="btn" data-act="done">${saved.length ? t('Done') : t('Skip')}</button>
         <button class="btn primary" data-act="save">${t('Save reading {n}', { n })}</button>
       </div>`);
 
     clearInterval(timer);
     const tEl = root.querySelector('[data-timer]');
     if (tEl) {
-      const last = Date.parse(series[series.length - 1].ts);
+      const last = Date.parse(all[all.length - 1].ts);
       const tick = () => {
         // The sheet was closed (or replaced): stop ticking.
         if (document.getElementById('sheet').hidden || !tEl.isConnected) { clearInterval(timer); return; }
@@ -387,6 +416,9 @@ function openBpSheet(ctx, ev, first) {
       tick();
       timer = setInterval(tick, 1000);
     }
+
+    const joinBox = root.querySelector('[data-join]');
+    if (joinBox) joinBox.addEventListener('change', () => { join = joinBox.checked; render(); });
 
     const inputs = [...root.querySelectorAll('[data-bp]')];
     // Jump to the next box once a value is complete, so typing
@@ -399,17 +431,20 @@ function openBpSheet(ctx, ev, first) {
       const next = inputs[i + 1] || root.querySelector('[data-m]');
       if (full && next) next.focus();
     }));
-    if (!series.length) setTimeout(() => inputs[0].focus(), 50);
+    if (!saved.length) setTimeout(() => inputs[0].focus(), 50);
 
+    // Undo removes only what this sheet created; continued readings from
+    // before stay untouched.
     root.querySelector('[data-act="undo"]').addEventListener('click', async () => {
       clearInterval(timer);
+      const mine = [first, ...saved.slice(1)];
       try {
-        for (const r of [first, ...series.slice(1)]) await storage.deleteEntry(r.id);
+        for (const r of mine) await storage.deleteEntry(r.id);
       } catch (e) {
         ctx.toast(t('Undo failed: {msg}', { msg: e.message }), { error: true });
         return;
       }
-      const ids = new Set([first.id, ...series.map((r) => r.id)]);
+      const ids = new Set(mine.map((r) => r.id));
       ctx.state.entries = ctx.state.entries.filter((e) => !ids.has(e.id));
       lastTap.delete(ev.id);
       ctx.closeSheet();
@@ -419,7 +454,7 @@ function openBpSheet(ctx, ev, first) {
     root.querySelector('[data-act="done"]').addEventListener('click', () => {
       clearInterval(timer);
       ctx.closeSheet();
-      if (series.length) ctx.toast(t('{label}: readings saved: {n}', { label, n: series.length }));
+      if (saved.length) ctx.toast(t('{label}: readings saved: {n}', { label, n: saved.length }));
     });
     root.querySelector('[data-act="save"]').addEventListener('click', async () => {
       const v = {};
@@ -430,28 +465,27 @@ function openBpSheet(ctx, ev, first) {
       if (v.bp_sys <= v.bp_dia && !confirm(t('Upper is not bigger than lower — swapped? Save anyway?'))) return;
       const noteEl = root.querySelector('[data-field="note"]');
       if (noteEl && noteEl.value.trim()) v.note = noteEl.value.trim();
-      if (askMeasures && !series.length) {
+      if (showMeasures) {
         const r = readMeasures(root, ev.measures);
         if (r.error) { ctx.toast(r.error); return; }
         if (r.measures) v.measures = r.measures;
       }
-      v.session_id = first.id;
-      v.set_no = series.length + 1;
+      v.session_id = seriesKey(head());
+      v.set_no = all.length + 1;
+      v.nth_today = head().nth_today;
       try {
-        let saved;
-        if (!series.length) {
-          saved = await storage.updateEntry(first.id, v);
+        let rec;
+        if (!saved.length) {
+          rec = await storage.updateEntry(first.id, v);
           const i = ctx.state.entries.findIndex((e) => e.id === first.id);
-          if (i >= 0 && saved) ctx.state.entries[i] = saved;
+          if (i >= 0 && rec) ctx.state.entries[i] = rec;
         } else {
-          saved = makeRecord({
-            kind: 'event', item_id: ev.id, item_name: ev.name, nth_today: first.nth_today, ...v,
-          });
-          await storage.appendEntry(saved);
-          ctx.state.entries.push(saved);
+          rec = makeRecord({ kind: 'event', item_id: ev.id, item_name: ev.name, ...v });
+          await storage.appendEntry(rec);
+          ctx.state.entries.push(rec);
         }
-        if (!saved) throw new Error('entry not found');
-        series.push(saved);
+        if (!rec) throw new Error('entry not found');
+        saved.push(rec);
       } catch (e) {
         ctx.toast(t('Reading NOT saved: {msg}', { msg: e.message }), { error: true });
         return;

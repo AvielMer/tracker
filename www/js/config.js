@@ -98,6 +98,15 @@ export function validateConfig(obj) {
     if ('allowWeight' in ex && typeof ex.allowWeight !== 'boolean') errors.push(`${at}: "allowWeight" must be true or false`);
     // "start": the number the +/- stepper starts at the first time.
     if ('start' in ex && !(typeof ex.start === 'number' && ex.start > 0)) errors.push(`${at}: "start" must be a number above 0`);
+    // "parts": a timed circuit, e.g. ["Front plank", "Side plank"]; one set
+    // runs all parts in a row, the stepper's seconds EACH, beeping between.
+    if ('parts' in ex) {
+      if (ex.type !== 'seconds') errors.push(`${at}: "parts" only works with "type": "seconds"`);
+      if (!Array.isArray(ex.parts) || !ex.parts.length || ex.parts.length > 20
+          || ex.parts.some((p) => typeof p !== 'string' || !p.trim())) {
+        errors.push(`${at}: "parts" must be a list of names, e.g. ["Front plank", "Side plank"]`);
+      }
+    }
   });
 
   const exIds = new Set((Array.isArray(obj.exercises) ? obj.exercises : []).map((e) => e && e.id));
@@ -135,8 +144,11 @@ export function configToText(config) {
 
 // The starting config in the current UI language (same ids in every
 // language, so presets and history line up); English if that's missing.
-async function fetchDefaultText() {
-  const lang = getLang();
+function fetchDefaultText() {
+  return fetchDefaultFor(getLang());
+}
+
+export async function fetchDefaultFor(lang) {
   const files = lang === 'en' ? ['default_config.json'] : [`default_config.${lang}.json`, 'default_config.json'];
   let last;
   for (const f of files) {
