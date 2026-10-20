@@ -7,7 +7,7 @@
 
 import { fetchDefaultFor, makeId } from './config.js';
 import {
-  getLang, isBuiltInLang, LANGS, packText,
+  getLang, getPack, isBuiltInLang, LANGS, packText,
 } from './i18n.js';
 
 let libPromise = null;
@@ -67,14 +67,20 @@ export async function translateBuiltInNames(current, lang = getLang()) {
     loadLibrary(),
     ...codes.map((c) => fetchDefaultFor(c).then((txt) => JSON.parse(txt)).catch(() => null)),
   ]);
+  // The added language's names count as built-in names too, whatever the
+  // target: an item renamed INTO it must be recognised (and renamed back)
+  // when another language is chosen — otherwise it looks like a name the
+  // user typed and stays in that language for good.
+  const pack = getPack();
+  const packName = (key) => pack?.texts[key] || null;
 
-  // Per section: built-in items as { id, names: { en, he, ru }, parts }.
+  // Per section: built-in items as { id, names: { en, he, ru }, packName, parts }.
   const builtIn = { events: new Map(), exercises: new Map(), routines: new Map() };
   defs.forEach((d, i) => {
     if (!d) return;
     for (const sec of Object.keys(builtIn)) {
       for (const it of d[sec] || []) {
-        const b = builtIn[sec].get(it.id) || { id: it.id, names: {} };
+        const b = builtIn[sec].get(it.id) || { id: it.id, names: {}, packName: packName(`def:${sec}:${it.id}`) };
         b.names[codes[i]] = it.name;
         builtIn[sec].set(it.id, b);
       }
@@ -83,12 +89,17 @@ export async function translateBuiltInNames(current, lang = getLang()) {
   for (const e of lib.exercises) {
     const b = builtIn.exercises.get(e.id) || { id: e.id, names: {} };
     b.names = { ...e.name, ...b.names };
-    // An added language knows only the names its translation has.
-    if (!isBuiltInLang(lang) && packText(`lib:${e.id}`, lang)) b.names[lang] = packText(`lib:${e.id}`, lang);
+    b.packName = packName(`lib:${e.id}`);
     b.parts = e.parts;
     builtIn.exercises.set(e.id, b);
   }
-  const hasName = (b, n) => Object.values(b.names).some((x) => normName(x) === n);
+  const hasName = (b, n) => Object.values(b.names).some((x) => normName(x) === n)
+    || (!!b.packName && normName(b.packName) === n);
+  const find = (sec, n) => [...builtIn[sec].values()].find((x) => hasName(x, n));
+  // The name in the chosen language. An added language only has the names
+  // its translation has — never English instead.
+  const targetOf = (b) => (pack && lang === pack.code && b.packName)
+    || b.names[lang] || (isBuiltInLang(lang) ? b.names.en : null);
 
   const cfg = JSON.parse(JSON.stringify(current));
   let changed = 0;
@@ -98,12 +109,10 @@ export async function translateBuiltInNames(current, lang = getLang()) {
       // Same id with a built-in name; or (e.g. "chin-ups" you added
       // yourself under another id) any built-in item with exactly that name.
       let b = builtIn[sec].get(it.id);
-      if (!b || !hasName(b, n)) b = [...builtIn[sec].values()].find((x) => hasName(x, n));
+      if (!b || !hasName(b, n)) b = find(sec, n);
       if (!b) continue;
-      const names = b.names;
       const entry = b.parts ? b : null;
-      // (For an added language: only names it really has, never English.)
-      const target = names[lang] || (isBuiltInLang(lang) ? names.en : null);
+      const target = targetOf(b);
       if (target && target !== it.name) { it.name = target; changed++; }
       // Circuit parts are translated only if they are still the built-in ones.
       if (entry?.parts && Array.isArray(it.parts)) {
@@ -118,6 +127,19 @@ export async function translateBuiltInNames(current, lang = getLang()) {
         }
       }
     }
+  }
+  // A circuit part named after a built-in exercise (e.g. picked from the
+  // list while the app was in another language) follows that exercise.
+  for (const it of cfg.exercises) {
+    if (!Array.isArray(it.parts)) continue;
+    it.parts = it.parts.map((p) => {
+      const name = typeof p === 'string' ? p : p?.name;
+      const b = find('exercises', normName(name));
+      const target = b && targetOf(b);
+      if (!target || target === name) return p;
+      changed++;
+      return typeof p === 'string' ? target : { ...p, name: target };
+    });
   }
   return { cfg, changed };
 }
