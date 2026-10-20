@@ -34,7 +34,15 @@ a { color: var(--accent); }
   background: var(--bg);
   padding: calc(env(safe-area-inset-top) + 12px) 16px 8px;
 }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .top h1 { margin: 0; font-size: 22px; }
+/* ⓘ → About: small, out of the way, but always there for a new user. */
+.top-btn {
+  display: flex; align-items: center; justify-content: center; flex: none;
+  width: 40px; height: 40px; border-radius: 20px; font-size: 22px;
+  color: var(--muted); text-decoration: none;
+}
+.top-btn.on { color: var(--accent); }
 
 main { padding: 8px 12px; max-width: 720px; margin: 0 auto; }
 
@@ -375,3 +383,39 @@ select.input { appearance: auto; }
 /* A pause between circuit exercises: amber, so it's clearly not work. */
 .timer-box.paused { background: #3a2c14; }
 .timer-box.paused .timer-big { color: var(--warn); }
+.crow-wrap { padding: 2px 0; }
+.cnum {
+  flex: none; min-width: 24px; height: 24px; line-height: 24px; border-radius: 12px;
+  background: var(--line); color: var(--muted); font-size: 13px; text-align: center;
+}
+.crow-note { font-size: 12px; color: var(--accent); margin-inline-start: 30px; margin-bottom: 4px; }
+
+/* --- "how many did you do?" after a circuit with max-reps parts --- */
+.count-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.count-row:first-of-type { border-top: 0; }
+.count-name { flex: 1; min-width: 0; font-weight: 600; word-break: break-word; }
+.count-name small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.count-val {
+  min-width: 64px; height: 52px; border: 0; border-radius: 12px; background: var(--bg);
+  color: var(--text); font: inherit; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.count-row .ibtn { min-width: 52px; height: 52px; font-size: 24px; }
+
+/* --- about --- */
+.about-head { display: flex; align-items: center; gap: 12px; margin: 8px 4px 4px; }
+.about-head img { border-radius: 14px; }
+.about-head b { font-size: 20px; }
+.about-lead { margin: 12px 4px; font-size: 17px; line-height: 1.5; }
+.about-text p { margin: 0 0 10px; line-height: 1.5; }
+.about-text p:last-child { margin-bottom: 0; }
+.about-list { margin: 0; padding-inline-start: 18px; line-height: 1.5; }
+.about-list li { margin-bottom: 8px; }
+.about-url { word-break: break-all; margin-top: 16px; }
+.about-link { text-decoration: none; margin-top: 4px; }
+
+/* --- AI helper sheets --- */
+.steps { margin: 8px 0; padding-inline-start: 22px; line-height: 1.5; }
+.steps li { margin-bottom: 4px; }
+.ai-box { min-height: 110px; font: 13px/1.4 ui-monospace, monospace; resize: vertical; }
+.ai-summary { margin: 6px 0; padding-inline-start: 18px; line-height: 1.5; word-break: break-word; }
+.sheet-body .card { background: var(--card2); }

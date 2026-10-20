@@ -12,6 +12,9 @@
 // plank 30 s, then leg raises 30 s; optionally several "rounds" with a
 // "pause" between exercises) runs without stopping and beeps at every
 // switch, so you never have to look at or touch the phone mid-circuit.
+// A reps exercise in a circuit (e.g. sit-ups for 30 s) means "as many as
+// you can in the time": at the end one sheet asks how many, and each
+// answer is logged as a set of that exercise with its reps AND seconds.
 //
 // Crash safety: every set is appended to the log the moment it's logged,
 // and the open session (routine, current exercise, stepper values, and a
@@ -91,7 +94,7 @@ function planSegments(ex, eachSec) {
   for (let r = 1; r <= rounds; r++) {
     parts.forEach((p, i) => {
       if (segs.length && pause) segs.push({ k: 'pause', sec: pause });
-      segs.push({ k: 'work', name: p.name, sec: p.seconds, i: i + 1, n: parts.length, r, R: rounds });
+      segs.push({ k: 'work', name: p.name, sec: p.seconds, ex: p.ex, i: i + 1, n: parts.length, r, R: rounds });
     });
   }
   return segs;
@@ -115,21 +118,31 @@ function segsOf(ctx, w) {
   return w.segs || null;
 }
 
+// A circuit part that is a reps exercise: "as many as you can in the time".
+// Looked up directly (not via exercise()), so a removed exercise is simply
+// not counted.
+function countedEx(ctx, id) {
+  const x = id ? ctx.state.config.exercises.find((e) => e.id === id) : null;
+  return x && x.type === 'reps' ? x : null;
+}
+
 // The circuit's exercises as numbered chips (numbers, not arrows, so the
 // order reads right in Hebrew too), then rounds, pause and total time.
-function circuitPlanHtml(ex, eachSec) {
+function circuitPlanHtml(ctx, ex, eachSec) {
   const parts = circuitParts(ex, eachSec);
   const extra = [
     (ex.rounds || 1) > 1 ? t('× {n} rounds', { n: ex.rounds }) : '',
     ex.pause ? t('pause {t}', { t: mmss(ex.pause * 1000) }) : '',
     t('Total: {t}', { t: mmss(totalSecs(planSegments(ex, eachSec)) * 1000) }),
   ].filter(Boolean).join(' · ');
-  return `<ol class="cparts">${parts.map((p) => `<li>${esc(p.name)} <b>${mmss(p.seconds * 1000)}</b></li>`).join('')}</ol>
+  return `<ol class="cparts">${parts.map((p) => `<li>${esc(p.name)} <b>${mmss(p.seconds * 1000)}</b>${countedEx(ctx, p.ex) ? ` <span class="tag">${t('max reps')}</span>` : ''}</li>`).join('')}</ol>
     <div class="tr-parts">${esc(extra)}</div>`;
 }
 
 function fmtSet(e) {
-  let s = e.seconds != null ? `${e.seconds}s` : `${e.reps}`;
+  // Reps done in a set time (a "max reps" part of a circuit): "25 (30s)".
+  let s = e.reps != null && e.seconds != null ? `${e.reps} (${e.seconds}s)`
+    : e.seconds != null ? `${e.seconds}s` : `${e.reps}`;
   if (e.weight) s += `+${e.weight}`;
   return s;
 }
@@ -307,7 +320,7 @@ function renderSession(el, ctx) {
       <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(ownTimes
         ? t('goal {n} sets', { n: step.sets })
         : t('goal {sets} × {reps}', { sets: step.sets, reps: (step.reps || '?') + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
-      ${circuit ? circuitPlanHtml(ex, d.value) : ''}
+      ${circuit ? circuitPlanHtml(ctx, ex, d.value) : ''}
       <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
       <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
       ${ownTimes
@@ -433,9 +446,12 @@ function renderSession(el, ctx) {
     if (last) logSet(ctx, ex, valueOf(last), last.weight, null, {});
   });
   $('[data-act="undo"]').addEventListener('click', () => undoLastSet(ctx, ex));
-  $('[data-act="quick-log"]').addEventListener('click', () => {
-    const value = ex.type === 'seconds' ? workSecs(planSegments(ex, d.value)) : d.value;
-    logSet(ctx, ex, value, ex.allowWeight ? d.weight || null : null, d.note?.trim() || null, {});
+  $('[data-act="quick-log"]').addEventListener('click', async () => {
+    const segs = ex.type === 'seconds' ? planSegments(ex, d.value) : null;
+    const value = segs ? workSecs(segs) : d.value;
+    const rec = await logSet(ctx, ex, value, ex.allowWeight ? d.weight || null : null, d.note?.trim() || null, {});
+    // As if the circuit had just been done, ending now.
+    if (rec && segs) askCounts(ctx, ex, countItems(ctx, segs, Date.parse(rec.ts) - totalSecs(segs) * 1000, Infinity));
   });
 }
 
@@ -531,7 +547,8 @@ function updateTimer(ctx, el) {
       seg.R > 1 ? t('round {r}/{R}', { r: seg.r, R: seg.R }) : ''].filter(Boolean).join(' · ');
   }
   timer.textContent = mmss(left + 999);
-  sub.textContent = next ? `${t('Next:')} ${next.name}` : '';
+  sub.textContent = [seg.k === 'work' && countedEx(ctx, seg.ex) ? t('As many as you can!') : '',
+    next ? `${t('Next:')} ${next.name}` : ''].filter(Boolean).join(' · ');
 }
 
 async function startWork(ctx, ex) {
@@ -585,8 +602,9 @@ async function finishWork(ctx, endMs, auto = false) {
       // "Done" a moment too late must not start the next set.
       lastPrimary = Date.now();
     }
-    await logSet(ctx, ex, value, ex.allowWeight ? d.weight || null : null, d.note?.trim() || null,
+    const rec = await logSet(ctx, ex, value, ex.allowWeight ? d.weight || null : null, d.note?.trim() || null,
       { work_sec: workSec, rest_sec: w.rest_sec, at: endMs, noGuard: true });
+    if (rec && segs) askCounts(ctx, ex, countItems(ctx, segs, w.start, endMs - w.start));
   } finally {
     finishing = false;
   }
@@ -598,7 +616,7 @@ let lastLogAt = 0;
 
 async function logSet(ctx, ex, value, weight, note, extra) {
   const now = Date.now();
-  if (!extra.noGuard && now - lastLogAt < SET_GUARD_MS) { ctx.toast(t('Double tap ignored')); return; }
+  if (!extra.noGuard && now - lastLogAt < SET_GUARD_MS) { ctx.toast(t('Double tap ignored')); return null; }
   lastLogAt = now;
   const s = ctx.state.session;
   const n = sessionSets(ctx, ex.id).length + 1;
@@ -620,7 +638,7 @@ async function logSet(ctx, ex, value, weight, note, extra) {
   } catch (e) {
     lastLogAt = 0;
     ctx.toast(t('Set NOT saved: {msg}', { msg: e.message }), { error: true });
-    return;
+    return null;
   }
   ctx.state.entries.push(rec);
   if (navigator.vibrate && !extra.noGuard) navigator.vibrate(30);
@@ -651,6 +669,97 @@ async function logSet(ctx, ex, value, weight, note, extra) {
     actionLabel: t('Back'),
     onAction: () => { s.current = back; saveSession(ctx); ctx.refresh(); },
   } : {});
+  return rec;
+}
+
+// The "max reps" parts done in a circuit set: [{ ex, sec, r, R, at }] with
+// the seconds actually done (a part cut short by Done counts what was done)
+// and when the part ended. startMs = when the first part began.
+function countItems(ctx, segs, startMs, elapsedMs) {
+  const items = [];
+  let acc = 0;
+  for (const g of segs) {
+    const ms = g.sec * 1000;
+    const done = Math.max(0, Math.min(ms, elapsedMs - acc));
+    const x = g.k === 'work' ? countedEx(ctx, g.ex) : null;
+    if (x && done >= 1000) items.push({ ex: x, sec: Math.round(done / 1000), r: g.r, R: g.R, at: startMs + acc + done });
+    acc += ms;
+  }
+  return items;
+}
+
+// Where the "how many" stepper starts: the last time this exercise was
+// done in the same time box, else its last set, else its start number.
+function guessCount(ctx, x, sec) {
+  const sets = ctx.state.entries.filter((e) => e.kind === 'set' && e.item_id === x.id && e.reps != null);
+  const same = sets.filter((e) => e.seconds === sec);
+  return (same.length ? same[same.length - 1].reps : sets[sets.length - 1]?.reps) || x.start || 10;
+}
+
+// After a circuit with "max reps" parts: how many did you do? One row per
+// part (and round). Skippable — the circuit itself is already logged.
+// Each answer becomes a set of that exercise: reps + the seconds it took,
+// timed when that part ended, so the log reads in the order it happened.
+function askCounts(ctx, circuit, items) {
+  if (!items.length) return;
+  const s = ctx.state.session;
+  const vals = items.map((it) => guessCount(ctx, it.ex, it.sec));
+  const root = ctx.openSheet(`
+    <div class="sheet-head"><b>${t('How many did you do?')}</b><span class="muted">${esc(circuit.name)}</span></div>
+    ${items.map((it, i) => `<div class="count-row">
+      <span class="count-name">${esc(it.ex.name)}<small>${esc([it.R > 1 ? t('round {r}/{R}', { r: it.r, R: it.R }) : '', mmss(it.sec * 1000)].filter(Boolean).join(' · '))}</small></span>
+      <button class="ibtn" data-c="${i}" data-d="-1" aria-label="${esc(t('Less'))}">−</button>
+      <button class="count-val" data-cv="${i}">${vals[i]}</button>
+      <button class="ibtn" data-c="${i}" data-d="1" aria-label="${esc(t('More'))}">+</button>
+    </div>`).join('')}
+    <div class="sheet-actions">
+      <button class="btn" data-act="skip">${t('Skip')}</button>
+      <button class="btn primary" data-act="save-counts">${t('Save')}</button>
+    </div>`);
+  const show = (i) => { root.querySelector(`[data-cv="${i}"]`).textContent = vals[i]; };
+  root.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.c);
+    vals[i] = Math.max(0, vals[i] + Number(b.dataset.d));
+    show(i);
+  }));
+  root.querySelectorAll('[data-cv]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.cv);
+    const v = Number(prompt(t('How many?'), vals[i]));
+    if (v >= 0 && Number.isFinite(v)) { vals[i] = Math.round(v); show(i); }
+  }));
+  root.querySelector('[data-act="skip"]').addEventListener('click', () => ctx.closeSheet());
+  root.querySelector('[data-act="save-counts"]').addEventListener('click', async () => {
+    const setNo = {};
+    const saved = [];
+    for (const [i, it] of items.entries()) {
+      setNo[it.ex.id] = (setNo[it.ex.id] ?? sessionSets(ctx, it.ex.id).length) + 1;
+      const rec = makeRecord({
+        kind: 'set',
+        item_id: it.ex.id,
+        item_name: it.ex.name,
+        session_id: s.id,
+        set_no: setNo[it.ex.id],
+        reps: vals[i],
+        seconds: it.sec,
+        work_sec: it.sec,
+        note: null,
+      }, new Date(it.at));
+      try {
+        await storage.appendEntry(rec);
+      } catch (e) {
+        ctx.toast(t('Set NOT saved: {msg}', { msg: e.message }), { error: true });
+        break;
+      }
+      ctx.state.entries.push(rec);
+      saved.push(`${it.ex.name} ${vals[i]}`);
+    }
+    // These sets happened before the circuit set that was logged first;
+    // the whole app expects entries in time order.
+    ctx.state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+    ctx.closeSheet();
+    ctx.refresh();
+    if (saved.length) ctx.toast(t('Saved: {list}', { list: saved.join(', ') }));
+  });
 }
 
 async function undoLastSet(ctx, ex) {
@@ -711,7 +820,7 @@ function summaryHtml(ctx, sets) {
     byEx.get(e.item_id).push(e);
   }
   return `<table class="kv summary">${[...byEx].map(([id, list]) => {
-    const secs = list[0].seconds != null;
+    const secs = list.every((e) => e.reps == null);
     const total = list.reduce((n, e) => n + (valueOf(e) || 0), 0);
     return `<tr><th>${esc(exercise(ctx, id).name)}<br><span class="small">${list.map(fmtSet).join('  ')}</span></th>
       <td>${t('Sets')}: <b>${list.length}</b><br>${t('Total')}: <b>${total}</b> ${secs ? t('sec') : t('reps')}</td></tr>`;

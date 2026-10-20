@@ -6,7 +6,9 @@
 // tracker_config.json where you can rename or change it like anything else.
 
 import { fetchDefaultFor, makeId } from './config.js';
-import { getLang, LANGS } from './i18n.js';
+import {
+  getLang, isBuiltInLang, LANGS, packText,
+} from './i18n.js';
 
 let libPromise = null;
 
@@ -26,8 +28,14 @@ export function normName(s) {
     .replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
 }
 
+// A library name in a language: built-in names, or the added language's
+// translation ("lib:<id>", "cat:<id>"), else English.
 export function libName(entry, lang = getLang()) {
-  return entry.name[lang] || entry.name.en;
+  return entry.name[lang] || packText(`lib:${entry.id}`, lang) || entry.name.en;
+}
+
+export function catName(cat, lang = getLang()) {
+  return cat.name[lang] || packText(`cat:${cat.id}`, lang) || cat.name.en;
 }
 
 // The user's exercise that is this library exercise: same id, or the same
@@ -75,6 +83,8 @@ export async function translateBuiltInNames(current, lang = getLang()) {
   for (const e of lib.exercises) {
     const b = builtIn.exercises.get(e.id) || { id: e.id, names: {} };
     b.names = { ...e.name, ...b.names };
+    // An added language knows only the names its translation has.
+    if (!isBuiltInLang(lang) && packText(`lib:${e.id}`, lang)) b.names[lang] = packText(`lib:${e.id}`, lang);
     b.parts = e.parts;
     builtIn.exercises.set(e.id, b);
   }
@@ -92,15 +102,16 @@ export async function translateBuiltInNames(current, lang = getLang()) {
       if (!b) continue;
       const names = b.names;
       const entry = b.parts ? b : null;
-      const target = names[lang] || names.en;
+      // (For an added language: only names it really has, never English.)
+      const target = names[lang] || (isBuiltInLang(lang) ? names.en : null);
       if (target && target !== it.name) { it.name = target; changed++; }
       // Circuit parts are translated only if they are still the built-in ones.
       if (entry?.parts && Array.isArray(it.parts)) {
         const nameOf = (p) => (typeof p === 'string' ? p : p?.name);
         const same = Object.values(entry.parts).some((p) => p.length === it.parts.length
           && p.every((x, i) => normName(x) === normName(nameOf(it.parts[i]))));
-        const want = entry.parts[lang] || entry.parts.en;
-        if (same && want.some((w, i) => w !== nameOf(it.parts[i]))) {
+        const want = entry.parts[lang] || (isBuiltInLang(lang) ? entry.parts.en : null);
+        if (same && want && want.some((w, i) => w !== nameOf(it.parts[i]))) {
           // Keep each part's seconds; only the names change.
           it.parts = it.parts.map((p, i) => (typeof p === 'string' ? want[i] : { ...p, name: want[i] }));
           changed++;

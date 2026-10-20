@@ -1,4 +1,7 @@
-// UI language: English, Hebrew (right-to-left), Russian.
+// UI language: English, Hebrew (right-to-left), Russian — plus one more
+// language that anyone can add without touching the code: an AI translates
+// the app's texts (Settings → Language → Add a language with AI, see ai.js)
+// and the translation is kept in the config as "language" (config.js).
 //
 // t('English text {var}', { var }) returns the text in the current
 // language. The English text itself is the key, so code stays readable and
@@ -12,12 +15,24 @@ export const LANGS = [['en', 'English'], ['he', 'עברית'], ['ru', 'Русс�
 const RTL = new Set(['he']);
 
 let lang = 'en';
+// The language that was picked (or the phone's language on first run).
+// Kept even when it's an added language whose texts aren't loaded yet:
+// the config (which holds them) loads after this module starts.
+let wanted = 'en';
 // Layout direction: 'auto' (mirror for Hebrew), or fixed 'ltr' / 'rtl' so
 // the tabs and buttons stay in the same place whatever the language.
 let dirPref = 'auto';
+// The added language: { code, name, dir, texts, skipped } or null.
+let pack = null;
 
 export function getLang() { return lang; }
 export function getDirPref() { return dirPref; }
+export const isBuiltInLang = (code) => LANGS.some(([c]) => c === code);
+
+// The languages to pick from: the built-in ones plus the added one.
+export function languages() {
+  return pack && !isBuiltInLang(pack.code) ? [...LANGS, [pack.code, pack.name]] : LANGS;
+}
 
 // Phone language on first run; afterwards whatever was picked in Settings.
 export async function initLang() {
@@ -27,11 +42,12 @@ export async function initLang() {
     dirPref = (await storage.getValue('ui_dir')) || 'auto';
   } catch { /* use defaults */ }
   const phone = (navigator.language || 'en').slice(0, 2).toLowerCase();
-  const guess = phone === 'iw' ? 'he' : phone;
-  apply(saved || (LANGS.some(([c]) => c === guess) ? guess : 'en'));
+  wanted = saved || (phone === 'iw' ? 'he' : phone);
+  apply(wanted);
 }
 
 export async function setLang(code) {
+  wanted = code;
   apply(code);
   await storage.setValue('ui_lang', code);
 }
@@ -43,8 +59,9 @@ export async function setDirPref(pref) {
 }
 
 function apply(code) {
-  lang = LANGS.some(([c]) => c === code) ? code : 'en';
-  const natural = RTL.has(lang) ? 'rtl' : 'ltr';
+  lang = languages().some(([c]) => c === code) ? code : 'en';
+  const rtl = pack && lang === pack.code ? pack.dir === 'rtl' : RTL.has(lang);
+  const natural = rtl ? 'rtl' : 'ltr';
   const dir = dirPref === 'auto' ? natural : dirPref;
   const root = document.documentElement;
   root.lang = lang;
@@ -56,9 +73,64 @@ function apply(code) {
   root.classList.toggle('bidi-plain', dir !== natural);
 }
 
+// Called whenever the config (re)loads, with its "language" (or null).
+export function setLanguagePack(p) {
+  pack = p ? cleanPack(p) : null;
+  apply(wanted);
+}
+
+export function getPack() { return pack; }
+
+// The English of a text key ('' for exercise names "lib:…"/"cat:…"), or
+// null for a key this version of the app doesn't have.
+function englishOf(key) {
+  if (/^(lib|cat):/.test(key)) return '';
+  const e = DICT[key];
+  if (!e) return null;
+  return typeof e.en === 'string' ? e.en : key;
+}
+const placeholders = (s) => [...new Set(String(s).match(/\{\w+\}/g) || [])].sort().join();
+
+// An added language comes from outside (an AI, or a file someone shared),
+// so its texts are checked before use:
+// - a text that lost or changed a {placeholder} stays English (otherwise a
+//   number or a name would silently disappear from the screen);
+// - < > are dropped and " become “ ” — many texts go into the page as
+//   HTML, so a shared language file must never be able to add markup or
+//   scripts to the app.
+function cleanPack(p) {
+  const texts = {};
+  let skipped = 0;
+  for (const [k, v] of Object.entries(p.texts || {})) {
+    const en = englishOf(k);
+    if (en == null) continue; // a text from another version of the app
+    if (typeof v !== 'string' || !v.trim() || placeholders(en) !== placeholders(v)) { skipped++; continue; }
+    texts[k] = v.replace(/[<>]/g, '').replace(/"/g, (q, i, str) => (i === 0 || /[\s(«[{]/.test(str[i - 1]) ? '“' : '”'));
+  }
+  const name = String(p.name || p.code).replace(/[<>"]/g, '');
+  return { code: p.code, name, dir: p.dir === 'rtl' ? 'rtl' : 'ltr', texts, skipped };
+}
+
+// An added language as the app will use it (checked as above), e.g. to
+// show how complete it is before saving it.
+export const checkPack = (p) => cleanPack(p);
+
+// Every app text in English, as { key: English } for an AI to translate.
+export function textsToTranslate() {
+  const out = {};
+  for (const k of Object.keys(DICT)) out[k] = englishOf(k);
+  return out;
+}
+
+// A text of the added language, e.g. packText('lib:pullups', 'fr').
+export function packText(key, code = lang) {
+  return pack && code === pack.code ? pack.texts[key] || null : null;
+}
+
 export function t(key, vars = {}) {
   const entry = DICT[key];
-  let s = (lang !== 'en' && entry && entry[lang]) || (entry && entry.en) || key;
+  let s = (pack && lang === pack.code && pack.texts[key])
+    || (lang !== 'en' && entry && entry[lang]) || (entry && entry.en) || key;
   if (typeof s === 'function') s = s(vars);
   return s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 }
@@ -371,7 +443,6 @@ const DICT = {
   'circuit': { he: 'סבב', ru: 'круг' },
   'e.g. Core circuit': { he: 'למשל סבב בטן', ru: 'например, Круг на пресс' },
   'Exercises in a row — seconds each': { he: 'תרגילים ברצף — שניות לכל תרגיל', ru: 'Упражнения подряд — секунды на каждое' },
-  'e.g. Plank': { he: 'למשל פלאנק', ru: 'например, Планка' },
   '+ Add an exercise to the circuit': { he: '+ הוסף תרגיל לסבב', ru: '+ Добавить упражнение в круг' },
   'Rounds': { he: 'סיבובים', ru: 'Раунды' },
   'Pause between exercises': { he: 'הפסקה בין תרגילים', ru: 'Пауза между упражнениями' },
@@ -422,4 +493,86 @@ const DICT = {
   'The file is empty': { he: 'הקובץ ריק', ru: 'Файл пустой' },
   'This does not look like a Tracker backup': { he: 'זה לא נראה כמו גיבוי של Tracker', ru: 'Это не похоже на копию Tracker' },
   'No valid entries found ({n} unreadable)': { he: 'לא נמצאו רשומות תקינות ({n} לא קריאות)', ru: 'Нет правильных записей ({n} нечитаемых)' },
+
+  // --- circuits: choosing exercises, "max reps" parts ---
+  'Add to the circuit': { he: 'הוספה לסבב', ru: 'Добавить в круг' },
+  'CIRCUIT_PICK_HINT': { en: 'Tap the exercises in the order you want them — each tap adds one. Timed ones are first; with a reps exercise you do as many as you can in the time. Tap ✓ Done when finished.', he: 'הקש על התרגילים לפי הסדר שתרצה — כל הקשה מוסיפה אחד. תרגילים על זמן מופיעים ראשונים; בתרגיל חזרות עושים כמה שיותר בזמן הזה. בסוף הקש ✓ סיום.', ru: 'Нажимайте упражнения в нужном порядке — каждое нажатие добавляет одно. Сначала упражнения на время; в упражнении на повторения делайте сколько успеете за это время. В конце нажмите ✓ Готово.' },
+  '⏱ Timed exercises': { he: '⏱ תרגילים על זמן', ru: '⏱ Упражнения на время' },
+  'Your exercises — as many as you can in the time': { he: 'התרגילים שלך — כמה שיותר בזמן הזה', ru: 'Ваши упражнения — сколько успеете за это время' },
+  '(in circuit)': { he: '(בסבב)', ru: '(в круге)' },
+  'As many as you can — the app asks how many at the end': { he: 'כמה שיותר — בסוף האפליקציה שואלת כמה עשית', ru: 'Сколько успеете — в конце приложение спросит, сколько' },
+  'max reps': { he: 'מקסימום', ru: 'максимум' },
+  'As many as you can!': { he: 'כמה שיותר!', ru: 'Сколько успеете!' },
+  'How many did you do?': { he: 'כמה עשית?', ru: 'Сколько вы сделали?' },
+  'Saved: {list}': { he: 'נשמר: {list}', ru: 'Сохранено: {list}' },
+
+  // --- about ---
+  'About': { he: 'אודות', ru: 'О приложении' },
+  'About this app': { he: 'אודות האפליקציה', ru: 'О приложении' },
+  'Share this app': { he: 'שתף את האפליקציה', ru: 'Поделиться приложением' },
+  'Your privacy': { he: 'הפרטיות שלך', ru: 'Ваша приватность' },
+  'Install on your phone': { he: 'התקנה בטלפון', ru: 'Установка на телефон' },
+  'How to use it': { he: 'איך משתמשים', ru: 'Как пользоваться' },
+  'Your language': { he: 'השפה שלך', ru: 'Ваш язык' },
+  'Important': { he: 'חשוב', ru: 'Важно' },
+  'Free · public code': { he: 'חינם · קוד פומבי', ru: 'Бесплатно · код в открытом доступе' },
+  'Version {v}': { he: 'גרסה {v}', ru: 'Версия {v}' },
+  'Link copied': { he: 'הקישור הועתק', ru: 'Ссылка скопирована' },
+  'Copy this link:': { he: 'העתק את הקישור:', ru: 'Скопируйте ссылку:' },
+  'SHARE_TEXT': { en: 'Tracker — a free, private app to keep track of how you are doing (events, training). Your data stays on your phone.', he: 'Tracker — אפליקציה חינמית ופרטית למעקב אחרי איך שאתה מרגיש (אירועים, אימונים). המידע נשאר בטלפון שלך.', ru: 'Tracker — бесплатное приложение, чтобы следить за самочувствием (события, тренировки). Данные остаются на вашем телефоне.' },
+  'ABOUT_WHAT': { en: 'A free app to keep track of how you are doing. One tap logs an event — a headache, a panic attack, a medicine, your blood pressure, anything you choose — with the date and time. It also logs your training, with timers. Later you can look back, see patterns, and show them to a doctor or to someone you trust.', he: 'אפליקציה חינמית למעקב אחרי איך שאתה מרגיש. הקשה אחת רושמת אירוע — כאב ראש, התקף חרדה, תרופה, לחץ דם, כל דבר שתבחר — עם התאריך והשעה. היא רושמת גם אימונים, עם טיימרים. אחר כך אפשר להסתכל אחורה, לראות דפוסים ולהראות אותם לרופא או למישהו שאתה סומך עליו.', ru: 'Бесплатное приложение, чтобы следить за своим самочувствием. Одно нажатие записывает событие — головную боль, паническую атаку, лекарство, давление, что угодно — с датой и временем. Оно записывает и тренировки, с таймерами. Потом можно посмотреть назад, увидеть закономерности и показать их врачу или человеку, которому вы доверяете.' },
+  'ABOUT_PRIVACY': { en: 'Everything you log stays on this phone. There is no account, no ads, and nothing is sent anywhere. A button can be private: the screen shows only a short label (e.g. "X"), and the real name appears only in the log and in exports.', he: 'כל מה שאתה רושם נשאר בטלפון הזה. אין חשבון, אין פרסומות, ושום דבר לא נשלח לשום מקום. כפתור יכול להיות פרטי: על המסך מופיעה רק תווית קצרה (למשל "X"), והשם האמיתי מופיע רק ביומן ובקבצי הייצוא.', ru: 'Всё, что вы записываете, остаётся на этом телефоне. Нет аккаунта, нет рекламы, ничего никуда не отправляется. Кнопка может быть личной: на экране видна только короткая метка (например, «X»), а настоящее название — только в журнале и при экспорте.' },
+  'ABOUT_BACKUP': { en: 'Make a backup now and then: Settings → Full backup (JSON). If the browser data is cleared or the phone is lost, the data is gone. A backup can be restored on any phone.', he: 'כדאי לגבות מדי פעם: הגדרות ← גיבוי מלא (JSON). אם נתוני הדפדפן נמחקים או שהטלפון אובד, המידע אובד. אפשר לשחזר גיבוי בכל טלפון.', ru: 'Время от времени делайте резервную копию: Настройки → Полная копия (JSON). Если данные браузера удалятся или телефон потеряется, записи пропадут. Копию можно восстановить на любом телефоне.' },
+  'ABOUT_INSTALL': { en: 'Open the link in Chrome and tap ⋮ (the menu) → "Add to Home screen" or "Install app". It then opens like a normal app and works without internet. Long-press its icon for quick shortcuts.', he: 'פתח את הקישור ב-Chrome והקש ⋮ (התפריט) ← "הוספה למסך הבית" או "התקנת אפליקציה". מעכשיו היא נפתחת כמו אפליקציה רגילה ועובדת גם בלי אינטרנט. לחיצה ארוכה על הסמל פותחת קיצורי דרך.', ru: 'Откройте ссылку в Chrome и нажмите ⋮ (меню) → «Добавить на главный экран» или «Установить приложение». Тогда оно открывается как обычное приложение и работает без интернета. Долгое нажатие на значок открывает быстрые действия.' },
+  'ABOUT_EVENTS': { en: 'a tap on a button logs it with the time. The questions after it (how strong, how long…) are optional, and Undo is right there.', he: 'הקשה על כפתור רושמת אותו עם השעה. השאלות שאחריה (כמה חזק, כמה זמן…) לא חובה, וכפתור ביטול זמין מיד.', ru: 'нажатие на кнопку записывает событие со временем. Вопросы после него (насколько сильно, как долго…) необязательны, а «Отменить» всегда под рукой.' },
+  'ABOUT_TRAINING': { en: 'pick a routine or a free session. ▶ Start set and ✓ Done time each set and your rest; a circuit runs several exercises in a row with a beep at every switch.', he: 'בחר שגרה או אימון חופשי. ▶ התחל סט ו-✓ סיימתי מודדים כל סט ואת המנוחה; סבב מריץ כמה תרגילים ברצף עם צפצוף בכל החלפה.', ru: 'выберите программу или свободную тренировку. ▶ Начать подход и ✓ Готово засекают каждый подход и отдых; круг идёт без остановки с сигналом при каждой смене.' },
+  'ABOUT_LOG': { en: 'everything you logged, newest first. Tap an entry to fix its time or numbers, or to delete it.', he: 'כל מה שרשמת, החדש ביותר למעלה. הקשה על רשומה מאפשרת לתקן שעה או מספרים, או למחוק.', ru: 'всё, что вы записали, новое сверху. Нажмите на запись, чтобы исправить время или числа или удалить её.' },
+  'ABOUT_SETTINGS': { en: 'your buttons, exercises and routines, the language, and exports: CSV for a spreadsheet (or for an AI to look for patterns) and a full backup.', he: 'הכפתורים, התרגילים והשגרות שלך, השפה, וייצוא: CSV לגיליון אלקטרוני (או ל-AI שיחפש דפוסים) וגיבוי מלא.', ru: 'ваши кнопки, упражнения и программы, язык и экспорт: CSV для таблицы (или для ИИ, чтобы найти закономерности) и полная копия.' },
+  'ABOUT_LANGUAGE': { en: 'The app speaks English, Hebrew and Russian. For any other language: Settings → Add a language with AI. An AI chat (Claude, ChatGPT, Gemini…) translates the whole app in a few minutes, and the translation can be shared with others as a file.', he: 'האפליקציה מדברת אנגלית, עברית ורוסית. לכל שפה אחרת: הגדרות ← הוספת שפה בעזרת AI. צ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) מתרגם את כל האפליקציה בכמה דקות, ואפשר לשתף את התרגום עם אחרים כקובץ.', ru: 'Приложение говорит на английском, иврите и русском. Для любого другого языка: Настройки → Добавить язык с помощью ИИ. ИИ-чат (Claude, ChatGPT, Gemini…) переведёт всё приложение за несколько минут, а перевод можно передать другим файлом.' },
+  'ABOUT_MEDICAL': { en: 'This app does not give medical advice and does not replace a doctor or a mental-health professional. If you are in danger, or thinking about hurting yourself, call your local emergency number or someone you trust right now. In Israel: ERAN emotional first aid 1201 (24/7), Magen David Adom 101.', he: 'האפליקציה לא נותנת ייעוץ רפואי ולא מחליפה רופא או איש מקצוע בתחום בריאות הנפש. אם אתה בסכנה או חושב לפגוע בעצמך, התקשר עכשיו למספר החירום או למישהו שאתה סומך עליו. בישראל: ער״ן — עזרה ראשונה נפשית 1201 (24/7), מד״א 101.', ru: 'Приложение не даёт медицинских советов и не заменяет врача или специалиста по психическому здоровью. Если вы в опасности или думаете навредить себе, прямо сейчас позвоните в экстренную службу или человеку, которому доверяете. В Израиле: ЭРАН, эмоциональная первая помощь 1201 (круглосуточно), Маген Давид Адом 101.' },
+  'ABOUT_SOURCE': { en: 'The app is free, and its code is public on GitHub, so anyone can check exactly what it does.', he: 'האפליקציה חינמית, והקוד שלה פומבי ב-GitHub, כך שכל אחד יכול לבדוק בדיוק מה היא עושה.', ru: 'Приложение бесплатное, а его код открыт для просмотра на GitHub, так что любой может проверить, что именно оно делает.' },
+
+  // --- changing the setup / translating the app with an AI (ai.js) ---
+  'Change with AI': { he: 'שינויים בעזרת AI', ru: 'Изменить с помощью ИИ' },
+  'AI_SECTION_HINT': { en: 'Describe what you want in your own words. An AI chat (Claude, ChatGPT, Gemini…) writes it for you, and the app checks it and shows what changes before saving.', he: 'תאר במילים שלך מה אתה רוצה. צ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) יכתוב את זה בשבילך, והאפליקציה תבדוק ותראה מה ישתנה לפני השמירה.', ru: 'Опишите своими словами, что нужно. ИИ-чат (Claude, ChatGPT, Gemini…) напишет это за вас, а приложение проверит и покажет изменения перед сохранением.' },
+  'Change buttons, exercises or routines with AI': { he: 'שינוי כפתורים, תרגילים או שגרות בעזרת AI', ru: 'Изменить кнопки, упражнения или программы с ИИ' },
+  'Translate the app into another language with AI': { he: 'תרגום האפליקציה לשפה אחרת בעזרת AI', ru: 'Перевести приложение на другой язык с ИИ' },
+  'Change the setup with AI': { he: 'שינוי ההגדרות בעזרת AI', ru: 'Изменить настройки с помощью ИИ' },
+  'AI_SETUP_HINT': { en: 'Say in your own words what to change — e.g. "add a button for nightmares that asks how strong", "make a routine for Monday", "translate my buttons into Arabic" — and an AI writes the new setup for you.', he: 'כתוב במילים שלך מה לשנות — למשל "הוסף כפתור לסיוטים שישאל כמה חזק", "צור שגרה ליום שני", "תרגם את הכפתורים שלי לערבית" — וה-AI יכתוב בשבילך את ההגדרות החדשות.', ru: 'Напишите своими словами, что изменить — например, «добавь кнопку для кошмаров с вопросом о силе», «сделай программу на понедельник», «переведи мои кнопки на арабский» — и ИИ напишет новые настройки.' },
+  'Copy the prompt (it has your current setup in it).': { he: 'העתק את הפרומפט (ההגדרות הנוכחיות שלך בתוכו).', ru: 'Скопируйте запрос (в нём ваши текущие настройки).' },
+  'Paste it into an AI chat (Claude, ChatGPT, Gemini…) and write what you want, in any language.': { he: 'הדבק אותו בצ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) וכתוב מה אתה רוצה, בכל שפה.', ru: 'Вставьте его в чат с ИИ (Claude, ChatGPT, Gemini…) и напишите, что нужно, на любом языке.' },
+  "Copy the AI's whole answer and paste it below.": { he: 'העתק את כל התשובה של ה-AI והדבק אותה למטה.', ru: 'Скопируйте весь ответ ИИ и вставьте ниже.' },
+  'AI_PRIVACY': { en: 'Private buttons are not in the prompt (the AI never sees them) and stay as they are. Your log is never sent anywhere.', he: 'כפתורים פרטיים לא נכללים בפרומפט (ה-AI לא רואה אותם) ונשארים כמו שהם. היומן שלך אף פעם לא נשלח.', ru: 'Личные кнопки в запрос не попадают (ИИ их не видит) и остаются как есть. Ваш журнал никуда не отправляется.' },
+  'Add a language with AI': { he: 'הוספת שפה בעזרת AI', ru: 'Добавить язык с помощью ИИ' },
+  'AI_TRANSLATE_HINT': { en: 'An AI chat can translate this whole app into any language in a few minutes. You can then share the translation with others as a file.', he: 'צ׳אט AI יכול לתרגם את כל האפליקציה לכל שפה בכמה דקות. אחר כך אפשר לשתף את התרגום עם אחרים כקובץ.', ru: 'ИИ-чат может перевести всё приложение на любой язык за несколько минут. Потом перевод можно передать другим файлом.' },
+  'Copy the prompt.': { he: 'העתק את הפרומפט.', ru: 'Скопируйте запрос.' },
+  'Paste it into an AI chat (Claude, ChatGPT, Gemini…) and write the language at the end, e.g. French.': { he: 'הדבק אותו בצ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) וכתוב בסוף את השפה, למשל צרפתית.', ru: 'Вставьте его в чат с ИИ (Claude, ChatGPT, Gemini…) и в конце напишите язык, например французский.' },
+  'Copy the prompt': { he: 'העתק את הפרומפט', ru: 'Скопировать запрос' },
+  'Share to an AI app…': { he: 'שליחה לאפליקציית AI…', ru: 'Отправить в приложение ИИ…' },
+  'Copied — now paste it into the AI': { he: 'הועתק — עכשיו הדבק ב-AI', ru: 'Скопировано — теперь вставьте в ИИ' },
+  'Copy the text in the box (select all → copy)': { he: 'העתק את הטקסט שבתיבה (בחר הכל ← העתק)', ru: 'Скопируйте текст из поля (выделить всё → копировать)' },
+  "The AI's answer": { he: 'התשובה של ה-AI', ru: 'Ответ ИИ' },
+  "Paste the AI's whole answer here": { he: 'הדבק כאן את כל התשובה של ה-AI', ru: 'Вставьте сюда весь ответ ИИ' },
+  'Check the answer': { he: 'בדוק את התשובה', ru: 'Проверить ответ' },
+  'ANSWER_NOT_FOUND': { en: "No setup or language found in the answer. Copy the AI's whole answer and paste it here.", he: 'לא נמצאו בתשובה הגדרות או שפה. העתק את כל התשובה של ה-AI והדבק אותה כאן.', ru: 'В ответе не найдено ни настроек, ни языка. Скопируйте весь ответ ИИ и вставьте сюда.' },
+  'The answer has problems — nothing was changed:': { he: 'יש בעיות בתשובה — שום דבר לא שונה:', ru: 'В ответе есть ошибки — ничего не изменено:' },
+  'Copy the problems for the AI': { he: 'העתק את הבעיות בשביל ה-AI', ru: 'Скопировать ошибки для ИИ' },
+  'The answer was cut off — the complete texts are used, the rest stays in English.': { he: 'התשובה נקטעה — הטקסטים השלמים נשמרים, והשאר נשאר באנגלית.', ru: 'Ответ оборвался — полные тексты используются, остальное останется на английском.' },
+  'Saving will change:': { he: 'השמירה תשנה:', ru: 'Сохранение изменит:' },
+  'new:': { he: 'חדש:', ru: 'новое:' },
+  'changed:': { he: 'שונה:', ru: 'изменено:' },
+  'removed:': { he: 'הוסר:', ru: 'удалено:' },
+  'their history stays in the log': { he: 'ההיסטוריה שלהם נשארת ביומן', ru: 'их история останется в журнале' },
+  'new order': { he: 'סדר חדש', ru: 'новый порядок' },
+  '{n} texts translated': { en: (v) => `${v.n} text${v.n === 1 ? '' : 's'} translated`, he: 'טקסטים מתורגמים: {n}', ru: 'переведено текстов: {n}' },
+  '{n} still in English': { he: 'עדיין באנגלית: {n}', ru: 'ещё на английском: {n}' },
+  '{n} left out (a {…} part was changed)': { he: 'הושמטו: {n} (חלק {…} שונה)', ru: 'пропущено: {n} (изменена часть {…})' },
+  'Nothing would change.': { he: 'שום דבר לא ישתנה.', ru: 'Ничего не изменится.' },
+  'Saved': { he: 'נשמר', ru: 'Сохранено' },
+  'Removed': { he: 'הוסר', ru: 'Удалено' },
+  'Copy a prompt for the missing texts': { he: 'העתק פרומפט לטקסטים החסרים', ru: 'Скопировать запрос для недостающих текстов' },
+  'Save as a file to share': { he: 'שמור כקובץ לשיתוף', ru: 'Сохранить файлом, чтобы поделиться' },
+  'Remove {name}': { he: 'הסר את {name}', ru: 'Удалить {name}' },
+  'Remove {name}? You can add it again any time.': { he: 'להסיר את {name}? אפשר להוסיף שוב בכל זמן.', ru: 'Удалить {name}? Его можно снова добавить в любой момент.' },
+  'Open a language file': { he: 'פתח קובץ שפה', ru: 'Открыть файл языка' },
 };

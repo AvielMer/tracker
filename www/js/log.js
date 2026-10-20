@@ -73,7 +73,9 @@ export function details(e, state) {
   if (e.reps != null) parts.push(t('{n} reps', { n: e.reps }));
   if (e.seconds != null) parts.push(`${e.seconds}s`);
   if (e.weight != null) parts.push(`+${e.weight}kg`);
-  if (e.work_sec != null && e.reps != null) parts.push(t('set time {t}', { t: fmtSec(e.work_sec) }));
+  // (Not for reps done in a set time, e.g. a circuit's "max reps" part: its
+  // seconds already say how long it took.)
+  if (e.work_sec != null && e.reps != null && e.work_sec !== e.seconds) parts.push(t('set time {t}', { t: fmtSec(e.work_sec) }));
   if (e.rest_sec != null) parts.push(t('rest {t}', { t: fmtSec(e.rest_sec) }));
   if (e.intensity != null) parts.push(t('intensity {n}', { n: e.intensity }));
   if (e.kind !== 'session_end' && e.kind !== 'event_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
