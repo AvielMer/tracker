@@ -4,6 +4,8 @@ import * as storage from './storage.js';
 import { ASK_FIELDS, eventLabel, saveConfig } from './config.js';
 import { deleteWithUndo, details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
+import { dismissReminder, remindersHtml } from './reminders.js';
+import { startRoutine } from './training.js';
 import {
   esc, fmtDuration, friendlyDay, hhmm, localDate,
 } from './util.js';
@@ -21,6 +23,12 @@ const DOUBLE_TAP_MS = 3000;
 const lastTap = new Map();
 
 const DURATION_CHIPS = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+// "How do you feel?" — the record stores the number (1 = awful … 5 =
+// great) so it can be charted; the screen shows the face. Labels are
+// translation keys.
+export const MOODS = [[1, '😫', 'Awful'], [2, '😟', 'Bad'], [3, '😐', 'OK'], [4, '🙂', 'Good'], [5, '😄', 'Great']];
+export const moodFace = (n) => MOODS.find(([v]) => v === n)?.[1] || '';
 
 // A blood-pressure series is several log entries (one per reading) that
 // share a session_id. It is ONE occurrence: one measuring session.
@@ -57,7 +65,7 @@ export function renderEvents(el, ctx) {
     return;
   }
   const today = todayEvents(state);
-  el.innerHTML = `<div class="ev-grid">${events.map((ev) => {
+  el.innerHTML = `${remindersHtml(state)}<div class="ev-grid">${events.map((ev) => {
     const mine = today.filter((e) => e.item_id === ev.id);
     const last = mine[mine.length - 1];
     // "How many" answers count as that many (2 pills logged once = 2).
@@ -67,7 +75,7 @@ export function renderEvents(el, ctx) {
     const cls = `ev${ev.color ? ' has-color' : ''}`;
     const style = ev.color ? ` style="--c:${ev.color}"` : '';
     const run = ev.span ? openSpan(state, ev.id) : null;
-    let sub = last ? esc(t('last {time}', { time: hhmm(last.time) })) : '&nbsp;';
+    let sub = last ? esc(t('last {time}', { time: hhmm(last.time) })) + (last.mood ? ` ${moodFace(last.mood)}` : '') : '&nbsp;';
     if (run) sub = `▶ ${esc(t('running {d}', { d: fmtDuration((Date.now() - Date.parse(run.ts)) / 60000) }))}`;
     else if (ev.span) sub = esc(t('tap to start'));
     return `<button class="${cls}${run ? ' running' : ''}"${style} data-id="${esc(ev.id)}">
@@ -76,6 +84,24 @@ export function renderEvents(el, ctx) {
       <span class="ev-last">${sub}</span>
     </button>`;
   }).join('')}</div>`;
+
+  // Reminder cards: "Log now" is the same as tapping the button; a routine
+  // starts right away; ✕ = not now (until the reminder's next time).
+  el.querySelectorAll('.reminder').forEach((card) => {
+    const { type, id } = card.dataset;
+    card.querySelector('[data-rem-go]').addEventListener('click', () => {
+      if (type === 'routine') { startRoutine(ctx, id); return; }
+      const ev = state.config.events.find((e) => e.id === id);
+      if (!ev) return;
+      const run = ev.span ? openSpan(state, ev.id) : null;
+      if (run) openFinishSheet(ctx, ev, run);
+      else logEvent(ctx, ev);
+    });
+    card.querySelector('[data-rem-x]').addEventListener('click', async () => {
+      await dismissReminder(state, card.dataset.key);
+      ctx.refresh();
+    });
+  });
 
   el.insertAdjacentHTML('beforeend', recentHtml(state));
   el.querySelectorAll('.recent-row').forEach((row) => {
@@ -190,6 +216,9 @@ function chips(field, values, opts = {}) {
 // One sheet section per "ask" field, in the order the config lists them.
 function askSection(ev, field) {
   switch (field) {
+    case 'mood':
+      return [t('How do you feel?'), `<div class="chips mood" data-field="mood">${MOODS.map(([v, face, label]) =>
+        `<button class="chip" data-v="${v}" aria-label="${esc(t(label))}"><span class="face">${face}</span><small>${esc(t(label))}</small></button>`).join('')}</div>`];
     case 'intensity':
       return [t('Intensity'), chips('intensity', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])];
     case 'duration_min':
@@ -209,7 +238,7 @@ function askSection(ev, field) {
   }
 }
 
-const NUMERIC = new Set(['intensity', 'duration_min', 'amount', 'count']);
+const NUMERIC = new Set(['mood', 'intensity', 'duration_min', 'amount', 'count']);
 
 // The button's own number fields (e.g. Weight kg). Shared by the normal
 // sheet and the blood-pressure sheet.

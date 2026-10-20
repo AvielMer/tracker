@@ -10,6 +10,7 @@ import { renderSettings } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { $, esc } from './util.js';
 import { initLang, setLanguagePack, t } from './i18n.js';
+import { loadDismissed } from './reminders.js';
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
@@ -25,6 +26,7 @@ const state = {
   configErrors: [],
   entries: [],
   session: null, // open training session, if any (see training.js)
+  remindersDismissed: new Set(), // reminders put off with "not now" today (reminders.js)
 };
 
 const ctx = { state, toast, openSheet, closeSheet, refresh, reloadConfig, reloadAll };
@@ -82,6 +84,7 @@ async function reloadConfig() {
 
 async function reloadAll() {
   state.entries = await storage.listEntries();
+  state.remindersDismissed = await loadDismissed();
   await loadOpenSession(state);
   await reloadConfig();
 }

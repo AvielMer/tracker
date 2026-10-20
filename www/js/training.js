@@ -33,6 +33,7 @@ import {
   keepAwake, setSoundOn, signal, unlockAudio,
 } from './alerts.js';
 import { openExercisePicker } from './exercisePicker.js';
+import { remindTimes } from './reminders.js';
 
 const KEY = 'open_session';
 // Time to get into position after tapping Start on a timed exercise.
@@ -238,7 +239,7 @@ function renderStart(el, ctx) {
         <span class="routine-name">${esc(r.name)}</span>
         <span class="routine-ex">${steps.map((s) => `<bdi>${esc(exercise(ctx, s.id).name)
           + (s.sets ? ` <span class="muted">${s.sets}×${s.reps || '?'}</span>` : '')}</bdi>`).join(' · ')}</span>
-        ${last ? `<span class="routine-last">${esc(t('last: {day}', { day: last }))}</span>` : ''}
+        ${last || r.remind ? `<span class="routine-last">${[last ? esc(t('last: {day}', { day: last })) : '', r.remind ? `⏰ ${esc(remindTimes(r))}` : ''].filter(Boolean).join(' · ')}</span>` : ''}
       </button>`;
     }).join('')}
     <button class="routine free" data-free="1">
@@ -252,6 +253,19 @@ function renderStart(el, ctx) {
   }));
   el.querySelector('[data-free]').addEventListener('click', () => startSession(ctx, null));
   el.querySelector('[data-goto]').addEventListener('click', () => { ctx.state.scrollTo = 'training-settings'; });
+}
+
+// Starts a routine from outside the Training screen (a reminder card on
+// the Events screen). A workout that is already open is never replaced:
+// it is shown instead.
+export async function startRoutine(ctx, routineId) {
+  const routine = ctx.state.config.routines.find((r) => r.id === routineId);
+  location.hash = '#training';
+  if (ctx.state.session) { ctx.toast(t('A workout is already open')); return; }
+  if (!routine) return;
+  // Let the switch to the Training screen happen first (it closes sheets).
+  await new Promise((resolve) => { setTimeout(resolve, 0); });
+  await startSession(ctx, routine);
 }
 
 async function startSession(ctx, routine) {

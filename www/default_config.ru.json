@@ -6,7 +6,9 @@
     {"id": "medicine", "name": "Лекарство", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["Парацетамол", "Ибупрофен"], "amount": {"unit": "мг", "values": [200, 400, 500, 1000]}},
     {"id": "blood_pressure", "name": "Давление", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Вес", "unit": "кг"}]},
     {"id": "water_bottle", "name": "Бутылка воды", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "л", "values": [0.5, 1, 1.5, 2]}},
-    {"id": "coffee", "name": "Кофе", "ask": ["count"]}
+    {"id": "coffee", "name": "Кофе", "ask": ["count"]},
+    { "id": "how_i_feel", "name": "Самочувствие", "color": "#2bb5a0", "ask": ["mood", "note"] },
+    { "id": "how_was_my_day", "name": "Как прошёл день", "color": "#7b6cf6", "ask": ["mood", "note"], "remind": [{ "time": "21:00" }] }
   ],
   "exercises": [
     {"id": "pullups", "name": "Подтягивания", "type": "reps", "allowWeight": true, "start": 8},

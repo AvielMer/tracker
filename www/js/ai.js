@@ -46,12 +46,15 @@ THE FORMAT
 events = the one-tap buttons:
   "id", "name": required.
   "ask": what to ask right after the tap, in the order given (all optional, the user can skip them):
+    "mood" ("How do you feel?" as five faces, saved as 1 = awful … 5 = great),
     "intensity" (1-10), "duration_min" (minutes), "choice" (needs "choices": ["Paracetamol", "Ibuprofen"]),
     "amount" (needs "amount": {"unit": "mg", "values": [200, 400]}), "count" (how many at once),
     "bp" (blood pressure + pulse; can only be combined with "measures" and "note"),
     "measures" (own number fields; needs "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}]), "note".
   "span": true makes a start/finish button (e.g. a bottle opened today and finished tomorrow); not with "bp".
   Optional: "color": "#rrggbb", "hidden": true, "private": true with "displayLabel": "X" (the screen then shows only X).
+  "remind": reminders, e.g. [{"time": "21:00"}] every day, or [{"time": "08:30", "days": ["mon", "wed", "fri"]}]
+    (days: sun mon tue wed thu fri sat; 24-hour times).
 
 exercises:
   "id", "name", "type": "reps" or "seconds": required.
@@ -65,6 +68,7 @@ exercises:
 
 routines:
   "id", "name", "exercises": a list of exercise ids, or {"id": "pullups", "sets": 3, "reps": 8} to set a goal. Every id must exist in "exercises" ("reps" means seconds for a "seconds" exercise).
+  Optional "remind": the same as for events, e.g. [{"time": "18:00", "days": ["sun", "tue", "thu"]}].
 
 MY SETUP NOW
 \`\`\`json

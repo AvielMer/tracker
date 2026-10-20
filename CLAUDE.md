@@ -101,11 +101,12 @@ id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
 "session_start", "session_end", "event_start", "event_end"), item_id, item_name, nth_today,
 session_id, set_no, reps, seconds, weight, work_sec, rest_sec, intensity,
 duration_min, choice, amount, unit, count, bp_sys, bp_dia, pulse, measures,
-note
+mood, note
 (work_sec / rest_sec on training sets: how long the set took, and the rest
 before it — from the end of the previous set to "Start set".)
 ("measures" = { measure_id: number } for a button's own number fields;
 CSV turns it into one column per id, named m_<id>.)
+("mood" = the answer to "How do you feel?", 1 = awful … 5 = great.)
 
 ## Configurable event buttons (added after step 1)
 Each event's "ask" list picks what the quick sheet asks after a tap,
@@ -223,6 +224,28 @@ Example:
   items whose name is still a built-in name in some language (by id or by
   name), never names the user typed. Default config exercise names must
   equal the library names (checked when the library was built).
+- "How I feel" (asked for as "a button that registers how I feel right
+  now, and one that reminds me at the end of the day"): ask field "mood"
+  = five faces 😫 😟 😐 🙂 😄, stored as record field "mood" 1–5 (CSV
+  column "mood"; Log shows the face; edit checks 1–5; the button's "last"
+  line shows today's last face). Default configs (en/he/ru) have
+  "how_i_feel" (mood + note) and "how_was_my_day" (mood + note, remind
+  21:00); Settings → Event buttons offers the missing one(s) as one-tap
+  "+" buttons (fixed ids).
+- Reminders (asked for as "push notifications to remind of certain
+  buttons or training"): config "remind": [{"time": "21:00", "days"?:
+  ["mon", …]}] on events and routines (validated; days = sun…sat, none =
+  every day). Editor rows (time + 7 day toggles) in the button and
+  routine editors (`reminders.js`). A web app can't notify at a set time
+  once closed (no server; Android stops background web apps), so the web
+  version shows DUE reminders as cards at the top of the Events screen
+  (latest reminder whose time has come today and that wasn't done since
+  an hour before it; "Log now" = tapping the button, routines "▶ Start"
+  start the workout, ✕ = not now for today, kept in kv
+  "reminders_dismissed"). The screen refreshes every minute while open.
+  STEP 5 (APK): schedule the same "remind" list as real notifications
+  with @capacitor/local-notifications (repeating weekly per day), tapping
+  one opens ?log=<id> / the training screen.
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).

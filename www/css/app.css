@@ -419,3 +419,31 @@ select.input { appearance: auto; }
 .ai-box { min-height: 110px; font: 13px/1.4 ui-monospace, monospace; resize: vertical; }
 .ai-summary { margin: 6px 0; padding-inline-start: 18px; line-height: 1.5; word-break: break-word; }
 .sheet-body .card { background: var(--card2); }
+
+/* --- "How do you feel?": five big faces --- */
+.chips.mood .chip { height: auto; min-height: 72px; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.chips.mood .face { font-size: 30px; line-height: 1; }
+.chips.mood small { margin: 0; font-size: 11px; font-weight: 500; }
+
+/* --- reminders: cards on the Events screen, rows in the editors --- */
+.reminders { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.reminder {
+  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 14px;
+  background: #2a2412; box-shadow: inset 0 0 0 1px #5a4a1c;
+}
+.rem-what { flex: 1; min-width: 0; word-break: break-word; }
+.rem-time { color: var(--warn); font-variant-numeric: tabular-nums; margin-inline-end: 6px; direction: ltr; unicode-bidi: isolate; }
+.reminder .btn { min-height: 44px; padding: 8px 14px; }
+/* Time and ✕ on one line, the seven days below it at full width (they
+   don't fit next to the time on a phone). */
+.rrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
+.rtime { width: 150px; margin: 0; }
+.rrow [data-rdel] { margin-inline-start: auto; }
+.rdays { order: 3; flex: 1 1 100%; display: flex; gap: 4px; }
+.rday {
+  flex: 1; min-width: 0; height: 40px; border: 0; border-radius: 10px; padding: 0;
+  background: var(--card2); color: var(--muted); font: inherit; font-size: 13px; font-weight: 600;
+}
+.rday.on { background: var(--accent); color: #fff; }
+.quick-add { margin-top: 10px; }
+.quick-add p { margin: 0; }

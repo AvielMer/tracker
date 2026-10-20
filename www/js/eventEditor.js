@@ -4,11 +4,13 @@
 import {
   COLORS, eventLabel, makeId, saveConfig,
 } from './config.js';
+import { remindEditorHtml, wireRemindEditor } from './reminders.js';
 import { esc } from './util.js';
 import { t } from './i18n.js';
 
 // Labels are translation keys (see i18n.js).
 const ASK_OPTIONS = [
+  ['mood', 'ASK_mood'],
   ['intensity', 'Intensity (1–10)'],
   ['duration_min', 'Duration (minutes)'],
   ['choice', 'ASK_choice'],
@@ -62,6 +64,7 @@ export function openEventEditor(ctx, ev) {
         <button class="btn" data-madd>${t('+ Add a number')}</button></div>` : ''}
     `).join('')}
     <p class="small muted">${esc(t('ONE_QUESTION_HINT'))}</p>
+    ${remindEditorHtml(cur.remind)}
     <div class="sheet-actions">
       <button class="btn" data-act="cancel">${t('Cancel')}</button>
       <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
@@ -86,10 +89,13 @@ export function openEventEditor(ctx, ev) {
     if (e.target.closest('[data-mdel]')) e.target.closest('.mdef').remove();
   });
   root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
+  const readRemind = wireRemindEditor(root);
 
   root.querySelector('[data-act="save"]').addEventListener('click', async () => {
     const name = f('name').value.trim();
     if (!name) { ctx.toast(t('Type a name first')); return; }
+    const remind = readRemind();
+    if (remind.error) { ctx.toast(remind.error); return; }
     const chosen = [...root.querySelectorAll('[data-ask]:checked')].map((b) => b.dataset.ask);
     const choices = splitList(f('choices').value);
     const unit = f('unit').value.trim();
@@ -137,6 +143,7 @@ export function openEventEditor(ctx, ev) {
     if (measures.length) item.measures = measures; else delete item.measures;
     if (chosen.includes('amount')) item.amount = { unit, values };
     else if (!(unit && values.length && values.every((v) => v > 0))) delete item.amount;
+    if (remind.list.length) item.remind = remind.list; else delete item.remind;
     if (isNew) cfg.events.push(item);
 
     const res = await saveConfig(cfg);
