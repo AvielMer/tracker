@@ -14,12 +14,24 @@ import {
   getDirPref, getLang, languages, setDirPref, setLang, t,
 } from './i18n.js';
 import { openSetupAI, openTranslateAI } from './ai.js';
+import { remindTimes } from './reminders.js';
+
+// One-tap "How I feel" buttons (asked for as: a button to register how I
+// feel right now, and one that reminds me at the end of the day). Fixed
+// ids, so they're offered only while missing and "Use … names" can
+// translate them (they are also in the default configs).
+const MOOD_PRESETS = [
+  { id: 'how_i_feel', name: 'How I feel', ask: ['mood', 'note'], color: '#2bb5a0' },
+  { id: 'how_was_my_day', name: 'How was my day', ask: ['mood', 'note'], color: '#7b6cf6', remind: [{ time: '21:00' }] },
+];
+const remindTag = (it) => (it.remind ? ` <span class="tag">⏰ ${esc(remindTimes(it))}</span>` : '');
 
 export async function renderSettings(el, ctx) {
   const { state } = ctx;
   const persisted = await storage.isPersisted();
   const events = state.config.events;
   const nEvents = state.entries.filter((e) => e.kind === 'event').length;
+  const moodPresets = MOOD_PRESETS.filter((m) => !events.some((e) => e.id === m.id));
 
   el.innerHTML = `
   <a class="btn wide about-link" href="#about">ⓘ ${t('About this app')} · ${t('Share this app')}</a>
@@ -54,8 +66,12 @@ export async function renderSettings(el, ctx) {
   </div>
 
   <h2 class="day">${t('Event buttons')}</h2>
-  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ` <span class="tag">${t('private')}</span>` : ''))}
+  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ` <span class="tag">${t('private')}</span>` : '') + remindTag(ev))}
   <button class="btn primary wide" data-act="add">${t('+ Add a button')}</button>
+  ${moodPresets.length ? `<div class="card pad quick-add">
+    <p class="small">😊 ${esc(t('MOOD_HINT'))}</p>
+    <div class="btn-row">${moodPresets.map((m) => `<button class="btn" data-mood-add="${m.id}">+ ${esc(t(m.name))}${m.remind ? ` ⏰ ${m.remind[0].time}` : ''}</button>`).join('')}</div>
+  </div>` : ''}
   <p class="small muted">${esc(t('EDIT_BUTTON_HINT'))}</p>
 
   <h2 class="day" id="training-settings">${t('Exercises')}</h2>
@@ -71,7 +87,7 @@ export async function renderSettings(el, ctx) {
 
   <h2 class="day">${t('Routines')}</h2>
   ${manageList('routines', state.config.routines, (r) => esc(r.name)
-    + ` <span class="tag">${esc(t('exercises: {n}', { n: (r.exercises || []).length }))}</span>`)}
+    + ` <span class="tag">${esc(t('exercises: {n}', { n: (r.exercises || []).length }))}</span>` + remindTag(r))}
   <button class="btn primary wide" data-act="add-routine">${t('+ New routine')}</button>
   <button class="btn wide" data-act="presets">${esc(t('Add missing preset exercises & routines'))}</button>
 
@@ -151,13 +167,14 @@ export async function renderSettings(el, ctx) {
   // --- event manager ---
   // Every change goes through saveConfig(), which validates first, so the
   // in-app editor can never produce a config that breaks the app.
-  const change = async (mutate) => {
+  const change = async (mutate, okMsg) => {
     if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
     const cfg = JSON.parse(JSON.stringify(state.config));
     if (mutate(cfg) === false) return;
     const res = await saveConfig(cfg);
     if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
     await ctx.reloadConfig();
+    if (okMsg) ctx.toast(okMsg);
   };
 
   el.querySelectorAll('.mrow').forEach((row) => {
@@ -185,6 +202,14 @@ export async function renderSettings(el, ctx) {
   });
 
   on('add', () => openEventEditor(ctx, null));
+  el.querySelectorAll('[data-mood-add]').forEach((b) => b.addEventListener('click', () => {
+    const preset = MOOD_PRESETS.find((m) => m.id === b.dataset.moodAdd);
+    change((cfg) => {
+      if (cfg.events.some((e) => e.id === preset.id)) return false;
+      cfg.events.push({ ...JSON.parse(JSON.stringify(preset)), name: t(preset.name) });
+      return true;
+    }, t('Added "{name}"', { name: t(preset.name) }));
+  }));
   on('add-lang', () => openTranslateAI(ctx));
   on('ai-lang', () => openTranslateAI(ctx));
   on('ai-setup', () => openSetupAI(ctx));

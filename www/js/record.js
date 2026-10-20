@@ -7,8 +7,9 @@ export const FIELDS = [
   'id', 'ts', 'date', 'time', 'kind', 'item_id', 'item_name', 'nth_today',
   'session_id', 'set_no', 'reps', 'seconds', 'weight', 'work_sec', 'rest_sec', 'intensity',
   'duration_min', 'choice', 'amount', 'unit', 'count', 'bp_sys', 'bp_dia',
-  'pulse', 'measures', 'note',
+  'pulse', 'measures', 'mood', 'note',
 ];
+// "mood": the answer to "How do you feel?", 1 (awful) to 5 (great).
 // work_sec / rest_sec (training sets): how long the set took, and how long
 // the rest before it was (from the end of the previous set to "Start set").
 // "measures" is an object { measure_id: number } for a button's own number

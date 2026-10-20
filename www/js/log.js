@@ -7,7 +7,9 @@ import {
   esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
 import { t } from './i18n.js';
-import { measuresHtml, readMeasures, seriesKey } from './events.js';
+import {
+  measuresHtml, MOODS, readMeasures, seriesKey,
+} from './events.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -77,6 +79,8 @@ export function details(e, state) {
   // seconds already say how long it took.)
   if (e.work_sec != null && e.reps != null && e.work_sec !== e.seconds) parts.push(t('set time {t}', { t: fmtSec(e.work_sec) }));
   if (e.rest_sec != null) parts.push(t('rest {t}', { t: fmtSec(e.rest_sec) }));
+  const mood = MOODS.find(([v]) => v === e.mood);
+  if (mood) parts.push(`${mood[1]} ${t(mood[2])}`);
   if (e.intensity != null) parts.push(t('intensity {n}', { n: e.intensity }));
   if (e.kind !== 'session_end' && e.kind !== 'event_end' && e.duration_min != null) parts.push(t('{n} min', { n: e.duration_min }));
   return parts.join(' · ');
@@ -126,6 +130,7 @@ const EDIT_FIELDS = [
   ['choice', 'Type', 'text', 'choice'],
   ['amount', 'Amount', 'num', 'amount'],
   ['count', 'How many', 'num', 'count'],
+  ['mood', 'How do you feel? (1–5)', 'num', 'mood'],
   ['intensity', 'Intensity (1–10)', 'num', 'intensity'],
   ['duration_min', 'Duration (minutes)', 'num', 'duration_min'],
   ['reps', 'Reps', 'num', null],
@@ -193,6 +198,7 @@ export function openDetails(ctx, e) {
         v = Number(raw.replace(',', '.'));
         if (!(v > 0)) { ctx.toast(t('{label}: please type a number', { label: t(lbl) })); return; }
         if (k === 'intensity' && v > 10) { ctx.toast(t('Intensity goes from 1 to 10')); return; }
+        if (k === 'mood' && !(Number.isInteger(v) && v <= 5)) { ctx.toast(t('Mood goes from 1 to 5')); return; }
       }
       if (v !== e[k]) patch[k] = v;
     }

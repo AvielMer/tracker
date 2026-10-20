@@ -525,7 +525,7 @@ const DICT = {
   'ABOUT_PRIVACY': { en: 'Everything you log stays on this phone. There is no account, no ads, and nothing is sent anywhere. A button can be private: the screen shows only a short label (e.g. "X"), and the real name appears only in the log and in exports.', he: 'כל מה שאתה רושם נשאר בטלפון הזה. אין חשבון, אין פרסומות, ושום דבר לא נשלח לשום מקום. כפתור יכול להיות פרטי: על המסך מופיעה רק תווית קצרה (למשל "X"), והשם האמיתי מופיע רק ביומן ובקבצי הייצוא.', ru: 'Всё, что вы записываете, остаётся на этом телефоне. Нет аккаунта, нет рекламы, ничего никуда не отправляется. Кнопка может быть личной: на экране видна только короткая метка (например, «X»), а настоящее название — только в журнале и при экспорте.' },
   'ABOUT_BACKUP': { en: 'Make a backup now and then: Settings → Full backup (JSON). If the browser data is cleared or the phone is lost, the data is gone. A backup can be restored on any phone.', he: 'כדאי לגבות מדי פעם: הגדרות ← גיבוי מלא (JSON). אם נתוני הדפדפן נמחקים או שהטלפון אובד, המידע אובד. אפשר לשחזר גיבוי בכל טלפון.', ru: 'Время от времени делайте резервную копию: Настройки → Полная копия (JSON). Если данные браузера удалятся или телефон потеряется, записи пропадут. Копию можно восстановить на любом телефоне.' },
   'ABOUT_INSTALL': { en: 'Open the link in Chrome and tap ⋮ (the menu) → "Add to Home screen" or "Install app". It then opens like a normal app and works without internet. Long-press its icon for quick shortcuts.', he: 'פתח את הקישור ב-Chrome והקש ⋮ (התפריט) ← "הוספה למסך הבית" או "התקנת אפליקציה". מעכשיו היא נפתחת כמו אפליקציה רגילה ועובדת גם בלי אינטרנט. לחיצה ארוכה על הסמל פותחת קיצורי דרך.', ru: 'Откройте ссылку в Chrome и нажмите ⋮ (меню) → «Добавить на главный экран» или «Установить приложение». Тогда оно открывается как обычное приложение и работает без интернета. Долгое нажатие на значок открывает быстрые действия.' },
-  'ABOUT_EVENTS': { en: 'a tap on a button logs it with the time. The questions after it (how strong, how long…) are optional, and Undo is right there.', he: 'הקשה על כפתור רושמת אותו עם השעה. השאלות שאחריה (כמה חזק, כמה זמן…) לא חובה, וכפתור ביטול זמין מיד.', ru: 'нажатие на кнопку записывает событие со временем. Вопросы после него (насколько сильно, как долго…) необязательны, а «Отменить» всегда под рукой.' },
+  'ABOUT_EVENTS': { en: 'a tap on a button logs it with the time. The questions after it (how you feel, how strong, how long…) are optional, and Undo is right there. A button or a routine can remind you, e.g. every evening at 21:00: in this web version the reminder shows at the top of the Events screen when you open the app.', he: 'הקשה על כפתור רושמת אותו עם השעה. השאלות שאחריה (מה שלומך, כמה חזק, כמה זמן…) לא חובה, וכפתור ביטול זמין מיד. כפתור או שגרה יכולים להזכיר לך, למשל כל ערב ב-21:00: בגרסת הרשת התזכורת מופיעה בראש מסך האירועים כשפותחים את האפליקציה.', ru: 'нажатие на кнопку записывает событие со временем. Вопросы после него (самочувствие, насколько сильно, как долго…) необязательны, а «Отменить» всегда под рукой. Кнопка или программа может напоминать, например каждый вечер в 21:00: в веб-версии напоминание появляется вверху экрана событий, когда вы открываете приложение.' },
   'ABOUT_TRAINING': { en: 'pick a routine or a free session. ▶ Start set and ✓ Done time each set and your rest; a circuit runs several exercises in a row with a beep at every switch.', he: 'בחר שגרה או אימון חופשי. ▶ התחל סט ו-✓ סיימתי מודדים כל סט ואת המנוחה; סבב מריץ כמה תרגילים ברצף עם צפצוף בכל החלפה.', ru: 'выберите программу или свободную тренировку. ▶ Начать подход и ✓ Готово засекают каждый подход и отдых; круг идёт без остановки с сигналом при каждой смене.' },
   'ABOUT_LOG': { en: 'everything you logged, newest first. Tap an entry to fix its time or numbers, or to delete it.', he: 'כל מה שרשמת, החדש ביותר למעלה. הקשה על רשומה מאפשרת לתקן שעה או מספרים, או למחוק.', ru: 'всё, что вы записали, новое сверху. Нажмите на запись, чтобы исправить время или числа или удалить её.' },
   'ABOUT_SETTINGS': { en: 'your buttons, exercises and routines, the language, and exports: CSV for a spreadsheet (or for an AI to look for patterns) and a full backup.', he: 'הכפתורים, התרגילים והשגרות שלך, השפה, וייצוא: CSV לגיליון אלקטרוני (או ל-AI שיחפש דפוסים) וגיבוי מלא.', ru: 'ваши кнопки, упражнения и программы, язык и экспорт: CSV для таблицы (или для ИИ, чтобы найти закономерности) и полная копия.' },
@@ -576,4 +576,29 @@ const DICT = {
   'Remove {name}': { he: 'הסר את {name}', ru: 'Удалить {name}' },
   'Remove {name}? You can add it again any time.': { he: 'להסיר את {name}? אפשר להוסיף שוב בכל זמן.', ru: 'Удалить {name}? Его можно снова добавить в любой момент.' },
   'Open a language file': { he: 'פתח קובץ שפה', ru: 'Открыть файл языка' },
+
+  // --- "How do you feel?" (mood) ---
+  'How do you feel?': { he: 'מה שלומך?', ru: 'Как вы себя чувствуете?' },
+  'Awful': { he: 'נורא', ru: 'Ужасно' },
+  'Bad': { he: 'רע', ru: 'Плохо' },
+  'OK': { he: 'בסדר', ru: 'Нормально' },
+  'Good': { he: 'טוב', ru: 'Хорошо' },
+  'Great': { he: 'מצוין', ru: 'Отлично' },
+  'ASK_mood': { en: 'How do you feel — 😫 😟 😐 🙂 😄 (one tap)', he: 'מה שלומך — 😫 😟 😐 🙂 😄 (הקשה אחת)', ru: 'Самочувствие — 😫 😟 😐 🙂 😄 (одно нажатие)' },
+  'How do you feel? (1–5)': { he: 'מה שלומך? (1–5)', ru: 'Самочувствие (1–5)' },
+  'Mood goes from 1 to 5': { he: 'מצב הרוח הוא מ-1 עד 5', ru: 'Самочувствие — от 1 до 5' },
+  'How I feel': { he: 'מצב רוח', ru: 'Самочувствие' },
+  'How was my day': { he: 'איך היה היום', ru: 'Как прошёл день' },
+  'MOOD_HINT': { en: 'Keep track of how you feel with one tap on a face. “How was my day” reminds you every evening at 21:00 (change it with ✎).', he: 'עקוב אחרי מצב הרוח בהקשה אחת על פרצוף. "איך היה היום" מזכיר כל ערב ב-21:00 (אפשר לשנות עם ✎).', ru: 'Отмечайте самочувствие одним нажатием на смайлик. «Как прошёл день» напоминает каждый вечер в 21:00 (можно изменить через ✎).' },
+
+  // --- reminders (reminders.js) ---
+  'Reminders': { he: 'תזכורות', ru: 'Напоминания' },
+  '+ Add a reminder': { he: '+ הוסף תזכורת', ru: '+ Добавить напоминание' },
+  'REMIND_WEB_NOTE': { en: 'In this web version, a reminder shows as a card at the top of the Events screen once its time has come (when you open the app). Phone notifications that pop up even when the app is closed come with the Android app.', he: 'בגרסת הרשת, תזכורת מופיעה ככרטיס בראש מסך האירועים כשמגיע הזמן שלה (כשפותחים את האפליקציה). התראות שקופצות בטלפון גם כשהאפליקציה סגורה יגיעו עם אפליקציית האנדרואיד.', ru: 'В веб-версии напоминание появляется карточкой вверху экрана событий, когда пришло его время (когда вы открываете приложение). Уведомления, которые приходят даже при закрытом приложении, появятся в Android-версии.' },
+  'Pick a time for each reminder': { he: 'בחר שעה לכל תזכורת', ru: 'Укажите время для каждого напоминания' },
+  'Pick at least one day for each reminder': { he: 'בחר לפחות יום אחד לכל תזכורת', ru: 'Выберите хотя бы один день для каждого напоминания' },
+  'Log now': { he: 'רשום עכשיו', ru: 'Записать' },
+  'Start': { he: 'התחל', ru: 'Начать' },
+  'Not now': { he: 'לא עכשיו', ru: 'Не сейчас' },
+  'A workout is already open': { he: 'כבר יש אימון פתוח', ru: 'Тренировка уже идёт' },
 };

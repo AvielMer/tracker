@@ -18,7 +18,11 @@ const KEY_GOOD = 'config_last_good'; // last version that validated
 // bp_dia, pulse); it can be combined only with "measures" and "note".
 // "measures" asks the button's own number fields (e.g. weight in kg),
 // stored in the record's "measures" object as { id: number }.
-export const ASK_FIELDS = ['intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'measures', 'note'];
+// "mood" asks "How do you feel?" with five faces, stored as 1 (awful) to
+// 5 (great) in the record's "mood" field.
+export const ASK_FIELDS = ['mood', 'intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'measures', 'note'];
+// Reminder days, indexed like Date.getDay().
+export const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const EXERCISE_TYPES = ['reps', 'seconds'];
 const EMPTY = { events: [], exercises: [], routines: [] };
 
@@ -31,6 +35,17 @@ export function validateConfig(obj) {
     return { ok: false, errors: ['The file must be a JSON object { ... }'], config: null };
   }
   const out = { events: [], exercises: [], routines: [] };
+
+  // "remind" (event buttons and routines): [{ "time": "21:00" }] every day,
+  // or with "days": ["mon", "wed", "fri"]. See reminders.js.
+  const checkRemind = (it, at) => {
+    if (!('remind' in it)) return;
+    const ok = Array.isArray(it.remind) && it.remind.length <= 12 && it.remind.every((r) => r && typeof r === 'object'
+      && typeof r.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time)
+      && (!('days' in r) || (Array.isArray(r.days) && r.days.length && r.days.every((d) => DAYS.includes(d))
+        && new Set(r.days).size === r.days.length)));
+    if (!ok) errors.push(`${at}: "remind" must look like [{ "time": "21:00" }] or [{ "time": "08:30", "days": ["mon", "wed", "fri"] }]`);
+  };
 
   const checkList = (key, checkItem) => {
     const list = obj[key] ?? [];
@@ -90,6 +105,7 @@ export function validateConfig(obj) {
     if ('span' in ev && typeof ev.span !== 'boolean') errors.push(`${at}: "span" must be true or false`);
     if (ev.span && ask.includes('bp')) errors.push(`${at}: a start/finish button ("span") can't ask "bp"`);
     if ('private' in ev && typeof ev.private !== 'boolean') errors.push(`${at}: "private" must be true or false`);
+    checkRemind(ev, at);
     if ('displayLabel' in ev && typeof ev.displayLabel !== 'string') errors.push(`${at}: "displayLabel" must be text`);
   });
 
@@ -125,6 +141,7 @@ export function validateConfig(obj) {
 
   const exIds = new Set((Array.isArray(obj.exercises) ? obj.exercises : []).map((e) => e && e.id));
   checkList('routines', (r, at) => {
+    checkRemind(r, at);
     if (!Array.isArray(r.exercises)) { errors.push(`${at}: "exercises" must be a list of exercise ids`); return; }
     // Each step is an exercise id, or { "id": ..., "sets": 3, "reps": 8 }
     // to set a goal ("reps" means seconds for a seconds exercise).

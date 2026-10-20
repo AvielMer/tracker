@@ -5,6 +5,7 @@ import {
   circuitParts, isCircuit, makeId, routineSteps, saveConfig,
 } from './config.js';
 import { openExercisePicker } from './exercisePicker.js';
+import { remindEditorHtml, wireRemindEditor } from './reminders.js';
 import { esc } from './util.js';
 import { t } from './i18n.js';
 
@@ -222,9 +223,13 @@ export function openRoutineEditor(ctx, r) {
   const exName = (id) => (exercises.find((x) => x.id === id) || { name: id }).name;
   const steps = r ? routineSteps(r) : [];
   let name = r ? r.name : '';
+  let remind = r?.remind || [];
+  let readRemind = null;
 
   const root = ctx.openSheet('');
   const render = () => {
+    // The sheet is redrawn on every step change: keep reminder rows as typed.
+    if (readRemind) remind = readRemind(true).list;
     root.innerHTML = `
       <div class="sheet-head"><b>${isNew ? t('New routine') : t('Edit routine')}</b>
         ${isNew ? '' : `<button class="btn danger" data-act="delete">${t('Delete')}</button>`}</div>
@@ -246,12 +251,14 @@ export function openRoutineEditor(ctx, r) {
           ${exercises.filter((x) => !x.hidden).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}
         </select>
       </div>
+      ${remindEditorHtml(remind)}
       <div class="sheet-actions">
         <button class="btn" data-act="cancel">${t('Cancel')}</button>
         <button class="btn primary" data-act="save">${isNew ? t('Add routine') : t('Save')}</button>
       </div>`;
 
     root.querySelector('[data-f="name"]').addEventListener('input', (e) => { name = e.target.value; });
+    readRemind = wireRemindEditor(root);
     root.querySelectorAll('.rstep').forEach((row) => {
       const i = Number(row.dataset.i);
       row.querySelectorAll('[data-k]').forEach((inp) => inp.addEventListener('input', () => {
@@ -274,10 +281,13 @@ export function openRoutineEditor(ctx, r) {
     root.querySelector('[data-act="save"]').addEventListener('click', () => {
       if (!name.trim()) { ctx.toast(t('Type a name first')); return; }
       if (!steps.length) { ctx.toast(t('Add at least one exercise')); return; }
+      const rem = readRemind();
+      if (rem.error) { ctx.toast(rem.error); return; }
       commit(ctx, (cfg) => {
         const item = isNew ? { id: makeId(cfg.routines, name) } : cfg.routines.find((x) => x.id === r.id);
         if (!item) return false;
         item.name = name.trim();
+        if (rem.list.length) item.remind = rem.list; else delete item.remind;
         item.exercises = steps.map((s) => {
           if (!s.sets && !s.reps) return s.id;
           const o = { id: s.id };

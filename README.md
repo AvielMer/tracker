@@ -37,6 +37,8 @@ On an iPhone: open the link in Safari → Share → **Add to Home Screen**.
 
 ## What it does
 
+- **How I feel:** one tap on a face (😫 😟 😐 🙂 😄), any time, plus a
+  "How was my day" check-in with an evening reminder.
 - **Events:** big one-tap buttons showing today's count and the time of
   the last one. Short optional questions after a tap: how strong (1–10),
   how long, which medicine and how much, how many at once, blood pressure
@@ -53,6 +55,11 @@ On an iPhone: open the link in Safari → Share → **Add to Home Screen**.
     means "as many as you can in the time", and the app asks how many at
     the end.
   - A library of about 100 street-workout exercises comes built in.
+- **Reminders:** any button or routine can remind you at set times and
+  days (for example every evening at 21:00). In this web version a
+  reminder shows as a card at the top of the Events screen when you open
+  the app. Phone notifications that pop up while the app is closed will
+  come with the Android app version.
 - **Log:** everything you logged, newest first. Tap an entry to fix its
   time or numbers, or to delete it.
 - **Export:** CSV for a spreadsheet (or for an AI to look for patterns),
