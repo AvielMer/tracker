@@ -11,8 +11,9 @@ import { translateBuiltInNames } from './library.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
 import {
-  getDirPref, getLang, LANGS, setDirPref, setLang, t,
+  getDirPref, getLang, languages, setDirPref, setLang, t,
 } from './i18n.js';
+import { openSetupAI, openTranslateAI } from './ai.js';
 
 export async function renderSettings(el, ctx) {
   const { state } = ctx;
@@ -21,13 +22,16 @@ export async function renderSettings(el, ctx) {
   const nEvents = state.entries.filter((e) => e.kind === 'event').length;
 
   el.innerHTML = `
+  <a class="btn wide about-link" href="#about">ⓘ ${t('About this app')} · ${t('Share this app')}</a>
+
   <h2 class="day">${t('Language')}</h2>
-  <div class="lang-row">${LANGS.map(([code, nm]) => `<button class="btn${code === getLang() ? ' primary' : ''}" data-lang="${code}">${nm}</button>`).join('')}</div>
+  <div class="lang-row">${languages().map(([code, nm]) => `<button class="btn${code === getLang() ? ' primary' : ''}" data-lang="${esc(code)}">${esc(nm)}</button>`).join('')}</div>
+  <button class="btn wide" data-act="add-lang">🌐 ${t('Add a language with AI')}</button>
   <div class="label" style="margin-top:12px">${t('Layout')}</div>
   <div class="lang-row">${[['auto', 'Automatic'], ['ltr', 'Left → right'], ['rtl', 'Right → left']].map(([v, lbl]) =>
     `<button class="btn${v === getDirPref() ? ' primary' : ''}" data-dir="${v}">${esc(t(lbl))}</button>`).join('')}</div>
   <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
-  <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: LANGS.find(([c]) => c === getLang())[1] }))}</button>
+  <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: languages().find(([c]) => c === getLang())?.[1] || getLang() }))}</button>
   <p class="small muted">${esc(t('TRANSLATE_HINT'))}</p>
 
   <h2 class="day">${t('Your data')}</h2>
@@ -40,6 +44,13 @@ export async function renderSettings(el, ctx) {
       <button class="btn" data-act="backup">${t('Full backup (JSON)')}</button>
     </div>
     <label class="btn wide file">${t('Import / restore backup')}<input type="file" accept=".json,.jsonl,application/json" data-act="import" hidden></label>
+  </div>
+
+  <h2 class="day">${t('Change with AI')}</h2>
+  <div class="card pad">
+    <p class="small">${esc(t('AI_SECTION_HINT'))}</p>
+    <button class="btn primary wide" data-act="ai-setup">🤖 ${t('Change buttons, exercises or routines with AI')}</button>
+    <button class="btn wide" data-act="ai-lang">🌐 ${t('Translate the app into another language with AI')}</button>
   </div>
 
   <h2 class="day">${t('Event buttons')}</h2>
@@ -174,6 +185,9 @@ export async function renderSettings(el, ctx) {
   });
 
   on('add', () => openEventEditor(ctx, null));
+  on('add-lang', () => openTranslateAI(ctx));
+  on('ai-lang', () => openTranslateAI(ctx));
+  on('ai-setup', () => openSetupAI(ctx));
   on('add-ex', () => openExerciseEditor(ctx, null));
   on('add-circuit', () => openCircuitEditor(ctx, null));
   on('library', () => openExercisePicker(ctx, { title: t('Exercise library') }));

@@ -192,6 +192,20 @@ Example:
   Settings → Exercises, and the exercise editor's "Seconds" tip; "✎ Edit
   circuit" on the training card. Old format (parts = plain names) still
   works: every part uses the stepper's seconds; editing converts it.
+  Choosing a circuit's exercises (asked for as "choose from existing
+  exercises, timed first, then all the library; e.g. sit-ups, as many as
+  I can in a set time"): the circuit editor keeps its state in a model
+  and opens exercisePicker in "circuit" mode in the same sheet (timed
+  exercises first — yours + library — then your reps exercises, then the
+  library's; no circuits; several taps in a row, "✓ Done" goes back). A
+  library pick is added to the config right away. A part stores "ex" (the
+  exercise id). A part whose exercise is "reps" = "max reps": during it
+  the timer says "As many as you can!", and after the circuit (also after
+  "Log set without timer") a skippable sheet asks how many per part and
+  round; each answer is its own set record of that exercise with reps AND
+  seconds (= the time box), ts = when that part ended, session_id = the
+  session. state.entries is re-sorted by ts after that (the whole app
+  expects time order). fmtSet shows such a set as "25 (30s)".
   alerts.js: Web Audio beeps + vibration + screen wake lock during a
   session (timers can't beep with the screen off).
   Config: exercise "start"; routine steps may be "id" or
@@ -212,6 +226,41 @@ Example:
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).
+- About screen (`about.js`, route #about, not a tab — the header ⓘ and a
+  button at the top of Settings open it): what the app is, privacy,
+  backup, install, how to use, language, "not medical advice" + Israeli
+  help lines (ERAN 1201, MDA 101), the GitHub link, "Share this app"
+  (navigator.share, else copy the link). The version shown is read from
+  the service worker's cache name (tracker-vN), so it's never stale. The
+  code is described as public, not "open source": the repo has no
+  LICENSE (the user's call). README.md is written for the people the app
+  is shared with (privacy, install, AI helper, he/ru sections) — keep it
+  in step with features.
+- AI helper (`ai.js`, Settings → "Change with AI", and Language → "Add a
+  language with AI"). Asked for as "a prompt for any capable AI that edits
+  the setup file and translates it, so the app is in any language".
+  - Setup prompt = format rules + the current config WITHOUT private
+    events (privacy) and without "language". On paste, private events
+    missing from the answer are put back at their old positions.
+  - Translation prompt = every DICT key with its English (ALL_CAPS keys
+    give their "en" text) + "lib:<id>" / "cat:<id>" library names; it
+    asks for {"language": {code, name, dir, texts}}. "Copy a prompt for
+    the missing texts" sends only what's still untranslated; pasting the
+    same language code again ADDS texts.
+  - Pasting: the JSON is taken from a ```json block or the outermost {…}
+    (a retry drops trailing commas); a cut-off translation still yields
+    every complete "key": "text" pair. The merged config is validated,
+    a summary of what changes is shown, Save has Undo, and a new language
+    is switched to. "Save as a file to share" / "Open a language file".
+- Added language: config "language" = {code, name, dir, texts}
+  (validated in config.js). i18n.js setLanguagePack() is called on every
+  config load; languages() = built-ins + the added one; t() prefers its
+  texts for its code (it can also improve he/ru). Its texts come from
+  outside, so cleanPack() drops a text whose {placeholders} differ from
+  the English, strips < >, and turns " into “ ” (many t() results go into
+  innerHTML/attributes unescaped). libName/catName use "lib:"/"cat:"
+  texts; "Use … names for built-in items" in an added language only uses
+  names it really has (never English).
 - UI languages: English, Hebrew (RTL), Russian. `www/js/i18n.js`:
   t('English text {var}', {var}) — the English text is the key, so a
   missing translation just shows English. New UI text MUST go through

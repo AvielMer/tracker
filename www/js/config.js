@@ -101,14 +101,18 @@ export function validateConfig(obj) {
     // "parts": a timed circuit — several exercises in a row without
     // stopping, a beep at every switch. Each part is { "name", "seconds" }
     // (or just a name: then all parts use the +/- stepper's seconds).
+    // A part's "ex" is the id of the exercise it is; when that exercise is
+    // counted in reps, the part means "as many as you can in the time" and
+    // the app asks how many at the end (an unknown id is just ignored).
     // "rounds": repeat the whole list; "pause": seconds between parts.
     if ('parts' in ex) {
       if (ex.type !== 'seconds') errors.push(`${at}: "parts" only works with "type": "seconds"`);
       const okPart = (p) => (typeof p === 'string' && p.trim())
         || (p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim()
-          && Number.isInteger(p.seconds) && p.seconds > 0 && p.seconds <= 3600);
+          && Number.isInteger(p.seconds) && p.seconds > 0 && p.seconds <= 3600
+          && (!('ex' in p) || (typeof p.ex === 'string' && p.ex)));
       if (!Array.isArray(ex.parts) || !ex.parts.length || ex.parts.length > 30 || !ex.parts.every(okPart)) {
-        errors.push(`${at}: "parts" must look like [{ "name": "Plank", "seconds": 30 }, { "name": "Leg raises", "seconds": 30 }]`);
+        errors.push(`${at}: "parts" must look like [{ "name": "Plank", "seconds": 30 }, { "name": "Sit-ups", "seconds": 30, "ex": "situps" }]`);
       }
     }
     if ('rounds' in ex && !(Number.isInteger(ex.rounds) && ex.rounds >= 1 && ex.rounds <= 50)) {
@@ -134,6 +138,22 @@ export function validateConfig(obj) {
       }
     });
   });
+
+  // "language": one more UI language, translated by an AI (see i18n.js):
+  // { "code": "fr", "name": "Français", "dir": "ltr", "texts": { … } }.
+  if (obj.language != null) {
+    const L = obj.language;
+    if (typeof L !== 'object' || Array.isArray(L)) {
+      errors.push('"language" must look like { "code": "fr", "name": "Français", "dir": "ltr", "texts": { ... } }');
+    } else {
+      if (typeof L.code !== 'string' || !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(L.code)) errors.push('language: "code" must be a language code like "fr" or "pt-BR"');
+      if (typeof L.name !== 'string' || !L.name.trim()) errors.push('language: "name" is missing (the language\'s own name, e.g. "Français")');
+      if ('dir' in L && !['ltr', 'rtl'].includes(L.dir)) errors.push('language: "dir" must be "ltr" or "rtl"');
+      if (!L.texts || typeof L.texts !== 'object' || Array.isArray(L.texts)) errors.push('language: "texts" must look like { "Events": "Événements", ... }');
+      else if (Object.values(L.texts).some((v) => typeof v !== 'string')) errors.push('language: every text must be a string');
+      out.language = { code: L.code, name: L.name, dir: L.dir === 'rtl' ? 'rtl' : 'ltr', texts: L.texts };
+    }
+  }
 
   return { ok: errors.length === 0, errors, config: errors.length ? null : out };
 }
@@ -229,11 +249,11 @@ export function eventLabel(ev) {
 export const isCircuit = (ex) => ex?.type === 'seconds' && Array.isArray(ex.parts) && ex.parts.length > 0;
 // Every part has its own seconds (the format the circuit editor writes).
 export const hasOwnTimes = (ex) => isCircuit(ex) && ex.parts.every((p) => typeof p === 'object');
-// A circuit's parts as [{ name, seconds }]; parts written as plain names
-// (older format) all use eachSec, the +/- stepper's seconds.
+// A circuit's parts as [{ name, seconds, ex }]; parts written as plain
+// names (older format) all use eachSec, the +/- stepper's seconds.
 export function circuitParts(ex, eachSec) {
   return (ex.parts || []).map((p) => (typeof p === 'string'
-    ? { name: p, seconds: eachSec } : { name: p.name, seconds: p.seconds }));
+    ? { name: p, seconds: eachSec, ex: null } : { name: p.name, seconds: p.seconds, ex: p.ex || null }));
 }
 
 // A routine step as { id, sets, reps } whether it was written as a plain

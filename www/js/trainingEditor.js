@@ -4,9 +4,9 @@
 import {
   circuitParts, isCircuit, makeId, routineSteps, saveConfig,
 } from './config.js';
-import { libName, loadLibrary } from './library.js';
+import { openExercisePicker } from './exercisePicker.js';
 import { esc } from './util.js';
-import { getLang, t } from './i18n.js';
+import { t } from './i18n.js';
 
 async function commit(ctx, mutate, okMsg) {
   if (ctx.state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return false;
@@ -76,118 +76,143 @@ function mmss(sec) {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 }
 
-function circuitRow(p = { name: '', seconds: 30 }) {
-  return `<div class="crow">
-    <input class="input" data-cn list="circuit-names" value="${esc(p.name)}" placeholder="${esc(t('e.g. Plank'))}">
+function circuitRow(p, i, counted) {
+  return `<div class="crow-wrap" data-i="${i}"><div class="crow">
+    <span class="cnum">${i + 1}</span>
+    <input class="input" data-cn value="${esc(p.name)}" aria-label="${esc(t('Name'))}">
     <input class="input mini" data-cs inputmode="numeric" value="${esc(p.seconds ?? 30)}" aria-label="${esc(t('seconds'))}">
     <span class="muted">${t('sec')}</span>
-    <button class="ibtn" data-cup aria-label="${esc(t('Move up'))}">↑</button>
+    <button class="ibtn" data-cup ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">↑</button>
     <button class="ibtn" data-cdel aria-label="${esc(t('Remove'))}">✕</button>
-  </div>`;
+  </div>${counted ? `<div class="crow-note">🔢 ${esc(t('As many as you can — the app asks how many at the end'))}</div>` : ''}</div>`;
 }
 
 // A circuit: several exercises in a row without stopping, each with its own
 // seconds, a beep at every switch. Optional rounds (repeat the list) and a
-// pause between exercises. ex = existing circuit or null for a new one.
-// opts.onSaved(id) runs after saving (e.g. to start it in the workout);
-// opts.name pre-fills the name.
-export async function openCircuitEditor(ctx, ex, opts = {}) {
+// pause between exercises. Exercises are chosen from your own and the
+// library (timed ones first), or created on the spot. A part that is a reps
+// exercise means "as many as you can in the time": the app asks how many
+// at the end (see training.js). ex = existing circuit or null for a new
+// one. opts.onSaved(id) runs after saving (e.g. to start it in the
+// workout); opts.name pre-fills the name.
+export function openCircuitEditor(ctx, ex, opts = {}) {
   const isNew = !ex;
-  let lib = null;
-  try { lib = await loadLibrary(); } catch { /* suggestions only */ }
-  const lang = getLang();
-  const suggestions = [...new Set([
-    ...ctx.state.config.exercises.filter((x) => !isCircuit(x)).map((x) => x.name),
-    ...(lib ? lib.exercises.filter((e) => !e.parts).map((e) => libName(e, lang)) : []),
-  ])];
-  const parts = isNew ? [{ name: '', seconds: 30 }, { name: '', seconds: 30 }]
-    : circuitParts(ex, ex.start || 30);
-  let rounds = ex?.rounds || 1;
-  let pause = ex?.pause || 0;
-
-  const root = ctx.openSheet(`
-    <div class="sheet-head"><b>${isNew ? t('New circuit') : t('Edit circuit')}</b></div>
-    <div class="small muted">${esc(t('CIRCUIT_HINT'))}</div>
-    <div class="label" style="margin-top:10px">${t('Name')}</div>
-    <input class="input" data-f="name" value="${esc(ex?.name || opts.name || '')}" placeholder="${esc(t('e.g. Core circuit'))}">
-    <div class="label" style="margin-top:10px">${t('Exercises in a row — seconds each')}</div>
-    <div data-clist>${parts.map(circuitRow).join('')}</div>
-    <datalist id="circuit-names">${suggestions.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
-    <button class="btn" data-cadd>${t('+ Add an exercise to the circuit')}</button>
-    <div class="cfg-row">
-      <span>${t('Rounds')}</span>
-      <button class="ibtn" data-rounds="-1">−</button><b data-rounds-v>${rounds}</b><button class="ibtn" data-rounds="1">+</button>
-    </div>
-    <div class="cfg-row">
-      <span>${t('Pause between exercises')}</span>
-      <button class="ibtn" data-pause="-5">−</button><b data-pause-v>${pause} ${t('sec')}</b><button class="ibtn" data-pause="5">+</button>
-    </div>
-    <p class="circuit-total" data-total></p>
-    <div class="sheet-actions">
-      <button class="btn" data-act="cancel">${t('Cancel')}</button>
-      <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
-    </div>`);
-
-  const list = root.querySelector('[data-clist]');
-  const read = () => [...list.querySelectorAll('.crow')].map((row) => ({
-    name: row.querySelector('[data-cn]').value.trim(),
-    seconds: Number(row.querySelector('[data-cs]').value.replace(/[^0-9]/g, '')),
-  }));
-  const updateTotal = () => {
-    const ps = read().filter((p) => p.name && p.seconds > 0);
-    const n = ps.length;
-    const total = n ? rounds * ps.reduce((a, p) => a + p.seconds, 0) + pause * Math.max(0, n * rounds - 1) : 0;
-    root.querySelector('[data-total]').textContent = t('Total: {t}', { t: mmss(total) });
+  // What's being edited lives here, not in the page: choosing exercises
+  // opens the picker in the same sheet and comes back to it.
+  const m = {
+    name: ex?.name || opts.name || '',
+    parts: isNew ? [] : circuitParts(ex, ex.start || 30),
+    rounds: ex?.rounds || 1,
+    pause: ex?.pause || 0,
   };
-  list.addEventListener('input', updateTotal);
-  list.addEventListener('click', (e) => {
-    const row = e.target.closest('.crow');
-    if (e.target.closest('[data-cdel]')) row.remove();
-    else if (e.target.closest('[data-cup]') && row.previousElementSibling) row.parentElement.insertBefore(row, row.previousElementSibling);
-    updateTotal();
-  });
-  root.querySelector('[data-cadd]').addEventListener('click', () => {
-    const last = read().pop();
-    list.insertAdjacentHTML('beforeend', circuitRow({ name: '', seconds: last?.seconds || 30 }));
-    list.lastElementChild.querySelector('[data-cn]').focus();
-    updateTotal();
-  });
-  root.querySelectorAll('[data-rounds]').forEach((b) => b.addEventListener('click', () => {
-    rounds = Math.min(50, Math.max(1, rounds + Number(b.dataset.rounds)));
-    root.querySelector('[data-rounds-v]').textContent = rounds;
-    updateTotal();
-  }));
-  root.querySelectorAll('[data-pause]').forEach((b) => b.addEventListener('click', () => {
-    pause = Math.min(600, Math.max(0, pause + Number(b.dataset.pause)));
-    root.querySelector('[data-pause-v]').textContent = `${pause} ${t('sec')}`;
-    updateTotal();
-  }));
-  updateTotal();
+  const exById = (id) => ctx.state.config.exercises.find((x) => x.id === id);
+  const counted = (p) => exById(p.ex)?.type === 'reps';
 
-  root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
-  root.querySelector('[data-act="save"]').addEventListener('click', async () => {
-    const name = root.querySelector('[data-f="name"]').value.trim();
-    if (!name) { ctx.toast(t('Type a name first')); return; }
-    const ps = read().filter((p) => p.name);
-    if (!ps.length) { ctx.toast(t('Add at least one exercise with its seconds')); return; }
-    if (ps.some((p) => !(p.seconds >= 1 && p.seconds <= 3600))) { ctx.toast(t('Seconds must be a number from 1 to 3600')); return; }
-    let id = ex?.id;
-    const ok = await commit(ctx, (cfg) => {
-      // Start from the existing item so other keys (e.g. "hidden") survive.
-      const item = isNew ? { id: makeId(cfg.exercises, name) } : cfg.exercises.find((x) => x.id === ex.id);
-      if (!item) return false;
-      id = item.id;
-      item.name = name;
-      item.type = 'seconds';
-      item.parts = ps.map((p) => ({ name: p.name, seconds: p.seconds }));
-      if (rounds > 1) item.rounds = rounds; else delete item.rounds;
-      if (pause > 0) item.pause = pause; else delete item.pause;
-      delete item.allowWeight;
-      if (isNew) cfg.exercises.push(item);
-      return true;
-    }, t(isNew ? 'Added "{name}"' : 'Saved "{name}"', { name }));
-    if (ok && opts.onSaved) opts.onSaved(id);
+  const total = () => {
+    const ps = m.parts.filter((p) => p.name.trim() && p.seconds > 0);
+    const n = ps.length;
+    return n ? m.rounds * ps.reduce((a, p) => a + p.seconds, 0) + m.pause * Math.max(0, n * m.rounds - 1) : 0;
+  };
+
+  const addExercises = () => openExercisePicker(ctx, {
+    circuit: true,
+    title: t('Add to the circuit'),
+    markIds: () => m.parts.map((p) => p.ex),
+    onPick: (id) => {
+      const x = exById(id);
+      if (!x) return;
+      const last = m.parts[m.parts.length - 1];
+      // Timed exercises start at their own "start" seconds; a reps exercise
+      // gets the same time box as the exercise before it.
+      const seconds = x.type === 'seconds' && x.start ? x.start : last?.seconds || 30;
+      m.parts.push({ name: x.name, seconds, ex: id });
+    },
+    onClose: render,
   });
+
+  function render() {
+    const root = ctx.openSheet(`
+      <div class="sheet-head"><b>${isNew ? t('New circuit') : t('Edit circuit')}</b></div>
+      <div class="small muted">${esc(t('CIRCUIT_HINT'))}</div>
+      <div class="label" style="margin-top:10px">${t('Name')}</div>
+      <input class="input" data-f="name" value="${esc(m.name)}" placeholder="${esc(t('e.g. Core circuit'))}">
+      <div class="label" style="margin-top:10px">${t('Exercises in a row — seconds each')}</div>
+      ${m.parts.length ? '' : `<p class="muted small">${t('No exercises yet — add some below.')}</p>`}
+      <div data-clist>${m.parts.map((p, i) => circuitRow(p, i, counted(p))).join('')}</div>
+      <button class="btn wide${m.parts.length ? '' : ' primary'}" data-cadd>${t('+ Add an exercise to the circuit')}</button>
+      <div class="cfg-row">
+        <span>${t('Rounds')}</span>
+        <button class="ibtn" data-rounds="-1">−</button><b data-rounds-v>${m.rounds}</b><button class="ibtn" data-rounds="1">+</button>
+      </div>
+      <div class="cfg-row">
+        <span>${t('Pause between exercises')}</span>
+        <button class="ibtn" data-pause="-5">−</button><b data-pause-v>${m.pause} ${t('sec')}</b><button class="ibtn" data-pause="5">+</button>
+      </div>
+      <p class="circuit-total" data-total></p>
+      <div class="sheet-actions">
+        <button class="btn" data-act="cancel">${t('Cancel')}</button>
+        <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
+      </div>`);
+
+    const updateTotal = () => {
+      root.querySelector('[data-total]').textContent = t('Total: {t}', { t: mmss(total()) });
+    };
+    root.querySelector('[data-f="name"]').addEventListener('input', (e) => { m.name = e.target.value; });
+    const list = root.querySelector('[data-clist]');
+    list.addEventListener('input', (e) => {
+      const p = m.parts[Number(e.target.closest('[data-i]').dataset.i)];
+      if (e.target.matches('[data-cn]')) p.name = e.target.value;
+      else p.seconds = Number(e.target.value.replace(/[^0-9]/g, ''));
+      updateTotal();
+    });
+    list.addEventListener('click', (e) => {
+      const i = Number(e.target.closest('[data-i]')?.dataset.i);
+      if (e.target.closest('[data-cdel]')) m.parts.splice(i, 1);
+      else if (e.target.closest('[data-cup]') && i > 0) [m.parts[i - 1], m.parts[i]] = [m.parts[i], m.parts[i - 1]];
+      else return;
+      render();
+    });
+    root.querySelector('[data-cadd]').addEventListener('click', addExercises);
+    root.querySelectorAll('[data-rounds]').forEach((b) => b.addEventListener('click', () => {
+      m.rounds = Math.min(50, Math.max(1, m.rounds + Number(b.dataset.rounds)));
+      root.querySelector('[data-rounds-v]').textContent = m.rounds;
+      updateTotal();
+    }));
+    root.querySelectorAll('[data-pause]').forEach((b) => b.addEventListener('click', () => {
+      m.pause = Math.min(600, Math.max(0, m.pause + Number(b.dataset.pause)));
+      root.querySelector('[data-pause-v]').textContent = `${m.pause} ${t('sec')}`;
+      updateTotal();
+    }));
+    updateTotal();
+
+    root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
+    root.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const name = m.name.trim();
+      if (!name) { ctx.toast(t('Type a name first')); return; }
+      const ps = m.parts.filter((p) => p.name.trim());
+      if (!ps.length) { ctx.toast(t('Add at least one exercise with its seconds')); return; }
+      if (ps.some((p) => !(p.seconds >= 1 && p.seconds <= 3600))) { ctx.toast(t('Seconds must be a number from 1 to 3600')); return; }
+      let id = ex?.id;
+      const ok = await commit(ctx, (cfg) => {
+        // Start from the existing item so other keys (e.g. "hidden") survive.
+        const item = isNew ? { id: makeId(cfg.exercises, name) } : cfg.exercises.find((x) => x.id === ex.id);
+        if (!item) return false;
+        id = item.id;
+        item.name = name;
+        item.type = 'seconds';
+        item.parts = ps.map((p) => ({ name: p.name.trim(), seconds: p.seconds, ...(p.ex ? { ex: p.ex } : {}) }));
+        if (m.rounds > 1) item.rounds = m.rounds; else delete item.rounds;
+        if (m.pause > 0) item.pause = m.pause; else delete item.pause;
+        delete item.allowWeight;
+        if (isNew) cfg.exercises.push(item);
+        return true;
+      }, t(isNew ? 'Added "{name}"' : 'Saved "{name}"', { name }));
+      if (ok && opts.onSaved) opts.onSaved(id);
+    });
+  }
+  render();
+  // A brand-new circuit starts by choosing its exercises.
+  if (isNew) addExercises();
 }
 
 // r = existing routine, or null for a new one.

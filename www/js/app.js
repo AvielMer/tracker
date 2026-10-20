@@ -5,16 +5,19 @@ import * as storage from './storage.js';
 import { loadConfig } from './config.js';
 import { renderEvents, logEvent } from './events.js';
 import { renderLog } from './log.js';
+import { renderAbout } from './about.js';
 import { renderSettings } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { $, esc } from './util.js';
-import { initLang, t } from './i18n.js';
+import { initLang, setLanguagePack, t } from './i18n.js';
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
   training: { title: 'Training', render: renderTraining },
   log: { title: 'Log', render: renderLog },
   settings: { title: 'Settings', render: renderSettings },
+  // Not a tab: opened from the ⓘ in the header and from Settings.
+  about: { title: 'About', render: renderAbout, tab: 'settings' },
 };
 
 const state = {
@@ -35,10 +38,12 @@ function refresh() {
   const name = currentScreen();
   document.querySelectorAll('.nav a').forEach((a) => {
     const key = a.getAttribute('href').slice(1);
-    a.classList.toggle('on', key === name);
+    a.classList.toggle('on', key === (SCREENS[name].tab || name));
     a.querySelector('.lbl').textContent = t(SCREENS[key].title);
   });
   $('#title').textContent = t(SCREENS[name].title);
+  $('#about-btn').setAttribute('aria-label', t('About this app'));
+  $('#about-btn').classList.toggle('on', name === 'about');
   const banner = $('#banner');
   if (state.configErrors.length) {
     banner.hidden = false;
@@ -71,6 +76,7 @@ async function reloadConfig() {
   const res = await loadConfig();
   state.config = res.config;
   state.configErrors = res.errors;
+  setLanguagePack(res.config.language || null);
   refresh();
 }
 
