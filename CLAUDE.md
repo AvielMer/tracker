@@ -99,8 +99,11 @@ Example:
 ## Log record fields
 id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
 "session_start", "session_end", "event_start", "event_end"), item_id, item_name, nth_today,
-session_id, set_no, reps, seconds, weight, intensity, duration_min,
-choice, amount, unit, count, bp_sys, bp_dia, pulse, measures, note
+session_id, set_no, reps, seconds, weight, work_sec, rest_sec, intensity,
+duration_min, choice, amount, unit, count, bp_sys, bp_dia, pulse, measures,
+note
+(work_sec / rest_sec on training sets: how long the set took, and the rest
+before it — from the end of the previous set to "Start set".)
 ("measures" = { measure_id: number } for a button's own number fields;
 CSV turns it into one column per id, named m_<id>.)
 
@@ -116,7 +119,11 @@ button's own number fields from "measures": [{"id": "weight", "name":
 "Weight", "unit": "kg"}]; ids never change once created), "note". If only one
 question is asked, one tap on the answer saves.
 Blood pressure ("ask": ["bp"], combinable only with "measures" and
-"note"; measures are asked once, with reading 1): one tap
+"note"; measures are asked once, with reading 1, and shown/exported for
+every reading of the series; tapping again within 30 min offers — ticked by
+default — to continue that series; in the Log a reading can be joined into
+another series of the same button within a day, which renumbers set_no
+and nth_today): one tap
 starts a SERIES of readings (measure, rest, measure again — numbers
 settle as you relax). Each reading is its own log entry with its own
 time; all share session_id = the first entry's id, and set_no is the
@@ -164,10 +171,32 @@ Example:
   (duration_min). Stepper starts at: last set this session → first set
   of last session → routine goal → exercise "start" → 10 reps / 30 s.
   Reaching a routine goal jumps to the next unfinished exercise.
+  Set flow (rewritten after user feedback): ▶ Start set stops the rest
+  timer and starts the set; ✓ Done logs it (work_sec, rest_sec) and starts
+  rest. Phase is saved in the session ("phase", "work", "rest_from"), so a
+  set in progress survives closing the app. Same big button for Start and
+  Done → taps within 1.2 s of each other are ignored. Rest goal (kv
+  "tr_rest_goal", default 90 s) beeps once when reached; sound toggle (kv
+  "tr_sound"). Exercises in seconds: Start = 5 s "get ready" (3-2-1 ticks),
+  countdown of the stepper's seconds, auto-logged with a beep. Exercise
+  "parts" (circuit, type seconds only): one set runs all parts in a row,
+  the stepper's seconds EACH, beep at every switch; logged seconds = total.
+  alerts.js: Web Audio beeps + vibration + screen wake lock during a
+  session (timers can't beep with the screen off).
   Config: exercise "start"; routine steps may be "id" or
   {"id", "sets", "reps"}. Settings has editors for exercises and
   routines, plus "Add missing preset exercises & routines" (merges
   default_config.json by id, changes nothing existing).
+- Exercise library: `www/exercise_library.json` (~100 street-workout
+  exercises, names in en/he/ru, categories, 2 circuits). Reference data
+  only — copied into the config when picked. `library.js` (match by id or
+  by name in any language, so duplicates aren't offered; translate built-in
+  names), `exercisePicker.js` (search own + library, or "Create" a new
+  one; used by Training "+ Exercise" and Settings "+ Add from library").
+  Settings → Language → "Use … names for built-in items" renames only
+  items whose name is still a built-in name in some language (by id or by
+  name), never names the user typed. Default config exercise names must
+  equal the library names (checked when the library was built).
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).

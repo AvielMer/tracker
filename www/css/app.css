@@ -325,3 +325,33 @@ select.input { appearance: auto; }
 @keyframes running { 50% { box-shadow: inset 0 0 0 3px transparent; } }
 @media (prefers-reduced-motion: reduce) { .ev.running { animation: none; } }
 .recent-main .row-time { white-space: nowrap; }
+
+/* --- training: timer box, Start/Done flow --- */
+.tr-head-btns { display: flex; gap: 8px; align-items: center; }
+.timer-box {
+  text-align: center; margin: 10px 0; padding: 10px 12px 8px; border-radius: 16px;
+  background: var(--card); transition: background .3s;
+}
+.timer-box.work { background: #14304f; }
+.timer-box.ready { background: #173d26; }
+.timer-label { font-size: 15px; color: var(--muted); min-height: 20px; }
+.timer-box.work .timer-label, .timer-box.ready .timer-label { color: var(--text); font-weight: 600; }
+.timer-big {
+  font-size: 46px; font-weight: 700; line-height: 1.1; color: var(--accent);
+  font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate;
+}
+.timer-box.ready .timer-big { color: var(--ok); }
+.timer-sub {
+  border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px;
+  min-height: 32px; padding: 4px 10px;
+}
+.btn.done-btn { background: var(--ok); color: #0d1a10; }
+.linklike {
+  display: block; margin: 10px auto 0; border: 0; background: none; color: var(--muted);
+  font: inherit; font-size: 13px; text-decoration: underline; min-height: 36px;
+}
+.tr-parts { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
+.stepper.locked { opacity: .45; }
+.step-btn:disabled, .step-val:disabled { cursor: default; }
+.pick-results .label { margin-top: 14px; }
+.btn.lib { font-weight: 500; }

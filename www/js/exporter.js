@@ -15,8 +15,15 @@ export function toCSV(entries) {
   const base = FIELDS.filter((f) => f !== 'measures');
   const mKeys = [...new Set(entries.flatMap((e) => Object.keys(e.measures || {})))].sort();
   const lines = [[...base, ...mKeys.map((k) => `m_${k}`)].join(',')];
+  // Blood pressure stores weight (etc.) once per series, on reading 1; in
+  // the CSV every reading of the series gets it, so each row is complete.
+  const seriesM = new Map();
   for (const e of entries) {
-    const m = e.measures || {};
+    const k = e.session_id || e.id;
+    if (e.bp_sys != null && e.measures && !seriesM.has(k)) seriesM.set(k, e.measures);
+  }
+  for (const e of entries) {
+    const m = e.measures || (e.bp_sys != null ? seriesM.get(e.session_id || e.id) : null) || {};
     lines.push([...base.map((f) => csvCell(e[f])), ...mKeys.map((k) => csvCell(m[k]))].join(','));
   }
   // BOM so Excel/Sheets on the phone read non-English notes correctly.
