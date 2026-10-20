@@ -1,11 +1,12 @@
-// Pick an exercise: search your own exercises and the built-in library, or
-// create a new one just by typing its name. Used during a workout
-// ("+ Exercise") and in Settings ("+ Add from library").
+// Pick an exercise: search your own exercises and the built-in library,
+// create a new one just by typing its name, or make a new circuit. Used
+// during a workout ("+ Exercise") and in Settings ("+ Add from library").
 
 import { makeId, saveConfig } from './config.js';
 import {
   findInConfig, fromLibrary, libName, loadLibrary, normName,
 } from './library.js';
+import { openCircuitEditor } from './trainingEditor.js';
 import { esc } from './util.js';
 import { getLang, t } from './i18n.js';
 
@@ -24,8 +25,14 @@ export async function openExercisePicker(ctx, opts = {}) {
     <div class="sheet-head"><b>${esc(opts.title || t('Add an exercise'))}</b>
       <button class="btn" data-act="close">${t('Close')}</button></div>
     <input class="input" data-q type="search" autocomplete="off" placeholder="${esc(t('Search or type a new name…'))}">
+    <button class="btn wide" data-act="new-circuit">⏱ ${t('+ New circuit (several exercises in a row)')}</button>
     <div class="pick-results" data-results></div>`);
   root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
+  // The circuit editor replaces this sheet; a saved circuit is picked like
+  // any other exercise (during a workout it becomes the current one).
+  root.querySelector('[data-act="new-circuit"]').addEventListener('click', () => openCircuitEditor(ctx, null, {
+    onSaved: (id) => opts.onPick?.(id),
+  }));
 
   // Adds exercises to the config (validated like every other change).
   const addToConfig = async (ex) => {
@@ -66,7 +73,7 @@ export async function openExercisePicker(ctx, opts = {}) {
     let html = '';
     if (own.length) {
       html += `<div class="label">${t('Your exercises')}</div><div class="pick-list">${own.map((x) =>
-        `<button class="btn" data-own="${esc(x.id)}">${esc(x.name)}${mark.has(x.id) ? ` <span class="muted small">${t('(in session)')}</span>` : ''}</button>`).join('')}</div>`;
+        `<button class="btn" data-own="${esc(x.id)}">${esc(x.name)}${x.type === 'seconds' ? ' <span class="tag">⏱</span>' : ''}${mark.has(x.id) ? ` <span class="muted small">${t('(in session)')}</span>` : ''}</button>`).join('')}</div>`;
     }
     for (const cat of lib.categories) {
       const items = libItems.filter((e) => e.cat === cat.id);

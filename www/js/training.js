@@ -7,10 +7,11 @@
 // before it (rest_sec). A rest goal (e.g. 1:30) beeps when rest is over.
 //
 // Exercises counted in seconds are timed by the app: Start gives a short
-// "get ready" countdown, then counts down the stepper's seconds and logs
-// the set by itself with a beep. A circuit ("parts", e.g. front plank →
-// left side → right side) runs the stepper's seconds for EACH part and
-// beeps at every switch.
+// "get ready" countdown, then counts down the seconds and logs the set by
+// itself with a beep. A circuit ("parts": several exercises in a row, e.g.
+// plank 30 s, then leg raises 30 s; optionally several "rounds" with a
+// "pause" between exercises) runs without stopping and beeps at every
+// switch, so you never have to look at or touch the phone mid-circuit.
 //
 // Crash safety: every set is appended to the log the moment it's logged,
 // and the open session (routine, current exercise, stepper values, and a
@@ -18,7 +19,10 @@
 // mid-workout, even mid-set, loses nothing; it reopens where it was.
 
 import * as storage from './storage.js';
-import { routineSteps } from './config.js';
+import {
+  circuitParts, hasOwnTimes, isCircuit, routineSteps,
+} from './config.js';
+import { openCircuitEditor } from './trainingEditor.js';
 import { makeRecord } from './record.js';
 import { esc, friendlyDay, hhmm, localDate } from './util.js';
 import { t } from './i18n.js';
@@ -66,10 +70,63 @@ function exercise(ctx, id) {
 }
 
 const valueOf = (e) => (e.reps ?? e.seconds);
-const nParts = (ex) => (ex.type === 'seconds' && ex.parts?.length ? ex.parts.length : 1);
-// The stepper holds seconds PER PART for a circuit; a logged set holds the total.
-const stepperValueOf = (ex, e) => (nParts(ex) > 1 && e.seconds != null
-  ? Math.max(1, Math.round(e.seconds / nParts(ex))) : valueOf(e));
+// Older circuits (parts given as plain names) use the stepper's seconds for
+// EVERY part, so their stepper holds seconds per part while a logged set
+// holds the total.
+const uniformParts = (ex) => (isCircuit(ex) && !hasOwnTimes(ex) ? ex.parts.length * (ex.rounds || 1) : 0);
+const stepperValueOf = (ex, e) => (uniformParts(ex) && e.seconds != null
+  ? Math.max(1, Math.round(e.seconds / uniformParts(ex))) : valueOf(e));
+
+// The timeline of a timed set, as segments [{ k: 'work'|'pause', sec, … }].
+// A plain hold is one segment; a circuit is every part in a row (with the
+// optional pause between parts), repeated for each round. Stored in the
+// session when the set starts, so editing the circuit mid-set can't change
+// a set that is already running.
+function planSegments(ex, eachSec) {
+  if (!isCircuit(ex)) return [{ k: 'work', name: ex.name, sec: eachSec }];
+  const parts = circuitParts(ex, eachSec);
+  const rounds = ex.rounds || 1;
+  const pause = ex.pause || 0;
+  const segs = [];
+  for (let r = 1; r <= rounds; r++) {
+    parts.forEach((p, i) => {
+      if (segs.length && pause) segs.push({ k: 'pause', sec: pause });
+      segs.push({ k: 'work', name: p.name, sec: p.seconds, i: i + 1, n: parts.length, r, R: rounds });
+    });
+  }
+  return segs;
+}
+const workSecs = (segs) => segs.reduce((n, g) => n + (g.k === 'work' ? g.sec : 0), 0);
+const totalSecs = (segs) => segs.reduce((n, g) => n + g.sec, 0);
+// Seconds of real exercise (pauses not counted) after elapsedMs.
+function workDoneSec(segs, elapsedMs) {
+  let acc = 0;
+  let done = 0;
+  for (const g of segs) {
+    const ms = g.sec * 1000;
+    if (g.k === 'work') done += Math.max(0, Math.min(ms, elapsedMs - acc));
+    acc += ms;
+  }
+  return Math.round(done / 1000);
+}
+// A set started by an older version of the app (before segments).
+function segsOf(ctx, w) {
+  if (!w.segs && w.target != null) w.segs = planSegments(exercise(ctx, w.ex), w.target);
+  return w.segs || null;
+}
+
+// The circuit's exercises as numbered chips (numbers, not arrows, so the
+// order reads right in Hebrew too), then rounds, pause and total time.
+function circuitPlanHtml(ex, eachSec) {
+  const parts = circuitParts(ex, eachSec);
+  const extra = [
+    (ex.rounds || 1) > 1 ? t('× {n} rounds', { n: ex.rounds }) : '',
+    ex.pause ? t('pause {t}', { t: mmss(ex.pause * 1000) }) : '',
+    t('Total: {t}', { t: mmss(totalSecs(planSegments(ex, eachSec)) * 1000) }),
+  ].filter(Boolean).join(' · ');
+  return `<ol class="cparts">${parts.map((p) => `<li>${esc(p.name)} <b>${mmss(p.seconds * 1000)}</b></li>`).join('')}</ol>
+    <div class="tr-parts">${esc(extra)}</div>`;
+}
 
 function fmtSet(e) {
   let s = e.seconds != null ? `${e.seconds}s` : `${e.reps}`;
@@ -240,21 +297,27 @@ function renderSession(el, ctx) {
     const mine = sessionSets(ctx, ex.id);
     const today = todaySets(ctx, ex.id);
     const last = lastSessionSets(ctx, ex.id);
-    const parts = nParts(ex) > 1 ? ex.parts : null;
-    const unit = ex.type === 'seconds' ? (parts ? t('seconds each') : t('seconds')) : t('reps');
+    const circuit = isCircuit(ex);
+    const ownTimes = hasOwnTimes(ex);
+    const unit = ex.type === 'seconds' ? (circuit ? t('seconds each') : t('seconds')) : t('reps');
     const lastSet = mine[mine.length - 1];
-    const timedRunning = working && s.work.target != null;
+    const timedRunning = working && !!segsOf(ctx, s.work);
     const n = mine.length + 1;
     card = `<div class="card pad tr-card">
-      <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(t('goal {sets} × {reps}', { sets: step.sets, reps: (step.reps || '?') + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
-      ${parts ? `<div class="tr-parts">${parts.map((p) => esc(p)).join(' → ')}</div>` : ''}
+      <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(ownTimes
+        ? t('goal {n} sets', { n: step.sets })
+        : t('goal {sets} × {reps}', { sets: step.sets, reps: (step.reps || '?') + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
+      ${circuit ? circuitPlanHtml(ex, d.value) : ''}
       <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
       <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
-      <div class="stepper${timedRunning ? ' locked' : ''}">
+      ${ownTimes
+        ? `<button class="btn wide" data-act="edit-circuit" ${working ? 'disabled' : ''}>✎ ${t('Edit circuit')}</button>`
+        : `<div class="stepper${timedRunning ? ' locked' : ''}">
         <button class="step-btn" data-step="-1" aria-label="${t('Less')}" ${timedRunning ? 'disabled' : ''}>−</button>
         <button class="step-val" data-act="type-value" ${timedRunning ? 'disabled' : ''}><b>${d.value}</b><small>${unit}</small></button>
         <button class="step-btn" data-step="1" aria-label="${t('More')}" ${timedRunning ? 'disabled' : ''}>+</button>
       </div>
+      ${circuit && !working ? `<button class="linklike" data-act="edit-circuit">✎ ${t('Edit circuit')}</button>` : ''}`}
       ${ex.allowWeight ? `<div class="wstep"><span>${t('Extra weight')}</span>
         <button class="ibtn" data-w="-2.5">−</button><b>${d.weight || 0} ${t('kg')}</b><button class="ibtn" data-w="2.5">+</button></div>` : ''}
       <input class="input" data-act="note" value="${esc(d.note || '')}" placeholder="${esc(t('Note for this set (optional)'))}">
@@ -333,11 +396,13 @@ function renderSession(el, ctx) {
     d.value = Math.max(1, d.value + Number(b.dataset.step) * stepSize);
     $('.step-val b').textContent = d.value;
     saveSession(ctx).catch(() => {});
+    if (isCircuit(ex)) ctx.refresh(); // the plan's times follow the stepper
   }));
-  $('[data-act="type-value"]').addEventListener('click', () => {
+  $('[data-act="type-value"]')?.addEventListener('click', () => {
     const v = Number(prompt(t('How many?'), d.value));
     if (v > 0) { d.value = Math.round(v); $('.step-val b').textContent = d.value; saveSession(ctx).catch(() => {}); }
   });
+  $('[data-act="edit-circuit"]')?.addEventListener('click', () => openCircuitEditor(ctx, ex));
   el.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => {
     d.weight = Math.max(0, Math.round(((d.weight || 0) + Number(b.dataset.w)) * 10) / 10);
     $('.wstep b').textContent = `${d.weight} ${t('kg')}`;
@@ -369,7 +434,8 @@ function renderSession(el, ctx) {
   });
   $('[data-act="undo"]').addEventListener('click', () => undoLastSet(ctx, ex));
   $('[data-act="quick-log"]').addEventListener('click', () => {
-    logSet(ctx, ex, d.value * nParts(ex), ex.allowWeight ? d.weight || null : null, d.note?.trim() || null, {});
+    const value = ex.type === 'seconds' ? workSecs(planSegments(ex, d.value)) : d.value;
+    logSet(ctx, ex, value, ex.allowWeight ? d.weight || null : null, d.note?.trim() || null, {});
   });
 }
 
@@ -403,51 +469,69 @@ function updateTimer(ctx, el) {
   }
 
   const w = s.work;
-  const ex = exercise(ctx, w.ex);
-  if (w.target == null) {
+  const segs = segsOf(ctx, w);
+  if (!segs) {
     // Reps: the set time counts up until you tap Done.
     label.textContent = t('Set in progress');
     timer.textContent = mmss(now - w.start);
     sub.textContent = '';
     return;
   }
+  box.classList.remove('paused');
   if (now < w.start) {
     // "Get ready" before a timed set.
     const left = Math.ceil((w.start - now) / 1000);
     label.textContent = t('Get ready');
     timer.textContent = String(left);
-    sub.textContent = nParts(ex) > 1 ? `${t('First:')} ${ex.parts[0]}` : '';
+    sub.textContent = segs.length > 1 ? `${t('First:')} ${segs[0].name}` : '';
     if (left <= 3 && played.tick !== `${w.start}:lead:${left}`) {
       played.tick = `${w.start}:lead:${left}`;
       signal('tick');
     }
     return;
   }
-  const partMs = w.target * 1000;
-  const total = partMs * w.nParts;
   const done = now - w.start;
-  if (done >= total) {
-    finishWork(ctx, w.start + total, true);
+  let acc = 0;
+  let idx = -1;
+  for (let i = 0; i < segs.length; i++) {
+    if (done < acc + segs[i].sec * 1000) { idx = i; break; }
+    acc += segs[i].sec * 1000;
+  }
+  if (idx < 0) {
+    finishWork(ctx, w.start + totalSecs(segs) * 1000, true);
     return;
   }
-  if (played.go !== w.start && done < 2000) {
+  const seg = segs[idx];
+  const left = acc + seg.sec * 1000 - done;
+  // One sound per change: "go" at the start, a switch beep when the next
+  // exercise begins, a softer one when a pause begins; 3-2-1 ticks before
+  // every change.
+  if (idx === 0 && played.go !== w.start && done < 2000) {
     played.go = w.start;
     signal('go');
   }
-  const idx = Math.floor(done / partMs);
-  const left = partMs * (idx + 1) - done;
   if (idx > 0 && played.part !== `${w.start}:${idx}`) {
     played.part = `${w.start}:${idx}`;
-    signal('switch');
+    signal(seg.k === 'pause' ? 'pause' : 'switch');
   }
   const secLeft = Math.ceil(left / 1000);
-  if (secLeft <= 3 && played.tick !== `${w.start}:${idx}:${secLeft}`) {
+  // (Not at the very start of a short part: its switch beep is playing.)
+  if (secLeft <= 3 && secLeft < seg.sec && played.tick !== `${w.start}:${idx}:${secLeft}`) {
     played.tick = `${w.start}:${idx}:${secLeft}`;
     signal('tick');
   }
-  label.textContent = w.nParts > 1 ? `${ex.parts[idx] || ''} · ${idx + 1}/${w.nParts}` : t('Hold');
+  const next = segs.slice(idx + 1).find((g) => g.k === 'work');
+  if (seg.k === 'pause') {
+    box.classList.add('paused');
+    label.textContent = t('Pause');
+  } else if (segs.length === 1) {
+    label.textContent = t('Hold');
+  } else {
+    label.textContent = [seg.name, seg.n > 1 ? `${seg.i}/${seg.n}` : '',
+      seg.R > 1 ? t('round {r}/{R}', { r: seg.r, R: seg.R }) : ''].filter(Boolean).join(' · ');
+  }
   timer.textContent = mmss(left + 999);
-  sub.textContent = w.nParts > 1 && idx + 1 < w.nParts ? `${t('Next:')} ${ex.parts[idx + 1]}` : '';
+  sub.textContent = next ? `${t('Next:')} ${next.name}` : '';
 }
 
 async function startWork(ctx, ex) {
@@ -461,8 +545,7 @@ async function startWork(ctx, ex) {
     ex: ex.id,
     pressed: now,
     start: timed ? now + LEAD_MS : now,
-    target: timed ? d.value : null, // seconds per part
-    nParts: nParts(ex),
+    segs: timed ? planSegments(ex, d.value) : null, // the timeline of a timed set
     // Rest before this set = from the end of the previous set until now.
     rest_sec: hadSet ? Math.round((now - restFrom(ctx)) / 1000) : null,
   };
@@ -483,9 +566,11 @@ async function finishWork(ctx, endMs, auto = false) {
     const d = draft(ctx, ex);
     const workSec = Math.max(0, Math.round((endMs - w.start) / 1000));
     let value = d.value;
-    if (w.target != null) {
-      // Timed: log the seconds actually done (all of them if it ran out).
-      value = Math.min(workSec, w.target * w.nParts);
+    const segs = segsOf(ctx, w);
+    if (segs) {
+      // Timed: log the seconds of exercise actually done — all of them if
+      // it ran to the end, pauses between circuit parts not counted.
+      value = workDoneSec(segs, endMs - w.start);
       if (value <= 0) { // stopped during "get ready": nothing happened
         s.phase = 'rest';
         s.work = null;

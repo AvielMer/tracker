@@ -42,9 +42,10 @@ const SOUNDS = {
   switch: [[988, 150], [1319, 250, 0.18]], // next part of a circuit
   end: [[1319, 180], [1319, 180, 0.25], [1760, 500, 0.5]], // set finished
   rest: [[880, 160], [1175, 160, 0.2], [1568, 350, 0.4]], // rest goal reached
+  pause: [[784, 160], [587, 280, 0.18]], // short pause between circuit parts
 };
 const VIBES = {
-  tick: 40, go: 150, switch: [90, 60, 90], end: [200, 100, 200, 100, 400], rest: [150, 80, 150, 80, 300],
+  tick: 40, go: 150, switch: [90, 60, 90], end: [200, 100, 200, 100, 400], rest: [150, 80, 150, 80, 300], pause: [60, 60, 60],
 };
 
 // Vibration works even with sound off (e.g. phone on silent).

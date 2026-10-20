@@ -98,14 +98,24 @@ export function validateConfig(obj) {
     if ('allowWeight' in ex && typeof ex.allowWeight !== 'boolean') errors.push(`${at}: "allowWeight" must be true or false`);
     // "start": the number the +/- stepper starts at the first time.
     if ('start' in ex && !(typeof ex.start === 'number' && ex.start > 0)) errors.push(`${at}: "start" must be a number above 0`);
-    // "parts": a timed circuit, e.g. ["Front plank", "Side plank"]; one set
-    // runs all parts in a row, the stepper's seconds EACH, beeping between.
+    // "parts": a timed circuit — several exercises in a row without
+    // stopping, a beep at every switch. Each part is { "name", "seconds" }
+    // (or just a name: then all parts use the +/- stepper's seconds).
+    // "rounds": repeat the whole list; "pause": seconds between parts.
     if ('parts' in ex) {
       if (ex.type !== 'seconds') errors.push(`${at}: "parts" only works with "type": "seconds"`);
-      if (!Array.isArray(ex.parts) || !ex.parts.length || ex.parts.length > 20
-          || ex.parts.some((p) => typeof p !== 'string' || !p.trim())) {
-        errors.push(`${at}: "parts" must be a list of names, e.g. ["Front plank", "Side plank"]`);
+      const okPart = (p) => (typeof p === 'string' && p.trim())
+        || (p && typeof p === 'object' && typeof p.name === 'string' && p.name.trim()
+          && Number.isInteger(p.seconds) && p.seconds > 0 && p.seconds <= 3600);
+      if (!Array.isArray(ex.parts) || !ex.parts.length || ex.parts.length > 30 || !ex.parts.every(okPart)) {
+        errors.push(`${at}: "parts" must look like [{ "name": "Plank", "seconds": 30 }, { "name": "Leg raises", "seconds": 30 }]`);
       }
+    }
+    if ('rounds' in ex && !(Number.isInteger(ex.rounds) && ex.rounds >= 1 && ex.rounds <= 50)) {
+      errors.push(`${at}: "rounds" must be a whole number from 1 to 50`);
+    }
+    if ('pause' in ex && !(Number.isInteger(ex.pause) && ex.pause >= 0 && ex.pause <= 600)) {
+      errors.push(`${at}: "pause" must be a whole number of seconds from 0 to 600`);
     }
   });
 
@@ -213,6 +223,17 @@ export async function resetToDefault() {
 export function eventLabel(ev) {
   if (ev.private) return ev.displayLabel || '•';
   return ev.name;
+}
+
+// Circuits: an exercise counted in seconds with a list of parts.
+export const isCircuit = (ex) => ex?.type === 'seconds' && Array.isArray(ex.parts) && ex.parts.length > 0;
+// Every part has its own seconds (the format the circuit editor writes).
+export const hasOwnTimes = (ex) => isCircuit(ex) && ex.parts.every((p) => typeof p === 'object');
+// A circuit's parts as [{ name, seconds }]; parts written as plain names
+// (older format) all use eachSec, the +/- stepper's seconds.
+export function circuitParts(ex, eachSec) {
+  return (ex.parts || []).map((p) => (typeof p === 'string'
+    ? { name: p, seconds: eachSec } : { name: p.name, seconds: p.seconds }));
 }
 
 // A routine step as { id, sets, reps } whether it was written as a plain

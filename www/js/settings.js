@@ -2,10 +2,10 @@
 
 import * as storage from './storage.js';
 import {
-  addMissingPresets, eventLabel, getConfigText, resetToDefault, saveConfig, saveConfigText,
+  addMissingPresets, eventLabel, getConfigText, isCircuit, resetToDefault, saveConfig, saveConfigText,
 } from './config.js';
 import { openEventEditor } from './eventEditor.js';
-import { openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
+import { openCircuitEditor, openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
 import { openExercisePicker } from './exercisePicker.js';
 import { translateBuiltInNames } from './library.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
@@ -49,12 +49,14 @@ export async function renderSettings(el, ctx) {
 
   <h2 class="day" id="training-settings">${t('Exercises')}</h2>
   ${manageList('exercises', state.config.exercises, (x) => esc(x.name)
-    + (x.type === 'seconds' ? ` <span class="tag">${t('seconds')}</span>` : '')
+    + (isCircuit(x) ? ` <span class="tag">⏱ ${t('circuit')}</span>`
+      : x.type === 'seconds' ? ` <span class="tag">${t('seconds')}</span>` : '')
     + (x.allowWeight ? ` <span class="tag">+${t('kg')}</span>` : ''))}
   <div class="btn-row">
     <button class="btn primary" data-act="library">${t('+ Add from library')}</button>
     <button class="btn" data-act="add-ex">${t('+ Add an exercise')}</button>
   </div>
+  <button class="btn wide" data-act="add-circuit">⏱ ${t('+ New circuit (several exercises in a row)')}</button>
 
   <h2 class="day">${t('Routines')}</h2>
   ${manageList('routines', state.config.routines, (r) => esc(r.name)
@@ -173,6 +175,7 @@ export async function renderSettings(el, ctx) {
 
   on('add', () => openEventEditor(ctx, null));
   on('add-ex', () => openExerciseEditor(ctx, null));
+  on('add-circuit', () => openCircuitEditor(ctx, null));
   on('library', () => openExercisePicker(ctx, { title: t('Exercise library') }));
   on('translate', async () => {
     if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;

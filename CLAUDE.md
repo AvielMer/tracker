@@ -178,9 +178,20 @@ Example:
   Done → taps within 1.2 s of each other are ignored. Rest goal (kv
   "tr_rest_goal", default 90 s) beeps once when reached; sound toggle (kv
   "tr_sound"). Exercises in seconds: Start = 5 s "get ready" (3-2-1 ticks),
-  countdown of the stepper's seconds, auto-logged with a beep. Exercise
-  "parts" (circuit, type seconds only): one set runs all parts in a row,
-  the stepper's seconds EACH, beep at every switch; logged seconds = total.
+  countdown of the stepper's seconds, auto-logged with a beep.
+  Circuits (type seconds + "parts"; asked for as "plank 30 s, legs up 30 s
+  without stopping, a sound at every switch"): "parts": [{"name",
+  "seconds"}], optional "rounds" (repeat the list, 1-50) and "pause"
+  (seconds between parts, 0-600). One set runs everything in a row: a
+  timeline of segments (work/pause) is planned at Start and saved in the
+  session (work.segs); beeps: go, switch at each new part, a softer
+  "pause" sound, 3-2-1 ticks before every change. Logged seconds = work
+  actually done (pauses not counted; Done mid-circuit logs what was done),
+  work_sec = whole time. Circuit editor (trainingEditor.js
+  openCircuitEditor): "+ New circuit" in the workout's exercise picker,
+  Settings → Exercises, and the exercise editor's "Seconds" tip; "✎ Edit
+  circuit" on the training card. Old format (parts = plain names) still
+  works: every part uses the stepper's seconds; editing converts it.
   alerts.js: Web Audio beeps + vibration + screen wake lock during a
   session (timers can't beep with the screen off).
   Config: exercise "start"; routine steps may be "id" or
@@ -189,7 +200,8 @@ Example:
   default_config.json by id, changes nothing existing).
 - Exercise library: `www/exercise_library.json` (~100 street-workout
   exercises, names in en/he/ru, categories, 2 circuits). Reference data
-  only — copied into the config when picked. `library.js` (match by id or
+  only — copied into the config when picked (library circuits get
+  {"name", "seconds": start} parts). `library.js` (match by id or
   by name in any language, so duplicates aren't offered; translate built-in
   names), `exercisePicker.js` (search own + library, or "Create" a new
   one; used by Training "+ Exercise" and Settings "+ Add from library").
