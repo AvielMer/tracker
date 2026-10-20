@@ -81,10 +81,11 @@ export function setLanguagePack(p) {
 
 export function getPack() { return pack; }
 
-// The English of a text key ('' for exercise names "lib:…"/"cat:…"), or
-// null for a key this version of the app doesn't have.
+// The English of a text key ('' for names: library exercises "lib:…" and
+// groups "cat:…", starting buttons/routines "def:…"), or null for a key
+// this version of the app doesn't have.
 function englishOf(key) {
-  if (/^(lib|cat):/.test(key)) return '';
+  if (/^(lib|cat|def):/.test(key)) return '';
   const e = DICT[key];
   if (!e) return null;
   return typeof e.en === 'string' ? e.en : key;

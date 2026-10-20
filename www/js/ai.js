@@ -12,9 +12,9 @@
 // prompt.
 
 import {
-  configToText, eventLabel, getConfigText, saveConfigText, validateConfig,
+  configToText, eventLabel, fetchDefaultFor, getConfigText, saveConfigText, validateConfig,
 } from './config.js';
-import { loadLibrary } from './library.js';
+import { loadLibrary, translateBuiltInNames } from './library.js';
 import {
   checkPack, getLang, setLang, t, textsToTranslate,
 } from './i18n.js';
@@ -99,7 +99,7 @@ RULES
 - Keep symbols and emoji (✓ ⚠ ▶ ✎ • → ⏱ 💪 🔔 …).
 - These are buttons and labels on a phone: short, simple, friendly, everyday words.
 - Where a word changes with the number, write it as "word: {n}" so it fits every number.
-- "lib:…" keys are exercise names (street workout / calisthenics), "cat:…" keys are exercise groups.
+- "lib:…" keys are exercise names (street workout / calisthenics), "cat:…" keys are exercise groups, "def:…" keys are the names of the starting buttons and routines.
 
 TEXTS
 \`\`\`json
@@ -108,8 +108,10 @@ ${JSON.stringify(texts, null, 1)}
 ${pack ? '' : '\nLANGUAGE:\n'}`;
 }
 
-// Every text to translate: the app's own, plus the library's exercise
-// names and groups (so the exercise lists are translated too).
+// Every text to translate: the app's own, the library's exercise names
+// and groups, and the starting buttons' and routines' names — so "Use …
+// names for built-in items" can rename all of them into the new language.
+// (The starting exercises are library exercises.)
 async function translationTemplate() {
   const texts = textsToTranslate();
   try {
@@ -117,6 +119,10 @@ async function translationTemplate() {
     for (const c of lib.categories) texts[`cat:${c.id}`] = c.name.en;
     for (const e of lib.exercises) texts[`lib:${e.id}`] = e.name.en;
   } catch { /* offline: the app's own texts are enough */ }
+  try {
+    const def = JSON.parse(await fetchDefaultFor('en'));
+    for (const sec of ['events', 'routines']) for (const it of def[sec] || []) texts[`def:${sec}:${it.id}`] = it.name;
+  } catch { /* offline */ }
   return texts;
 }
 
@@ -363,14 +369,23 @@ export async function openTranslateAI(ctx) {
   });
   root.querySelector('[data-act="remove-lang"]')?.addEventListener('click', async () => {
     if (!confirm(t('Remove {name}? You can add it again any time.', { name: p.name }))) return;
-    const cfg = JSON.parse(JSON.stringify(ctx.state.config));
+    // Built-in items still named in this language go back to the language
+    // the app returns to — once the language is gone, its names could no
+    // longer be told apart from names typed by hand. (Done while it is
+    // still loaded, so its names are recognised.)
+    const back = getLang() === pack.code ? 'en' : getLang();
+    let cfg = JSON.parse(JSON.stringify(ctx.state.config));
+    let renamed = 0;
+    try {
+      ({ cfg, changed: renamed } = await translateBuiltInNames(cfg, back));
+    } catch { /* offline: just remove it */ }
     delete cfg.language;
     const res = await saveConfigText(configToText(cfg));
     if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
     if (getLang() === pack.code) await setLang('en');
     ctx.closeSheet();
     await ctx.reloadConfig();
-    ctx.toast(t('Removed'));
+    ctx.toast(renamed ? `${t('Removed')} · ${t('Renamed: {n}', { n: renamed })}` : t('Removed'));
   });
   // A language file someone shared goes through the same checks.
   root.querySelector('[data-act="open-lang"]').addEventListener('change', async (e) => {

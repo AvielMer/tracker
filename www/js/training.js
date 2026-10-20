@@ -236,8 +236,8 @@ function renderStart(el, ctx) {
       const last = lastDone(r.id);
       return `<button class="routine" data-r="${esc(r.id)}">
         <span class="routine-name">${esc(r.name)}</span>
-        <span class="routine-ex">${steps.map((s) => esc(exercise(ctx, s.id).name)
-          + (s.sets ? ` <span class="muted">${s.sets}×${s.reps || '?'}</span>` : '')).join(' · ')}</span>
+        <span class="routine-ex">${steps.map((s) => `<bdi>${esc(exercise(ctx, s.id).name)
+          + (s.sets ? ` <span class="muted">${s.sets}×${s.reps || '?'}</span>` : '')}</bdi>`).join(' · ')}</span>
         ${last ? `<span class="routine-last">${esc(t('last: {day}', { day: last }))}</span>` : ''}
       </button>`;
     }).join('')}

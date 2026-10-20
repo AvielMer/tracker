@@ -260,7 +260,19 @@ Example:
   the English, strips < >, and turns " into “ ” (many t() results go into
   innerHTML/attributes unescaped). libName/catName use "lib:"/"cat:"
   texts; "Use … names for built-in items" in an added language only uses
-  names it really has (never English).
+  names it really has (never English). The translation also carries
+  "def:events:<id>" / "def:routines:<id>" (starting buttons/routines) so
+  those get renamed too.
+  Bug found by the user (Arabic): after "Use العربية names", going back to
+  English and "Use English names" left the exercises in Arabic, and
+  removing the language too. Fixed: translateBuiltInNames counts the added
+  language's names (lib:/def:) as built-in names whatever the target, so
+  they are renamed back; "Remove <language>" first renames built-in items
+  back to the language the app returns to (once the pack is gone its
+  names can't be told from typed ones); circuit parts named after a
+  built-in exercise follow it. Routine lines on the Training start screen
+  wrap each "name sets×reps" in <bdi>, so names in another script (Arabic
+  in an English UI, English in Hebrew) don't scramble the order.
 - UI languages: English, Hebrew (RTL), Russian. `www/js/i18n.js`:
   t('English text {var}', {var}) — the English text is the key, so a
   missing translation just shows English. New UI text MUST go through
