@@ -6,6 +6,7 @@ import { loadConfig } from './config.js';
 import { renderEvents, logEvent } from './events.js';
 import { renderLog } from './log.js';
 import { renderAbout } from './about.js';
+import { renderStats } from './stats.js';
 import { renderSettings } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { $, esc } from './util.js';
@@ -16,6 +17,7 @@ const SCREENS = {
   events: { title: 'Events', render: renderEvents },
   training: { title: 'Training', render: renderTraining },
   log: { title: 'Log', render: renderLog },
+  stats: { title: 'Stats', render: renderStats },
   settings: { title: 'Settings', render: renderSettings },
   // Not a tab: opened from the ⓘ in the header and from Settings.
   about: { title: 'About', render: renderAbout, tab: 'settings' },

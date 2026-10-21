@@ -62,6 +62,11 @@ On an iPhone: open the link in Safari → Share → **Add to Home Screen**.
   come with the Android app version.
 - **Log:** everything you logged, newest first. Tap an entry to fix its
   time or numbers, or to delete it.
+- **Stats:** charts of what you logged, for 7 days up to a year: blood
+  pressure (upper/lower and pulse), weight and your own numbers, mood, how
+  often each button was used, and your training. Each button gets the
+  charts that fit what it records; tap a chart to read its numbers, or
+  switch a card to a table.
 - **Export:** CSV for a spreadsheet (or for an AI to look for patterns),
   plus a full backup that you can restore.
 - **Languages:** English, Hebrew (right-to-left) and Russian, plus any

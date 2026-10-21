@@ -447,3 +447,42 @@ select.input { appearance: auto; }
 .rday.on { background: var(--accent); color: #fff; }
 .quick-add { margin-top: 10px; }
 .quick-add p { margin: 0; }
+
+/* --- stats: period row, cards, charts --- */
+.st-filter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 6px; }
+.st-filter .chip { font-size: 14px; font-weight: 600; height: 44px; }
+.st-caption { margin: 4px 4px 0; }
+.st-card { padding-bottom: 8px; }
+.st-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-name { font-size: 17px; word-break: break-word; }
+.st-name .dot { margin-inline-end: 6px; }
+.btn.st-toggle { min-height: 36px; padding: 6px 12px; font-size: 13px; font-weight: 600; }
+.st-sum { margin: 4px 0 2px; color: var(--muted); font-size: 14px; }
+.st-chart { margin-top: 12px; }
+.st-ctitle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.st-legend { display: inline-flex; gap: 12px; font-weight: 400; color: var(--muted); font-size: 13px; }
+.st-key { display: inline-flex; align-items: center; gap: 5px; }
+.st-key i { display: inline-block; width: 14px; height: 2px; border-radius: 1px; }
+.st-side { margin-inline-start: auto; font-weight: 400; color: var(--muted); font-size: 13px; }
+.st-note { margin: 2px 0 0; }
+.st-table { margin-top: 8px; font-size: 14px; }
+.st-table caption { text-align: start; font-weight: 600; padding: 6px 0; }
+.st-table th { width: auto; }
+.st-table td, .st-table th { padding-inline-end: 10px; font-variant-numeric: tabular-nums; }
+/* Charts are laid out left → right (time) in every language. */
+.chart { position: relative; direction: ltr; touch-action: pan-y; outline: none; border-radius: 8px; }
+.chart:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ch-tick { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.ch-end { font-size: 12px; font-weight: 600; fill: var(--text); }
+.ch-bar.on { filter: brightness(1.35); }
+.chart-tip {
+  position: absolute; top: -6px; transform: translate(-50%, -100%); z-index: 2; pointer-events: none;
+  background: #2b3240; color: var(--text); border-radius: 10px; padding: 6px 10px; font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.45); white-space: nowrap; direction: ltr;
+}
+.chart-tip[hidden] { display: none; }
+.tip-title { color: var(--muted); font-size: 12px; margin-bottom: 2px; unicode-bidi: plaintext; }
+.tip-row { display: flex; align-items: center; gap: 6px; }
+.tip-key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; }
+.tip-name { color: var(--muted); unicode-bidi: plaintext; }

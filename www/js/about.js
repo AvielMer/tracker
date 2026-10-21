@@ -27,6 +27,7 @@ export function renderAbout(el, ctx) {
       <li><b>${t('Events')}</b> — ${esc(t('ABOUT_EVENTS'))}</li>
       <li><b>${t('Training')}</b> — ${esc(t('ABOUT_TRAINING'))}</li>
       <li><b>${t('Log')}</b> — ${esc(t('ABOUT_LOG'))}</li>
+      <li><b>${t('Stats')}</b> — ${esc(t('ABOUT_STATS'))}</li>
       <li><b>${t('Settings')}</b> — ${esc(t('ABOUT_SETTINGS'))}</li>
     </ul>`)}
     ${sec(t('Your language'), p('ABOUT_LANGUAGE'))}
