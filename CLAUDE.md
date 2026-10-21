@@ -246,6 +246,27 @@ Example:
   STEP 5 (APK): schedule the same "remind" list as real notifications
   with @capacitor/local-notifications (repeating weekly per day), tapping
   one opens ?log=<id> / the training screen.
+- Step 4, stats part done (asked for as "charts of readings, like weight
+  and blood pressure"): Stats tab (`stats.js`, charts in `charts.js`, plain
+  SVG, no library). Period row 7 d / 30 d / 3 m / 1 y (kv "stats_period");
+  bars per day (7/30 d), per 7-day week ending today (3 m), per calendar
+  month (1 y). One card per button with data, charts picked from its
+  "ask": bp → upper+lower in one chart (each point = the LAST reading of a
+  series, the calmest) + pulse in its own chart (never two y-scales);
+  measures → a line each (with bp: one value per series); mood → average
+  per bar slot, faces on the axis; intensity / duration → dots; amount →
+  total per slot; count of times per slot unless the button is a reading
+  (bp, mood, or only measures). Sections: Readings, Events, Training
+  (workouts per slot, then reps — or seconds — per exercise; "max reps"
+  sets count as reps). Data-viz rules (dataviz skill): colours = slots 1-3
+  (#3987e5 blue, #d95926 orange, #199e70 aqua) validated on the card
+  surface #1c1f26; 2px lines, ≥8px dots with a surface ring, ≤24px
+  columns with rounded tops; whole-number ticks for whole-number data; a
+  minimum y-span so small wobbles don't look dramatic; legend for 2+
+  series, last value at the line end; tap/drag or arrow keys = crosshair
+  readout (names via textContent); every card has a Table toggle. Private
+  buttons show their displayLabel. The in-app JSON editor (other half of
+  step 4) is covered for now by Import config + the AI paste box.
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).
