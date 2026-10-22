@@ -435,6 +435,39 @@ Example:
   - Colours (dataviz validator, all pairs, both themes): dark #c2457a /
     #3987e5 / #c98500 on #1c1f26; girl #cc356e / #2a78d6 / #c98500 on
     white; white numbers on the period colour ≥ 4.7:1.
+- Cute animations for the Cycle tab (asked for, after girls said the tab
+  was too plain, as "smiley animal themes and interactive animations; since
+  it might be heavy, a separate thing you download in the app so the app
+  stays clean"): `www/fun/pack.js` = a self-contained ES module (no
+  imports, ~25 KB), NOT in sw.js SHELL. `js/funpack.js` downloads it
+  (fetch ./fun/pack.js; checked by importing it before keeping it), keeps
+  the code in kv "fun_pack" {version, api, code, bytes, at} through
+  storage.js and loads it from a Blob URL — so it works offline, survives
+  app updates and isn't in backups. In the APK the same fetch reads the
+  file from inside the app. PACK_VERSION (app) > stored version →
+  Settings offers Update; another API → not used. kv "fun_prefs" {animal},
+  kv "fun_offer" 'no' (after "Not now", and after Remove).
+  - Pack API 1: ANIMALS, buddySvg(animal, mood), mountStage(el, {animal,
+    mood, lines, start, label, reduceMotion}), decorateCalendar(el,
+    {intro, reduceMotion}), celebrate(el). Moods: hello, period,
+    follicular, fertile, ovulation, luteal, pms, late (cycle.js buddyMood
+    = the phase shown). The pack only draws: its lines come from the app
+    (i18n BUDDY_<mood>_1..3, translated like everything else).
+  - Buddies (inline SVG drawn for the app): bunny, kitty, panda, fox, bear;
+    face and props by mood (heart pillow + zz, sparkles, heart eyes +
+    flower, star eyes + flower crown, tea cup, sad face + tear + rain
+    cloud, "?", waving paw). The stage (.fun-stage) sits above the status
+    card with the buddy peeking over it (.cy-hero.with-buddy pads the
+    card): tap = jump + burst + next line; floating hearts/bubbles/treats
+    to pop; a celebration after Period started/ended (only if the period
+    entries really grew) and after the download. Calendar: flower on
+    ovulation, paw on today, heart on an expected period's first day,
+    pop-in when the tab opens or the month changes (not on the minute
+    refresh), tap bounce. Only transform/opacity animations;
+    prefers-reduced-motion = nothing moves. A broken pack never breaks the
+    tab (loadFun → null, mountFun in try/catch).
+  - Cycle tab: "Make it cute ✨" card (Download / Not now). Settings →
+    Cycle → Cute animations: Download, buddy picker, Update, Remove.
 - About screen (`about.js`, route #about, not a tab — the header ⓘ on the
   main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli

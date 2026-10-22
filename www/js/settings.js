@@ -26,6 +26,9 @@ import {
   hasCycle, MAIN_TABS, setTabs, TAB_INFO, visibleTabs,
 } from './tabs.js';
 import { cycleSettings, DEFAULTS as CYCLE_DEFAULTS } from './cycleCalc.js';
+import {
+  downloadFun, funInfo, funPrefs, loadFun, removeFun, setFunPrefs, sizeText,
+} from './funpack.js';
 import { icon } from './icons.js';
 
 // The pages, in menu order. title: translation key; tint: the icon's colour.
@@ -370,7 +373,9 @@ function pageCycle(el, ctx) {
       <label class="check"><input type="checkbox" data-c="fertile" ${cs.fertile ? 'checked' : ''}> ${esc(t('Show fertile days and ovulation'))}</label>
       <label class="check"><input type="checkbox" data-c="pms" ${cs.pms ? 'checked' : ''}> ${esc(t('Show PMS days'))}</label>
     </div>
-    <a class="btn wide" href="#cycle">${icon('drop')}<span>${esc(t('Open the Cycle tab'))}</span></a>`;
+    <a class="btn wide" href="#cycle">${icon('drop')}<span>${esc(t('Open the Cycle tab'))}</span></a>
+    <div data-fun-sec></div>`;
+  funSection(el.querySelector('[data-fun-sec]'), ctx);
   const LIMITS = { length: [20, 45], periodLength: [1, 12] };
   el.querySelectorAll('[data-c]').forEach((inp) => inp.addEventListener('change', () => {
     const k = inp.dataset.c;
@@ -391,6 +396,51 @@ function pageCycle(el, ctx) {
       if (v === null || v === CYCLE_DEFAULTS[k]) delete cfg.cycle[k]; else cfg.cycle[k] = v;
       return true;
     }, t('Saved'));
+  }));
+}
+
+// The cute animations for the Cycle tab (funpack.js): download or remove
+// them, and pick the animal buddy.
+const ANIMAL_NAME = { bunny: 'Bunny', kitty: 'Kitty', panda: 'Panda', fox: 'Fox', bear: 'Bear' };
+
+async function funSection(box, ctx) {
+  const info = await funInfo();
+  const fun = info.installed ? await loadFun() : null;
+  const { animal } = await funPrefs();
+  const getBtn = (label) => `<button class="btn primary wide" data-fun="get">${icon('download')}<span>${esc(label)}</span></button>`;
+  box.innerHTML = `<h2 class="day">${esc(t('Cute animations'))}</h2>
+    <div class="card pad fun-sec">
+      <p class="small muted">${esc(t('FUN_DESC'))}</p>
+      ${!info.installed ? getBtn(t('Download')) : `
+        ${fun ? `<div class="label">${esc(t('Your buddy'))}</div>
+          <div class="fun-pick">${fun.ANIMALS.map((a) => `<button class="fun-pick-b${a === animal ? ' on' : ''}" data-animal="${esc(a)}" aria-pressed="${a === animal}">
+            ${fun.buddySvg(a, 'hello')}<span>${esc(t(ANIMAL_NAME[a] || a))}</span></button>`).join('')}</div>`
+    : `<p class="warn small">${esc(t('FUN_BROKEN'))}</p>`}
+        <p class="small muted">${esc(t('On this phone · {size}', { size: sizeText(info.bytes) }))}</p>
+        ${info.outdated || !fun ? getBtn(t('Update the animations')) : ''}
+        <button class="btn wide danger" data-fun="remove">${esc(t('Remove the animations'))}</button>`}
+    </div>`;
+  box.querySelector('[data-fun="get"]')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    b.querySelector('span').textContent = t('Downloading…');
+    try {
+      await downloadFun();
+      ctx.toast(t('Animations downloaded ✨'));
+    } catch (err) {
+      ctx.toast(t('FUN_FAIL'), { error: true });
+      console.warn('Download failed:', err);
+    }
+    funSection(box, ctx);
+  });
+  box.querySelector('[data-fun="remove"]')?.addEventListener('click', async () => {
+    await removeFun();
+    ctx.toast(t('Animations removed'));
+    funSection(box, ctx);
+  });
+  box.querySelectorAll('[data-animal]').forEach((b) => b.addEventListener('click', async () => {
+    await setFunPrefs({ animal: b.dataset.animal });
+    funSection(box, ctx);
   }));
 }
 
