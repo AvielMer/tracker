@@ -34,6 +34,7 @@ import {
 } from './alerts.js';
 import { openExercisePicker } from './exercisePicker.js';
 import { remindTimes } from './reminders.js';
+import { icon } from './icons.js';
 
 const KEY = 'open_session';
 // Time to get into position after tapping Start on a timed exercise.
@@ -232,10 +233,12 @@ function renderStart(el, ctx) {
     return ends.length ? friendlyDay(ends[ends.length - 1].date) : null;
   };
   el.innerHTML = `
+    ${visible.length ? `<p class="page-hint">${esc(t('Tap a routine to start a workout.'))}</p>` : ''}
     ${visible.map((r) => {
       const steps = routineSteps(r);
       const last = lastDone(r.id);
       return `<button class="routine" data-r="${esc(r.id)}">
+        <span class="routine-go">${icon('play')}</span>
         <span class="routine-name">${esc(r.name)}</span>
         <span class="routine-ex">${steps.map((s) => `<bdi>${esc(exercise(ctx, s.id).name)
           + (s.sets ? ` <span class="muted">${s.sets}×${s.reps || '?'}</span>` : '')}</bdi>`).join(' · ')}</span>
@@ -243,16 +246,16 @@ function renderStart(el, ctx) {
       </button>`;
     }).join('')}
     <button class="routine free" data-free="1">
+      <span class="routine-go">${icon('plus')}</span>
       <span class="routine-name">${t('Free session')}</span>
       <span class="routine-ex">${t('Pick exercises as you go')}</span>
     </button>
-    <p class="center"><a href="#settings" data-goto="training-settings">${esc(t('Edit exercises & routines'))}</a></p>`;
+    <a class="btn wide ghost-btn" href="#settings/training">${icon('edit')}<span>${esc(t('Edit exercises & routines'))}</span></a>`;
 
   el.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', () => {
     startSession(ctx, routines.find((r) => r.id === b.dataset.r));
   }));
   el.querySelector('[data-free]').addEventListener('click', () => startSession(ctx, null));
-  el.querySelector('[data-goto]').addEventListener('click', () => { ctx.state.scrollTo = 'training-settings'; });
 }
 
 // Starts a routine from outside the Training screen (a reminder card on

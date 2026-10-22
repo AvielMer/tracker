@@ -6,6 +6,8 @@ import { deleteWithUndo, details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
 import { dismissReminder, remindersHtml } from './reminders.js';
 import { startRoutine } from './training.js';
+import { openAddButtonSheet } from './eventEditor.js';
+import { icon } from './icons.js';
 import {
   esc, fmtDuration, friendlyDay, hhmm, localDate,
 } from './util.js';
@@ -60,12 +62,16 @@ export function openSpan(state, evId) {
 export function renderEvents(el, ctx) {
   const { state } = ctx;
   const events = state.config.events.filter((e) => !e.hidden);
-  if (!events.length) {
-    el.innerHTML = `<div class="empty"><a href="#settings">${esc(t('No events yet. Add some in Settings.'))}</a></div>`;
-    return;
-  }
   const today = todayEvents(state);
-  el.innerHTML = `${remindersHtml(state)}<div class="ev-grid">${events.map((ev) => {
+  // No buttons (e.g. none picked on the welcome screen): say what buttons
+  // are and offer to add one, instead of an empty screen.
+  const empty = `<div class="empty-card">
+    <span class="empty-ico">${icon('grid')}</span>
+    <b>${esc(t('No buttons yet'))}</b>
+    <p>${esc(t('EMPTY_EVENTS'))}</p>
+    <button class="btn primary" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
+  </div>`;
+  el.innerHTML = `${remindersHtml(state)}${events.length ? `<div class="ev-grid">${events.map((ev) => {
     const mine = today.filter((e) => e.item_id === ev.id);
     const last = mine[mine.length - 1];
     // "How many" answers count as that many (2 pills logged once = 2).
@@ -78,12 +84,16 @@ export function renderEvents(el, ctx) {
     let sub = last ? esc(t('last {time}', { time: hhmm(last.time) })) + (last.mood ? ` ${moodFace(last.mood)}` : '') : '&nbsp;';
     if (run) sub = `▶ ${esc(t('running {d}', { d: fmtDuration((Date.now() - Date.parse(run.ts)) / 60000) }))}`;
     else if (ev.span) sub = esc(t('tap to start'));
+    // The count shows from the first time today; a row of zeros was just noise.
     return `<button class="${cls}${run ? ' running' : ''}"${style} data-id="${esc(ev.id)}">
-      <span class="ev-count${total ? '' : ' zero'}">${total}</span>
+      ${total ? `<span class="ev-count">${total}</span>` : ''}
       <span class="ev-name">${esc(eventLabel(ev))}</span>
       <span class="ev-last">${sub}</span>
     </button>`;
-  }).join('')}</div>`;
+  }).join('')}
+    <button class="ev ev-add" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
+  </div>` : empty}`;
+  el.querySelector('[data-act="add"]').addEventListener('click', () => openAddButtonSheet(ctx));
 
   // Reminder cards: "Log now" is the same as tapping the button; a routine
   // starts right away; ✕ = not now (until the reminder's next time).
@@ -113,7 +123,7 @@ export function renderEvents(el, ctx) {
     });
   });
 
-  el.querySelectorAll('.ev').forEach((btn) => {
+  el.querySelectorAll('.ev[data-id]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const ev = state.config.events.find((e) => e.id === btn.dataset.id);
       if (!ev) return;
@@ -140,7 +150,7 @@ function recentHtml(state) {
       <button class="recent-main"><span class="row-time">${esc(when)}</span>
         <span class="recent-name">${esc(screenLabel(state, e))}</span>
         <span class="recent-sub">${esc(sub)}</span></button>
-      <button class="recent-x" aria-label="${esc(t('Delete this entry'))}">✕</button>
+      <button class="recent-x" aria-label="${esc(t('Delete this entry'))}">${icon('close')}</button>
     </div>`;
   }).join('');
   return `<h2 class="day">${t('Recent')}<a class="small" href="#log">${t('all →')}</a></h2><div class="card">${rows}</div>`;

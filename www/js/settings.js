@@ -1,124 +1,287 @@
-// Settings: export/import, manage events, config file status.
+// Settings: a short menu, and each part on its own page (#settings/<page>).
+// WHY pages: everything used to be on one very long screen, and people
+// couldn't find their way in it. Now the menu says in a line what each part
+// is for, and a page holds only that part.
 
 import * as storage from './storage.js';
 import {
-  addMissingPresets, eventLabel, getConfigText, isCircuit, resetToDefault, saveConfig, saveConfigText,
+  addMissingPresets, eventLabel, getConfigText, isCircuit, saveConfig, saveConfigText,
 } from './config.js';
-import { openEventEditor } from './eventEditor.js';
+import { describeButton, openAddButtonSheet, openEventEditor } from './eventEditor.js';
 import { openCircuitEditor, openExerciseEditor, openRoutineEditor } from './trainingEditor.js';
 import { openExercisePicker } from './exercisePicker.js';
 import { translateBuiltInNames } from './library.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
-import { downloadFile, esc, localDate, readFileText } from './util.js';
 import {
-  autoMonthFirst, getDateOrder, getDirPref, getLang, languages, setDateOrder, setDirPref, setLang, t,
+  downloadFile, esc, localDate, readFileText,
+} from './util.js';
+import {
+  autoMonthFirst, getDateOrder, getDirPref, getLang, languages, numericDate, setDateOrder, setDirPref, setLang, t,
 } from './i18n.js';
 import { openSetupAI, openTranslateAI } from './ai.js';
-import { remindTimes } from './reminders.js';
+import { remindText, remindTimes } from './reminders.js';
+import { restartWelcome } from './welcome.js';
+import { icon } from './icons.js';
 
-// One-tap "How I feel" buttons (asked for as: a button to register how I
-// feel right now, and one that reminds me at the end of the day). Fixed
-// ids, so they're offered only while missing and "Use … names" can
-// translate them (they are also in the default configs).
-const MOOD_PRESETS = [
-  { id: 'how_i_feel', name: 'How I feel', ask: ['mood', 'note'], color: '#2bb5a0' },
-  { id: 'how_was_my_day', name: 'How was my day', ask: ['mood', 'note'], color: '#7b6cf6', remind: [{ time: '21:00' }] },
-];
-const remindTag = (it) => (it.remind ? ` <span class="tag">⏰ ${esc(remindTimes(it))}</span>` : '');
+// The pages, in menu order. title: translation key; tint: the icon's colour.
+const PAGES = {
+  buttons: { title: 'Buttons', icon: 'grid', tint: '#4f9cf9', render: pageButtons },
+  training: { title: 'Exercises & routines', icon: 'dumbbell', tint: '#e8833a', render: pageTraining },
+  reminders: { title: 'Reminders', icon: 'bell', tint: '#d4a72c', render: pageReminders },
+  language: { title: 'Language & dates', icon: 'globe', tint: '#2bb5a0', render: pageLanguage },
+  data: { title: 'Backup & export', icon: 'download', tint: '#46b450', render: pageData },
+  ai: { title: 'Change with AI', icon: 'sparkle', tint: '#b06ad9', render: pageAI },
+  file: { title: 'Setup file', icon: 'file', tint: '#8b949e', render: pageFile },
+};
 
-export async function renderSettings(el, ctx) {
+// The header title of a Settings page (null = the menu itself).
+export function settingsPageTitle(sub) {
+  return PAGES[sub]?.title || null;
+}
+
+// Which list is in "Reorder" mode (its rows show ↑ ↓ instead of the eye).
+let reordering = null;
+let lastPage = null;
+
+export function renderSettings(el, ctx, sub) {
+  const page = PAGES[sub] ? sub : null;
+  if (page !== lastPage) reordering = null;
+  lastPage = page;
+  return page ? PAGES[page].render(el, ctx) : renderMenu(el, ctx);
+}
+
+const chevron = () => `<span class="lrow-end">${icon('chevron', 'flip')}</span>`;
+const tile = (name, tint) => `<span class="tile-ico" style="--c:${tint}">${icon(name)}</span>`;
+const rowText = (name, sub, subCls = '') => `<span class="lrow-text"><span class="lrow-name">${name}</span>${sub ? `<span class="lrow-sub${subCls}">${sub}</span>` : ''}</span>`;
+const langName = () => languages().find(([c]) => c === getLang())?.[1] || getLang();
+
+function on(el, act, fn, evt = 'click') {
+  const n = el.querySelector(`[data-act="${act}"]`);
+  if (n) n.addEventListener(evt, fn);
+}
+
+// Every change goes through saveConfig(), which validates first, so the
+// in-app editors can never produce a config that breaks the app.
+async function change(ctx, mutate, okMsg) {
   const { state } = ctx;
-  const persisted = await storage.isPersisted();
-  const events = state.config.events;
-  const nEvents = state.entries.filter((e) => e.kind === 'event').length;
-  const moodPresets = MOOD_PRESETS.filter((m) => !events.some((e) => e.id === m.id));
+  if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+  const cfg = JSON.parse(JSON.stringify(state.config));
+  if (mutate(cfg) === false) return;
+  const res = await saveConfig(cfg);
+  if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
+  await ctx.reloadConfig();
+  if (okMsg) ctx.toast(okMsg);
+}
 
-  el.innerHTML = `
-  <a class="btn wide about-link" href="#about">ⓘ ${t('About this app')} · ${t('Share this app')}</a>
-
-  <h2 class="day">${t('Language')}</h2>
-  <div class="lang-row">${languages().map(([code, nm]) => `<button class="btn${code === getLang() ? ' primary' : ''}" data-lang="${esc(code)}">${esc(nm)}</button>`).join('')}</div>
-  <button class="btn wide" data-act="add-lang">🌐 ${t('Add a language with AI')}</button>
-  <div class="label" style="margin-top:12px">${t('Layout')}</div>
-  <div class="lang-row">${[['auto', 'Automatic'], ['ltr', 'Left → right'], ['rtl', 'Right → left']].map(([v, lbl]) =>
-    `<button class="btn${v === getDirPref() ? ' primary' : ''}" data-dir="${v}">${esc(t(lbl))}</button>`).join('')}</div>
-  <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
-  <div class="label" style="margin-top:12px">${t('Dates')}</div>
-  <div class="lang-row">${[['auto', `${t('Automatic')} (${autoMonthFirst() ? '12/31' : '31/12'})`], ['dmy', '31/12/2026'], ['mdy', '12/31/2026']].map(([v, lbl]) =>
-    `<button class="btn${v === getDateOrder() ? ' primary' : ''}" data-date-order="${v}">${esc(lbl)}</button>`).join('')}</div>
-  <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: languages().find(([c]) => c === getLang())?.[1] || getLang() }))}</button>
-  <p class="small muted">${esc(t('TRANSLATE_HINT'))}</p>
-
-  <h2 class="day">${t('Your data')}</h2>
-  <div class="card pad">
-    <p>${esc(t('Entries saved on this phone: {n} (events: {e}).', { n: state.entries.length, e: nEvents }))}</p>
-    <p class="small ${persisted ? 'ok' : 'warn'}">${esc(t(persisted ? 'PROTECTED_YES' : 'PROTECTED_NO'))}</p>
-    ${persisted ? '' : `<button class="btn" data-act="persist">${t('Protect')}</button>`}
-    <div class="btn-row">
-      <button class="btn" data-act="csv">${t('Export CSV')}</button>
-      <button class="btn" data-act="backup">${t('Full backup (JSON)')}</button>
-    </div>
-    <label class="btn wide file">${t('Import / restore backup')}<input type="file" accept=".json,.jsonl,application/json" data-act="import" hidden></label>
-  </div>
-
-  <h2 class="day">${t('Change with AI')}</h2>
-  <div class="card pad">
-    <p class="small">${esc(t('AI_SECTION_HINT'))}</p>
-    <button class="btn primary wide" data-act="ai-setup">🤖 ${t('Change buttons, exercises or routines with AI')}</button>
-    <button class="btn wide" data-act="ai-lang">🌐 ${t('Translate the app into another language with AI')}</button>
-  </div>
-
-  <h2 class="day">${t('Event buttons')}</h2>
-  ${manageList('events', events, (ev) => (ev.color ? `<span class="dot" style="--c:${ev.color}"></span>` : '') + esc(eventLabel(ev)) + (ev.private ? ` <span class="tag">${t('private')}</span>` : '') + remindTag(ev))}
-  <button class="btn primary wide" data-act="add">${t('+ Add a button')}</button>
-  ${moodPresets.length ? `<div class="card pad quick-add">
-    <p class="small">😊 ${esc(t('MOOD_HINT'))}</p>
-    <div class="btn-row">${moodPresets.map((m) => `<button class="btn" data-mood-add="${m.id}">+ ${esc(t(m.name))}${m.remind ? ` ⏰ ${m.remind[0].time}` : ''}</button>`).join('')}</div>
-  </div>` : ''}
-  <p class="small muted">${esc(t('EDIT_BUTTON_HINT'))}</p>
-
-  <h2 class="day" id="training-settings">${t('Exercises')}</h2>
-  ${manageList('exercises', state.config.exercises, (x) => esc(x.name)
-    + (isCircuit(x) ? ` <span class="tag">⏱ ${t('circuit')}</span>`
-      : x.type === 'seconds' ? ` <span class="tag">${t('seconds')}</span>` : '')
-    + (x.allowWeight ? ` <span class="tag">+${t('kg')}</span>` : ''))}
-  <div class="btn-row">
-    <button class="btn primary" data-act="library">${t('+ Add from library')}</button>
-    <button class="btn" data-act="add-ex">${t('+ Add an exercise')}</button>
-  </div>
-  <button class="btn wide" data-act="add-circuit">⏱ ${t('+ New circuit (several exercises in a row)')}</button>
-
-  <h2 class="day">${t('Routines')}</h2>
-  ${manageList('routines', state.config.routines, (r) => esc(r.name)
-    + ` <span class="tag">${esc(t('exercises: {n}', { n: (r.exercises || []).length }))}</span>` + remindTag(r))}
-  <button class="btn primary wide" data-act="add-routine">${t('+ New routine')}</button>
-  <button class="btn wide" data-act="presets">${esc(t('Add missing preset exercises & routines'))}</button>
-
-  <h2 class="day">${t('Config file')}</h2>
-  <div class="card pad">
-    ${state.configErrors.length
-      ? `<p class="warn">${t('⚠ Config has problems — using the last good version.')}</p><ul class="errors">${state.configErrors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>`
-      : `<p class="ok small">${t('✓ Config OK.')}</p>`}
-    <p class="small muted">${esc(t('Events: {a} · Exercises: {b} · Routines: {c}', { a: events.length, b: state.config.exercises.length, c: state.config.routines.length }))}</p>
-    <div class="btn-row">
-      <button class="btn" data-act="cfg-export">${t('Export config')}</button>
-      <label class="btn file">${t('Import config')}<input type="file" accept=".json,application/json" data-act="cfg-import" hidden></label>
-    </div>
-    <button class="btn wide danger" data-act="cfg-reset">${t('Reset config to default')}</button>
-  </div>
-  <p class="small muted center">Tracker</p>`;
-
-  // Scroll target from the Training screen's "Edit exercises & routines".
-  if (ctx.state.scrollTo) {
-    const t = el.querySelector('#' + ctx.state.scrollTo);
-    ctx.state.scrollTo = null;
-    if (t) t.scrollIntoView();
-  }
-
-  const on = (act, fn, evt = 'click') => {
-    const n = el.querySelector(`[data-act="${act}"]`);
-    if (n) n.addEventListener(evt, fn);
+// --- the menu ----------------------------------------------------------------
+function renderMenu(el, ctx) {
+  const { state } = ctx;
+  const nRemind = [...state.config.events, ...state.config.routines]
+    .filter((x) => !x.hidden && x.remind).reduce((n, x) => n + x.remind.length, 0);
+  const row = (key, sub, warn = false) => {
+    const p = PAGES[key];
+    return `<a class="lrow-main" href="#settings/${key}">${tile(p.icon, p.tint)}${rowText(esc(t(p.title)), esc(sub), warn ? ' warn' : '')}${chevron()}</a>`;
   };
+  el.innerHTML = `
+    <div class="card list">
+      ${row('buttons', t('Add, change, hide or reorder your buttons'))}
+      ${row('training', t('For the Training tab'))}
+      ${row('reminders', nRemind ? t('{n} reminders', { n: nRemind }) : t('When to remind you, for each button or routine'))}
+    </div>
+    <div class="card list">
+      ${row('language', `${langName()} · ${numericDate(localDate())}`)}
+      ${row('data', t('{n} entries on this phone', { n: state.entries.length }))}
+      ${row('ai', t('Describe changes in your own words'))}
+    </div>
+    <div class="card list">
+      ${row('file', state.configErrors.length ? t('⚠ Has problems') : t('For advanced users'), state.configErrors.length > 0)}
+      <a class="lrow-main" href="#about">${tile('info', '#7b8794')}${rowText(esc(t('About this app')), esc(t('How to use it, privacy, help lines')))}${chevron()}</a>
+    </div>`;
+}
+
+// --- lists of buttons / exercises / routines ---------------------------------------
+// Tap a row = edit it. The eye hides it (from the Events screen, or from
+// the Training lists) without losing its history. "Reorder" swaps the eyes
+// for ↑ ↓ — fewer little buttons on every row the rest of the time.
+function listHead(title, key, count) {
+  const re = reordering === key;
+  return `<div class="list-head"><h2 class="day">${esc(title)}</h2>${count > 1
+    ? `<button class="text-btn" data-reorder="${key}">${re ? esc(t('Done')) : `${icon('reorder')}<span>${esc(t('Reorder'))}</span>`}</button>` : ''}</div>`;
+}
+
+function itemList(key, items, view, emptyText) {
+  if (!items.length) return `<div class="card pad muted">${esc(emptyText)}</div>`;
+  const re = reordering === key;
+  return `<div class="card list">${items.map((it, i) => {
+    const v = view(it);
+    const tags = [...(v.tags || []), ...(it.hidden ? [t('hidden')] : [])].map((tg) => ` <span class="tag">${esc(tg)}</span>`).join('');
+    return `<div class="lrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}">
+      <button class="lrow-main" data-act="edit">
+        ${v.dot !== undefined ? `<span class="dot" style="--c:${v.dot || 'var(--line)'}"></span>` : ''}
+        ${rowText(esc(v.name) + tags, v.sub ? esc(v.sub) : '')}
+      </button>
+      ${re ? `<button class="ibtn ghost" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
+        <button class="ibtn ghost" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>`
+    : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!!it.hidden}" aria-label="${esc(it.hidden ? t('Show') : t('Hide'))}">${icon(it.hidden ? 'eyeOff' : 'eye')}</button>`}
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function wireLists(el, ctx, rerender) {
+  el.querySelectorAll('[data-reorder]').forEach((b) => b.addEventListener('click', () => {
+    reordering = reordering === b.dataset.reorder ? null : b.dataset.reorder;
+    rerender();
+  }));
+  el.querySelectorAll('.lrow[data-list]').forEach((row) => {
+    const i = Number(row.dataset.i);
+    const key = row.dataset.list;
+    row.addEventListener('click', (e) => {
+      const act = e.target.closest('button')?.dataset.act;
+      if (!act) return;
+      const item = ctx.state.config[key][i];
+      if (!item) return;
+      if (act === 'edit') {
+        if (key === 'events') openEventEditor(ctx, item);
+        else if (key === 'exercises') openExerciseEditor(ctx, item);
+        else openRoutineEditor(ctx, item);
+        return;
+      }
+      const hiding = act === 'hide' && !item.hidden;
+      change(ctx, (cfg) => {
+        const list = cfg[key];
+        if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
+        else if (act === 'down' && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
+        else if (act === 'hide') {
+          if (list[i].hidden) delete list[i].hidden; else list[i].hidden = true;
+        } else return false;
+        return true;
+      }, act === 'hide' ? t(hiding ? (key === 'events' ? 'Hidden from the Events screen' : 'Hidden') : 'Shown again') : null);
+    });
+  });
+}
+
+// --- Buttons ---------------------------------------------------------------------
+function pageButtons(el, ctx) {
+  const { events } = ctx.state.config;
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('BUTTONS_HINT'))}</p>
+    <button class="btn primary wide" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
+    ${listHead(t('Your buttons'), 'events', events.length)}
+    ${itemList('events', events, (ev) => ({
+    dot: ev.color || '', name: eventLabel(ev), tags: ev.private ? [t('private')] : [], sub: describeButton(ev),
+  }), t('No buttons yet'))}`;
+  wireLists(el, ctx, () => pageButtons(el, ctx));
+  on(el, 'add', () => openAddButtonSheet(ctx));
+}
+
+// --- Exercises & routines ----------------------------------------------------------
+function pageTraining(el, ctx) {
+  const { exercises, routines } = ctx.state.config;
+  const exSub = (x) => [
+    isCircuit(x) ? `⏱ ${t('circuit')}` : t(x.type === 'seconds' ? 'seconds' : 'reps'),
+    x.allowWeight ? `+${t('kg')}` : '',
+  ].filter(Boolean).join(' · ');
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('TRAINING_SETTINGS_HINT'))}</p>
+    ${listHead(t('Routines'), 'routines', routines.length)}
+    ${itemList('routines', routines, (r) => ({
+    name: r.name,
+    sub: [t('exercises: {n}', { n: (r.exercises || []).length }), r.remind ? `⏰ ${remindTimes(r)}` : ''].filter(Boolean).join(' · '),
+  }), t('None yet.'))}
+    <button class="btn wide" data-act="add-routine">${icon('plus')}<span>${esc(t('New routine'))}</span></button>
+    ${listHead(t('Exercises'), 'exercises', exercises.length)}
+    ${itemList('exercises', exercises, (x) => ({ name: x.name, sub: exSub(x) }), t('None yet.'))}
+    <div class="btn-row">
+      <button class="btn primary" data-act="library">${icon('plus')}<span>${esc(t('From the library'))}</span></button>
+      <button class="btn" data-act="add-ex">${icon('plus')}<span>${esc(t('New exercise'))}</span></button>
+    </div>
+    <button class="btn wide" data-act="add-circuit">${icon('plus')}<span>${esc(t('New circuit (several exercises in a row)'))}</span></button>
+    <button class="linklike" data-act="presets">${esc(t('Add missing preset exercises & routines'))}</button>`;
+  wireLists(el, ctx, () => pageTraining(el, ctx));
+  on(el, 'add-routine', () => openRoutineEditor(ctx, null));
+  on(el, 'add-ex', () => openExerciseEditor(ctx, null));
+  on(el, 'add-circuit', () => openCircuitEditor(ctx, null));
+  on(el, 'library', () => openExercisePicker(ctx, { title: t('Exercise library') }));
+  on(el, 'presets', async () => {
+    try {
+      const n = await addMissingPresets(ctx.state.config);
+      if (n) await ctx.reloadConfig();
+      ctx.toast(n ? t('Added presets: {n}', { n }) : t('You already have all presets'));
+    } catch (err) {
+      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
+    }
+  });
+}
+
+// --- Reminders -------------------------------------------------------------------
+// A reminder belongs to a button or a routine (config "remind"), so this
+// page only gathers them in one place and opens the right editor.
+function openWithReminders(ctx, type, item, addRow) {
+  if (type === 'events') openEventEditor(ctx, item);
+  else openRoutineEditor(ctx, item);
+  const body = document.querySelector('#sheet .sheet-body');
+  if (addRow) body.querySelector('[data-radd]')?.click();
+  (body.querySelector('[data-rlist] .rrow:last-child') || body.querySelector('[data-radd]'))?.scrollIntoView({ block: 'center' });
+}
+
+function pageReminders(el, ctx) {
+  const { events, routines } = ctx.state.config;
+  const items = [
+    ...events.filter((e) => e.remind).map((it) => ({ type: 'events', it })),
+    ...routines.filter((r) => r.remind).map((it) => ({ type: 'routines', it })),
+  ];
+  const label = ({ type, it }) => (type === 'events' ? eventLabel(it) : it.name);
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('REMINDERS_HINT'))}</p>
+    ${items.length ? `<div class="card list">${items.map((x, i) => `
+      <button class="lrow-main${x.it.hidden ? ' dim' : ''}" data-i="${i}">
+        ${tile(x.type === 'events' ? 'bell' : 'dumbbell', x.type === 'events' ? (x.it.color || '#8b949e') : '#e8833a')}
+        ${rowText(esc(label(x)) + (x.it.hidden ? ` <span class="tag">${esc(t('hidden'))}</span>` : ''), esc(remindText(x.it)))}
+        <span class="lrow-end">${icon('edit')}</span>
+      </button>`).join('')}</div>` : `<div class="card pad muted">${esc(t('No reminders yet'))}</div>`}
+    <button class="btn primary wide" data-act="add">${icon('plus')}<span>${esc(t('Add a reminder'))}</span></button>
+    <p class="small muted">${esc(t('REMIND_WEB_NOTE'))}</p>`;
+  el.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => {
+    const x = items[Number(b.dataset.i)];
+    openWithReminders(ctx, x.type, x.it, false);
+  }));
+  on(el, 'add', () => {
+    const all = [
+      ...events.filter((e) => !e.hidden).map((it) => ({ type: 'events', it })),
+      ...routines.filter((r) => !r.hidden).map((it) => ({ type: 'routines', it })),
+    ];
+    const root = ctx.openSheet(`
+      <div class="sheet-head"><b>${esc(t('Remind me about…'))}</b>
+        <button class="ibtn ghost" data-act="close" aria-label="${esc(t('Close'))}">${icon('close')}</button></div>
+      ${all.length ? `<div class="card list">${all.map((x, i) => `
+        <button class="lrow-main" data-pick="${i}">
+          ${x.type === 'events' ? `<span class="dot" style="--c:${x.it.color || 'var(--line)'}"></span>` : `<span class="dot-ico">${icon('dumbbell')}</span>`}
+          ${rowText(esc(label(x)), x.it.remind ? esc(remindText(x.it)) : '')}
+          <span class="lrow-end">${icon('plus')}</span>
+        </button>`).join('')}</div>` : `<p class="muted">${esc(t('No buttons yet'))}</p>`}`);
+    root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
+    root.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
+      const x = all[Number(b.dataset.pick)];
+      openWithReminders(ctx, x.type, x.it, true);
+    }));
+  });
+}
+
+// --- Language & dates ------------------------------------------------------------
+function pageLanguage(el, ctx) {
+  const seg = (items, cur, attr) => `<div class="seg">${items.map(([v, lbl]) => `<button class="${v === cur ? 'on' : ''}" data-${attr}="${esc(v)}" aria-pressed="${v === cur}">${esc(lbl)}</button>`).join('')}</div>`;
+  el.innerHTML = `
+    <h2 class="day">${esc(t('Language'))}</h2>
+    ${seg(languages(), getLang(), 'lang')}
+    <button class="btn wide" data-act="add-lang">${icon('sparkle')}<span>${esc(t('Add a language with AI'))}</span></button>
+    <h2 class="day">${esc(t('Dates'))}</h2>
+    ${seg([['auto', `${t('Automatic')} (${autoMonthFirst() ? '12/31' : '31/12'})`], ['dmy', '31/12/2026'], ['mdy', '12/31/2026']], getDateOrder(), 'date-order')}
+    <h2 class="day">${esc(t('Layout'))}</h2>
+    ${seg([['auto', t('Automatic')], ['ltr', t('Left → right')], ['rtl', t('Right → left')]], getDirPref(), 'dir')}
+    <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
+    <h2 class="day">${esc(t('Names of the starting items'))}</h2>
+    <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: langName() }))}</button>
+    <p class="small muted">${esc(t('TRANSLATE_HINT'))}</p>`;
 
   el.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', async () => {
     await setLang(b.dataset.lang);
@@ -132,23 +295,56 @@ export async function renderSettings(el, ctx) {
     await setDateOrder(b.dataset.dateOrder);
     ctx.refresh();
   }));
+  on(el, 'add-lang', () => openTranslateAI(ctx));
+  on(el, 'translate', async () => {
+    const { state } = ctx;
+    if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+    try {
+      const { cfg, changed } = await translateBuiltInNames(state.config);
+      if (changed) {
+        const res = await saveConfig(cfg);
+        if (!res.ok) throw new Error(res.errors[0]);
+        await ctx.reloadConfig();
+      }
+      ctx.toast(changed ? t('Renamed: {n}', { n: changed }) : t('Nothing to rename'));
+    } catch (err) {
+      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
+    }
+  });
+}
 
-  on('persist', async () => {
+// --- Backup & export -------------------------------------------------------------
+async function pageData(el, ctx) {
+  const { state } = ctx;
+  const persisted = await storage.isPersisted();
+  const nEvents = state.entries.filter((e) => e.kind === 'event').length;
+  el.innerHTML = `
+    <div class="card pad">
+      <p class="data-count">${esc(t('Entries saved on this phone: {n} (events: {e}).', { n: state.entries.length, e: nEvents }))}</p>
+      <p class="small ${persisted ? 'ok' : 'warn'}">${esc(t(persisted ? 'PROTECTED_YES' : 'PROTECTED_NO'))}</p>
+      ${persisted ? '' : `<button class="btn" data-act="persist">${icon('shield')}<span>${esc(t('Protect'))}</span></button>`}
+    </div>
+    <div class="card list">
+      <button class="lrow-main" data-act="backup">${tile('download', '#46b450')}${rowText(esc(t('Full backup (JSON)')), esc(t('BACKUP_DESC')))}</button>
+      <button class="lrow-main" data-act="csv">${tile('table', '#4f9cf9')}${rowText(esc(t('Export CSV')), esc(t('CSV_DESC')))}</button>
+      <label class="lrow-main file">${tile('upload', '#e8833a')}${rowText(esc(t('Import / restore backup')), esc(t('RESTORE_DESC')))}
+        <input type="file" accept=".json,.jsonl,application/json" data-act="import" hidden></label>
+    </div>
+    <p class="small muted">${esc(t('BACKUP_TIP'))}</p>`;
+
+  on(el, 'persist', async () => {
     const ok = await storage.requestPersistence();
     ctx.toast(ok ? t('Storage protected') : t('Browser said no — install the app to the home screen first'));
     ctx.refresh();
   });
-
-  on('csv', () => {
+  on(el, 'csv', () => {
     downloadFile(`tracker_log_${localDate()}.csv`, toCSV(state.entries), 'text/csv;charset=utf-8');
   });
-
-  on('backup', async () => {
+  on(el, 'backup', async () => {
     const text = toBackup(state.entries, await getConfigText());
     downloadFile(`tracker_backup_${localDate()}.json`, text, 'application/json');
   });
-
-  on('import', async (e) => {
+  on(el, 'import', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -170,114 +366,56 @@ export async function renderSettings(el, ctx) {
       ctx.toast(t('Import failed: {msg}', { msg: t(err.message) }), { error: true });
     }
   }, 'change');
+}
 
-  // --- event manager ---
-  // Every change goes through saveConfig(), which validates first, so the
-  // in-app editor can never produce a config that breaks the app.
-  const change = async (mutate, okMsg) => {
-    if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
-    const cfg = JSON.parse(JSON.stringify(state.config));
-    if (mutate(cfg) === false) return;
-    const res = await saveConfig(cfg);
-    if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
-    await ctx.reloadConfig();
-    if (okMsg) ctx.toast(okMsg);
-  };
+// --- Change with AI --------------------------------------------------------------
+function pageAI(el, ctx) {
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('AI_SECTION_HINT'))}</p>
+    <div class="card list">
+      <button class="lrow-main" data-act="ai-setup">${tile('sparkle', '#b06ad9')}${rowText(esc(t('Change buttons, exercises or routines with AI')), esc(t('AI_SETUP_SHORT')))}${chevron()}</button>
+      <button class="lrow-main" data-act="ai-lang">${tile('globe', '#2bb5a0')}${rowText(esc(t('Translate the app into another language with AI')), esc(t('Any language, in a few minutes')))}${chevron()}</button>
+    </div>
+    <p class="small muted">${esc(t('AI_PRIVACY'))}</p>`;
+  on(el, 'ai-setup', () => openSetupAI(ctx));
+  on(el, 'ai-lang', () => openTranslateAI(ctx));
+}
 
-  el.querySelectorAll('.mrow').forEach((row) => {
-    const i = Number(row.dataset.i);
-    const key = row.dataset.list;
-    row.addEventListener('click', (e) => {
-      const act = e.target.closest('button')?.dataset.act;
-      if (!act) return;
-      const item = state.config[key][i];
-      if (act === 'edit') {
-        if (key === 'events') openEventEditor(ctx, item);
-        else if (key === 'exercises') openExerciseEditor(ctx, item);
-        else openRoutineEditor(ctx, item);
-        return;
-      }
-      change((cfg) => {
-        const list = cfg[key];
-        if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
-        else if (act === 'down' && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
-        else if (act === 'hide') list[i].hidden = !list[i].hidden;
-        else return false;
-        return true;
-      });
-    });
-  });
+// --- Setup file (advanced) -------------------------------------------------------
+function pageFile(el, ctx) {
+  const { state } = ctx;
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('FILE_HINT'))}</p>
+    <div class="card pad">
+      ${state.configErrors.length
+    ? `<p class="warn">${t('⚠ Config has problems — using the last good version.')}</p><ul class="errors">${state.configErrors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>`
+    : `<p class="ok small">${t('✓ Config OK.')}</p>`}
+      <p class="small muted">${esc(t('Events: {a} · Exercises: {b} · Routines: {c}', { a: state.config.events.length, b: state.config.exercises.length, c: state.config.routines.length }))}</p>
+    </div>
+    <div class="card list">
+      <button class="lrow-main" data-act="cfg-export">${tile('download', '#4f9cf9')}${rowText(esc(t('Export config')), esc(t('CFG_EXPORT_DESC')))}</button>
+      <label class="lrow-main file">${tile('upload', '#e8833a')}${rowText(esc(t('Import config')), esc(t('CFG_IMPORT_DESC')))}
+        <input type="file" accept=".json,application/json" data-act="cfg-import" hidden></label>
+    </div>
+    <button class="btn wide danger" data-act="start-over">${esc(t('Start over — choose your buttons again'))}</button>`;
 
-  on('add', () => openEventEditor(ctx, null));
-  el.querySelectorAll('[data-mood-add]').forEach((b) => b.addEventListener('click', () => {
-    const preset = MOOD_PRESETS.find((m) => m.id === b.dataset.moodAdd);
-    change((cfg) => {
-      if (cfg.events.some((e) => e.id === preset.id)) return false;
-      cfg.events.push({ ...JSON.parse(JSON.stringify(preset)), name: t(preset.name) });
-      return true;
-    }, t('Added "{name}"', { name: t(preset.name) }));
-  }));
-  on('add-lang', () => openTranslateAI(ctx));
-  on('ai-lang', () => openTranslateAI(ctx));
-  on('ai-setup', () => openSetupAI(ctx));
-  on('add-ex', () => openExerciseEditor(ctx, null));
-  on('add-circuit', () => openCircuitEditor(ctx, null));
-  on('library', () => openExercisePicker(ctx, { title: t('Exercise library') }));
-  on('translate', async () => {
-    if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
-    try {
-      const { cfg, changed } = await translateBuiltInNames(state.config);
-      if (changed) {
-        const res = await saveConfig(cfg);
-        if (!res.ok) throw new Error(res.errors[0]);
-        await ctx.reloadConfig();
-      }
-      ctx.toast(changed ? t('Renamed: {n}', { n: changed }) : t('Nothing to rename'));
-    } catch (err) {
-      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
-    }
-  });
-  on('add-routine', () => openRoutineEditor(ctx, null));
-  on('presets', async () => {
-    try {
-      const n = await addMissingPresets(state.config);
-      if (n) await ctx.reloadConfig();
-      ctx.toast(n ? t('Added presets: {n}', { n }) : t('You already have all presets'));
-    } catch (err) {
-      ctx.toast(t('Failed: {msg}', { msg: err.message }), { error: true });
-    }
-  });
-
-  on('cfg-export', async () => {
+  on(el, 'cfg-export', async () => {
     downloadFile('tracker_config.json', await getConfigText(), 'application/json');
   });
-
-  on('cfg-import', async (e) => {
+  on(el, 'cfg-import', async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
     const res = await saveConfigText(await readFileText(file));
-    if (res.ok) { await ctx.reloadConfig(); ctx.toast(t('Config imported')); }
-    else ctx.toast(t('Config NOT imported: {msg}', { msg: res.errors.slice(0, 3).join('; ') }), { error: true, ms: 8000 });
+    if (res.ok) { await ctx.reloadConfig(); ctx.toast(t('Config imported')); } else ctx.toast(t('Config NOT imported: {msg}', { msg: res.errors.slice(0, 3).join('; ') }), { error: true, ms: 8000 });
   }, 'change');
-
-  on('cfg-reset', async () => {
-    if (!confirm(t('RESET_CONFIRM'))) return;
-    const res = await resetToDefault().catch((err) => ({ ok: false, errors: [err.message] }));
-    if (res.ok) { await ctx.reloadConfig(); ctx.toast(t('Config reset')); }
-    else ctx.toast(t('Reset failed: {msg}', { msg: res.errors[0] }), { error: true });
+  // The welcome screen again: pick buttons; the starting exercises and
+  // routines come back (welcome.js finish()).
+  on(el, 'start-over', async () => {
+    if (!confirm(t('START_OVER_CONFIRM'))) return;
+    await restartWelcome(state);
+    history.replaceState(null, '', `${location.pathname}${location.search}#events`);
+    window.scrollTo(0, 0);
+    ctx.refresh();
   });
-}
-
-// One management list: rows with move up/down, edit and hide/show.
-function manageList(key, items, label) {
-  if (!items.length) return `<div class="card pad muted">${t('None yet.')}</div>`;
-  return `<div class="card">${items.map((it, i) => `
-    <div class="mrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}">
-      <span class="mname">${label(it)}${it.hidden ? ` <span class="tag">${t('hidden')}</span>` : ''}</span>
-      <button class="ibtn" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${t('Move up')}">↑</button>
-      <button class="ibtn" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="${t('Move down')}">↓</button>
-      <button class="ibtn" data-act="edit" aria-label="${t('Edit')}">✎</button>
-      <button class="ibtn" data-act="hide">${it.hidden ? t('Show') : t('Hide')}</button>
-    </div>`).join('')}</div>`;
 }

@@ -129,7 +129,7 @@ starts a SERIES of readings (measure, rest, measure again — numbers
 settle as you relax). Each reading is its own log entry with its own
 time; all share session_id = the first entry's id, and set_no is the
 reading number (1, 2, 3...). A rest timer shows time since the last
-reading. The button's daily count counts a series once. All of this is editable in Settings → ✎ / + Add a button.
+reading. The button's daily count counts a series once. All of this is editable in Settings → Buttons (tap a button / + Add a button).
 Start/finish buttons ("span": true, not combinable with "bp"): first tap
 logs kind "event_start" (asks the button's questions), button shows
 "running 1 d 4 h"; next tap opens a sheet with "Finish now" (two taps on
@@ -190,7 +190,7 @@ Example:
   actually done (pauses not counted; Done mid-circuit logs what was done),
   work_sec = whole time. Circuit editor (trainingEditor.js
   openCircuitEditor): "+ New circuit" in the workout's exercise picker,
-  Settings → Exercises, and the exercise editor's "Seconds" tip; "✎ Edit
+  Settings → Exercises & routines, and the exercise editor's "Seconds" tip; "✎ Edit
   circuit" on the training card. Old format (parts = plain names) still
   works: every part uses the stepper's seconds; editing converts it.
   Choosing a circuit's exercises (asked for as "choose from existing
@@ -210,7 +210,7 @@ Example:
   alerts.js: Web Audio beeps + vibration + screen wake lock during a
   session (timers can't beep with the screen off).
   Config: exercise "start"; routine steps may be "id" or
-  {"id", "sets", "reps"}. Settings has editors for exercises and
+  {"id", "sets", "reps"}. Settings → Exercises & routines has editors for exercises and
   routines, plus "Add missing preset exercises & routines" (merges
   default_config.json by id, changes nothing existing).
 - Exercise library: `www/exercise_library.json` (~100 street-workout
@@ -219,8 +219,8 @@ Example:
   {"name", "seconds": start} parts). `library.js` (match by id or
   by name in any language, so duplicates aren't offered; translate built-in
   names), `exercisePicker.js` (search own + library, or "Create" a new
-  one; used by Training "+ Exercise" and Settings "+ Add from library").
-  Settings → Language → "Use … names for built-in items" renames only
+  one; used by Training "+ Exercise" and Settings "From the library").
+  Settings → Language & dates → "Use … names for built-in items" renames only
   items whose name is still a built-in name in some language (by id or by
   name), never names the user typed. Default config exercise names must
   equal the library names (checked when the library was built).
@@ -230,7 +230,7 @@ Example:
   column "mood"; Log shows the face; edit checks 1–5; the button's "last"
   line shows today's last face). Default configs (en/he/ru) have
   "how_i_feel" (mood + note) and "how_was_my_day" (mood + note, remind
-  21:00); Settings → Event buttons offers the missing one(s) as one-tap
+  21:00); "Add a button" offers the missing one(s) under Ready-made, one-tap
   "+" buttons (fixed ids).
 - Reminders (asked for as "push notifications to remind of certain
   buttons or training"): config "remind": [{"time": "21:00", "days"?:
@@ -270,8 +270,60 @@ Example:
 - Events screen shows "Recent": the last 5 events; ✕ deletes (toast
   Undo), tapping a row opens the same edit sheet as the Log
   (log.js exports openDetails / deleteWithUndo for this).
-- About screen (`about.js`, route #about, not a tab — the header ⓘ and a
-  button at the top of Settings open it): what the app is, privacy,
+- Redesign (asked for as "a more slick design, more intuitive, less
+  chaotic and more inviting — people who opened the app didn't get that the
+  buttons are examples, and the settings could be more intuitive"):
+  - Welcome (`welcome.js`), shown full screen with no header or tabs:
+    1) hello + language, 2) "What do you want to keep track of?" — the
+    starting buttons (config.js starterButtons() = default_config.<lang>
+    events, private ones never offered) with what each asks
+    (eventEditor.js describeButton), nothing pre-picked, 3) how it works
+    (+ install tip unless installed). Only the picked buttons are saved;
+    built-in names follow the language picked in step 1
+    (translateBuiltInNames). kv "welcome": 'pending' → 'done'. An install
+    from before the welcome gets it only if nothing was logged and every
+    button is a starting one (or the old "example_private").
+  - Start over (Settings → Setup file) = kv 'restart': same welcome with
+    "Cancel — keep my setup" on step 1; nothing changes until the last
+    step, which also puts back the starting exercises and routines. Private
+    buttons are ALWAYS kept (their real names are in the log; without the
+    button the screen would show them). The old "Reset config to default"
+    (config.js resetToDefault) is gone.
+  - Default configs: no "example_private" any more; every starting button
+    has a colour; order: how_i_feel, how_was_my_day, headache, panic,
+    medicine, blood_pressure, water_bottle, coffee.
+  - Settings = a menu; each part is its own page at #settings/<page>
+    (buttons, training, reminders, language, data, ai, file; app.js
+    currentRoute()). Header: ‹ back (history.back() after moving in the
+    app, else #settings), the page title (settingsPageTitle), smaller
+    title on such pages, ⓘ hidden there. List rows (.lrow): tap = edit,
+    eye = hide/show (toast says so), "Reorder" swaps the eyes for ↑ ↓.
+  - "Add a button" sheet (eventEditor.js openAddButtonSheet, from the
+    Events "+" tile, the empty Events card and Settings → Buttons): "Make
+    your own button" + Ready-made (starting buttons not there yet by id
+    or by name). Button editor order: name, colour (a new button gets a
+    colour no other button has), questions, More options (private,
+    start/finish), reminders; "Remove this button" only for a button with
+    no entries (one with entries is hidden instead, to keep its charts).
+  - Reminders page lists every "remind" of buttons and routines and opens
+    their editor; "Add a reminder" picks one and opens its editor with a
+    new time row.
+  - Events: today's date above the title (i18n longDate), the count bubble
+    only from 1 up (no rows of zeros), "+ Add a button" as the last tile,
+    a "No buttons yet" card with Add when there are none. Training start:
+    "Tap a routine…" hint, ▶ on each routine, "Edit exercises & routines"
+    → #settings/training.
+  - Icons: `icons.js` icon(name, cls) = inline SVG line icons (stroke =
+    text colour); class "flip" mirrors arrows in RTL. Use them for the
+    app's own controls (tabs, header, lists, sheets); emoji stay only as
+    content (mood faces, ⏰ in reminder texts).
+  - CSS building blocks: --accent-soft; .lrow/.lrow-main/.lrow-text/
+    .lrow-name/.lrow-sub/.lrow-end lists in a .card.list; .tile-ico
+    (--c = colour); .seg (segmented choice); .pill; .page-hint;
+    .list-head + .text-btn; .empty-card; .wl-* (welcome). Sheets have a
+    grab bar and slide up; checkbox rows (.check) are 48px tall.
+- About screen (`about.js`, route #about, not a tab — the header ⓘ on the
+  main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli
   help lines (ERAN 1201, MDA 101), the GitHub link, "Share this app"
   (navigator.share, else copy the link). The version shown is read from
@@ -280,8 +332,8 @@ Example:
   LICENSE (the user's call). README.md is written for the people the app
   is shared with (privacy, install, AI helper, he/ru sections) — keep it
   in step with features.
-- AI helper (`ai.js`, Settings → "Change with AI", and Language → "Add a
-  language with AI"). Asked for as "a prompt for any capable AI that edits
+- AI helper (`ai.js`, Settings → "Change with AI", and Language & dates →
+  "Add a language with AI"). Asked for as "a prompt for any capable AI that edits
   the setup file and translates it, so the app is in any language".
   - Setup prompt = format rules + the current config WITHOUT private
     events (privacy) and without "language". On paste, private events
@@ -321,12 +373,12 @@ Example:
   t('English text {var}', {var}) — the English text is the key, so a
   missing translation just shows English. New UI text MUST go through
   t() with he/ru added to DICT. Language: phone language on first run,
-  then Settings → Language (kv "ui_lang"). Hebrew sets dir="rtl"; CSS
+  then Settings → Language & dates (kv "ui_lang"). Hebrew sets dir="rtl"; CSS
   uses logical properties (inline-start/end, text-align: start) — keep
   it that way. Names typed by the user are never translated. Starting
   config per language: default_config.json / .he.json / .ru.json (same
   ids). Config validation errors stay English (they name JSON keys).
-  Settings → Layout: Automatic (Hebrew mirrors) / Left → right /
+  Settings → Language & dates → Layout: Automatic (Hebrew mirrors) / Left → right /
   Right → left (kv "ui_dir"). When the layout direction differs from
   the language's, <html> gets class "bidi-plain" so each text picks its
   own direction (unicode-bidi: plaintext) while the layout stays put.
@@ -336,7 +388,7 @@ Example:
   outside the US run "English (United States)"): month first only for
   English in a US time zone. i18n.js: dateLocale() (en-GB vs en-US for
   English, else the language), numericDate() (21/10/2026; ru 21.10.2026),
-  Settings → Language → Dates: Automatic (shows what it picked) /
+  Settings → Language & dates → Dates: Automatic (shows what it picked) /
   31/12/2026 / 12/31/2026 (kv "date_order"). Times are 24-hour everywhere
   (hourCycle h23 in Intl). Native date/time boxes write the PHONE's format,
   so they're pickerField()s (util.js): our text underneath, the native

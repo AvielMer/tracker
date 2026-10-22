@@ -209,11 +209,14 @@ export async function fetchDefaultFor(lang) {
 }
 
 // Loads the config to run with. Never throws.
-// Returns { config, errors, usingFallback }.
+// Returns { config, errors, usingFallback, firstRun }.
+// firstRun: there was no config yet (the welcome screen then lets the user
+// pick which of the starting buttons they want, see welcome.js).
 export async function loadConfig() {
   try {
     let text = await storage.getValue(KEY_TEXT);
-    if (text == null) {
+    const firstRun = text == null;
+    if (firstRun) {
       // First run: start from the neutral default shipped with the app.
       text = await fetchDefaultText();
       await storage.setValue(KEY_TEXT, text);
@@ -221,7 +224,7 @@ export async function loadConfig() {
     const res = parseConfigText(text);
     if (res.ok) {
       await storage.setValue(KEY_GOOD, res.config);
-      return { config: res.config, errors: [], usingFallback: false };
+      return { config: res.config, errors: [], usingFallback: false, firstRun };
     }
     const good = await storage.getValue(KEY_GOOD);
     return { config: good || EMPTY, errors: res.errors, usingFallback: true };
@@ -251,8 +254,13 @@ export async function getConfigText() {
   return (await storage.getValue(KEY_TEXT)) ?? configToText(EMPTY);
 }
 
-export async function resetToDefault() {
-  return saveConfigText(await fetchDefaultText());
+// The starting buttons shipped with the app, in the app's language: the
+// welcome screen and "Add a button" offer them as ready-made buttons.
+// Private ones are left out (a private button only makes sense with your
+// own name in it).
+export async function starterButtons() {
+  const def = JSON.parse(await fetchDefaultText());
+  return (def.events || []).filter((e) => e && !e.private);
 }
 
 // What to show ON SCREEN for an event. Private items show only their

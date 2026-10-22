@@ -12,6 +12,7 @@
 import * as storage from './storage.js';
 import { DAYS, eventLabel } from './config.js';
 import { getLang, t } from './i18n.js';
+import { icon } from './icons.js';
 import {
   esc, localDate, pickerField, wirePickerFields,
 } from './util.js';
@@ -28,6 +29,16 @@ const minutesOf = (hhmm) => {
 
 // "21:00, 08:30" — for the small ⏰ tags in lists.
 export const remindTimes = (item) => (item.remind || []).map((r) => r.time).join(', ');
+
+// "21:00 every day · 08:30 Mon, Wed" — for Settings → Reminders.
+export function remindText(item) {
+  return (item.remind || []).map((r) => {
+    const days = r.days && r.days.length < DAYS.length
+      ? weekOrder().filter((d) => r.days.includes(d)).map((d) => dayName(d, 'short')).join(', ')
+      : t('every day');
+    return `${r.time} ${days}`;
+  }).join(' · ');
+}
 
 // The latest reminder of an item whose time has come today: { time, at }.
 function currentSlot(remind, now) {
@@ -65,10 +76,11 @@ export function remindersHtml(state) {
   const due = dueReminders(state);
   if (!due.length) return '';
   return `<div class="reminders">${due.map((r) => `<div class="reminder" data-key="${esc(r.key)}" data-type="${r.type}" data-id="${esc(r.item.id)}">
-    <span class="rem-what"><span class="rem-time">⏰ ${esc(r.time)}</span>
+    <span class="rem-ico">${icon('bell')}</span>
+    <span class="rem-what"><span class="rem-time">${esc(r.time)}</span>
       <b>${esc(r.type === 'event' ? eventLabel(r.item) : r.item.name)}</b></span>
-    <button class="btn primary" data-rem-go>${r.type === 'event' ? t('Log now') : `▶ ${t('Start')}`}</button>
-    <button class="ibtn" data-rem-x aria-label="${esc(t('Not now'))}">✕</button>
+    <button class="btn primary" data-rem-go>${r.type === 'event' ? t('Log now') : `${icon('play')}<span>${t('Start')}</span>`}</button>
+    <button class="ibtn ghost" data-rem-x aria-label="${esc(t('Not now'))}">${icon('close')}</button>
   </div>`).join('')}</div>`;
 }
 
@@ -93,11 +105,11 @@ export async function dismissReminder(state, key) {
 // Weeks start on Sunday in Hebrew and Arabic, on Monday elsewhere.
 const weekOrder = () => (['he', 'ar'].includes(getLang().split('-')[0]) ? DAYS : [...DAYS.slice(1), DAYS[0]]);
 
-function dayLetter(d) {
+function dayName(d, weekday = 'narrow') {
   // 7 Jan 2024 was a Sunday.
   const date = new Date(2024, 0, 7 + DAYS.indexOf(d));
   try {
-    return new Intl.DateTimeFormat(getLang(), { weekday: 'narrow' }).format(date);
+    return new Intl.DateTimeFormat(getLang(), { weekday }).format(date);
   } catch {
     return d.slice(0, 1).toUpperCase();
   }
@@ -107,13 +119,13 @@ function remindRow(r = { time: '21:00' }) {
   const on = new Set(r.days || DAYS);
   return `<div class="rrow">
     ${pickerField('time', `data-rtime aria-label="${esc(t('Time'))}"`, r.time, 'rtime')}
-    <div class="rdays">${weekOrder().map((d) => `<button class="rday${on.has(d) ? ' on' : ''}" data-day="${d}" aria-pressed="${on.has(d)}">${esc(dayLetter(d))}</button>`).join('')}</div>
+    <div class="rdays">${weekOrder().map((d) => `<button class="rday${on.has(d) ? ' on' : ''}" data-day="${d}" aria-pressed="${on.has(d)}">${esc(dayName(d))}</button>`).join('')}</div>
     <button class="ibtn" data-rdel aria-label="${esc(t('Remove'))}">✕</button>
   </div>`;
 }
 
 export function remindEditorHtml(list) {
-  return `<div class="label" style="margin-top:12px">⏰ ${t('Reminders')}</div>
+  return `<div class="label sec">⏰ ${t('Reminders')}</div>
     <div data-rlist>${(list || []).map(remindRow).join('')}</div>
     <button class="btn" data-radd>${t('+ Add a reminder')}</button>
     <p class="small muted">${esc(t('REMIND_WEB_NOTE'))}</p>`;

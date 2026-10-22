@@ -19,7 +19,8 @@ of their wellbeing. There's no account and no ads, and it costs nothing.
   There is no account and no server, and nothing is sent anywhere.
 - **Private buttons:** the screen shows only a short label (for example
   "X"). The real name appears only in the log and in exports.
-- **Make a backup now and then:** Settings → Full backup (JSON). If the
+- **Make a backup now and then:** Settings → Backup & export → Full
+  backup (JSON). If the
   browser's data is cleared or the phone is lost, the data is gone. A
   backup can be restored on any phone.
 - The AI helper (below) never sends anything by itself. You copy a prompt
@@ -34,6 +35,13 @@ of their wellbeing. There's no account and no ads, and it costs nothing.
    Long-press its icon for shortcuts ("Log headache", "Start training").
 
 On an iPhone: open the link in Safari → Share → **Add to Home Screen**.
+
+## First time
+
+The first time you open the app, it asks what you want to keep track of.
+Pick a few (how you feel, headaches, medicine, blood pressure…). Each one
+becomes a big button. You can add your own buttons any time with **+ Add a
+button** at the end of the Events screen, and change anything in Settings.
 
 ## What it does
 
@@ -97,7 +105,7 @@ In the app, go to **Settings → Change with AI**.
 ## The setup file (for advanced users)
 
 All buttons, exercises and routines come from one JSON file. Find it under
-Settings → Config file → Export / Import. A broken file never breaks the
+Settings → Setup file → Export / Import. A broken file never breaks the
 app: it keeps the last good setup and shows what's wrong. The starting
 setup is [`www/default_config.json`](www/default_config.json), and the
 full format is described in [`CLAUDE.md`](CLAUDE.md).
@@ -153,8 +161,10 @@ David Adom **101**.
 - **פתיחה:** https://avielmer.github.io/tracker/
 - **התקנה (אנדרואיד):** פתח את הקישור ב-Chrome ← ⋮ ← "הוספה למסך הבית" או
   "התקנת אפליקציה". האפליקציה עובדת גם בלי אינטרנט.
+- **בפעם הראשונה:** האפליקציה שואלת אחרי מה תרצה לעקוב. כל מה שתבחר יהפוך
+  לכפתור. אפשר להוסיף כפתורים משלך בכל זמן עם "הוספת כפתור".
 - **פרטיות:** כל המידע נשאר בטלפון שלך. אין חשבון, ושום דבר לא נשלח לשום
-  מקום. כדאי לגבות מדי פעם: הגדרות ← גיבוי מלא (JSON).
+  מקום. כדאי לגבות מדי פעם: הגדרות ← גיבוי וייצוא ← גיבוי מלא (JSON).
 - **שפה:** עברית, אנגלית ורוסית. לכל שפה אחרת: הגדרות ← שינויים בעזרת AI.
 - **שינוי כפתורים בעזרת AI:** הגדרות ← שינויים בעזרת AI ← העתק את הפרומפט,
   הדבק אותו ב-Claude או ב-ChatGPT וכתוב מה אתה רוצה. אחר כך הדבק את התשובה
@@ -172,9 +182,12 @@ David Adom **101**.
 - **Открыть:** https://avielmer.github.io/tracker/
 - **Установка (Android):** откройте ссылку в Chrome → ⋮ → «Добавить на
   главный экран» или «Установить приложение». Работает без интернета.
+- **В первый раз:** приложение спросит, что вы хотите отслеживать. Каждый
+  выбранный пункт станет кнопкой. Свои кнопки можно добавить в любой момент
+  через «Новая кнопка».
 - **Приватность:** все данные остаются на вашем телефоне. Нет аккаунта,
   ничего никуда не отправляется. Время от времени делайте копию: Настройки
-  → Полная копия (JSON).
+  → Копия и экспорт → Полная копия (JSON).
 - **Язык:** русский, иврит, английский. Любой другой язык: Настройки →
   Изменить с помощью ИИ.
 - **Важно:** приложение не даёт медицинских советов. Если вы в опасности

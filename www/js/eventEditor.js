@@ -2,9 +2,10 @@
 // after a tap. Everything ends up in the config, nothing is hardcoded.
 
 import {
-  COLORS, eventLabel, makeId, saveConfig,
+  COLORS, eventLabel, makeId, saveConfig, starterButtons,
 } from './config.js';
-import { remindEditorHtml, wireRemindEditor } from './reminders.js';
+import { remindEditorHtml, remindTimes, wireRemindEditor } from './reminders.js';
+import { icon } from './icons.js';
 import { esc } from './util.js';
 import { t } from './i18n.js';
 
@@ -21,6 +22,68 @@ const ASK_OPTIONS = [
   ['note', 'ASK_note'],
 ];
 
+// What a button does after a tap, in a few words ("Asks: how strong, how
+// long"), so a list of buttons explains itself. Labels are translation keys.
+const ASK_SHORT = {
+  mood: 'how you feel',
+  intensity: 'how strong',
+  duration_min: 'how long',
+  choice: 'which one',
+  amount: 'how much',
+  count: 'how many',
+  bp: 'blood pressure and pulse',
+  note: 'a note',
+};
+
+export function describeButton(ev) {
+  const what = (ev.ask || []).map((a) => (a === 'measures'
+    ? (ev.measures || []).map((m) => m.name).join(', ') // names you typed: as written
+    : t(ASK_SHORT[a] || a))).filter(Boolean);
+  const parts = [];
+  if (ev.span) parts.push(t('Start / finish'));
+  parts.push(what.length ? t('Asks: {what}', { what: what.join(', ') }) : t('Just one tap'));
+  if (ev.remind) parts.push(`⏰ ${remindTimes(ev)}`);
+  return parts.join(' · ');
+}
+
+// "+ Add a button" (Events screen tile, Settings → Buttons): make your own,
+// or one tap on a ready-made one (the app's starting buttons you don't have
+// yet). WHY offered here: new users thought the starting buttons were
+// theirs; now they're suggestions you pick, here and on the welcome screen.
+export async function openAddButtonSheet(ctx) {
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const have = ctx.state.config.events;
+  let ready = [];
+  try {
+    ready = (await starterButtons()).filter((s) => !have.some((e) => e.id === s.id || norm(e.name) === norm(s.name)));
+  } catch { /* offline on a first visit: just "make your own" */ }
+  const root = ctx.openSheet(`
+    <div class="sheet-head"><b>${t('Add a button')}</b>
+      <button class="ibtn ghost" data-act="close" aria-label="${esc(t('Close'))}">${icon('close')}</button></div>
+    <button class="btn primary wide" data-act="own">${icon('edit')}<span>${t('Make your own button')}</span></button>
+    ${ready.length ? `<div class="label sec-label">${t('Ready-made')}</div>
+    <div class="card list">${ready.map((ev) => `
+      <button class="lrow-main" data-ready="${esc(ev.id)}">
+        <span class="dot" style="--c:${ev.color || '#8b949e'}"></span>
+        <span class="lrow-text"><span class="lrow-name">${esc(ev.name)}</span><span class="lrow-sub">${esc(describeButton(ev))}</span></span>
+        <span class="lrow-end">${icon('plus')}</span>
+      </button>`).join('')}</div>` : ''}`);
+  root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
+  root.querySelector('[data-act="own"]').addEventListener('click', () => openEventEditor(ctx, null));
+  root.querySelectorAll('[data-ready]').forEach((b) => b.addEventListener('click', async () => {
+    const item = JSON.parse(JSON.stringify(ready.find((r) => r.id === b.dataset.ready)));
+    if (ctx.state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+    const cfg = JSON.parse(JSON.stringify(ctx.state.config));
+    if (cfg.events.some((e) => e.id === item.id)) return;
+    cfg.events.push(item);
+    const res = await saveConfig(cfg);
+    if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
+    ctx.closeSheet();
+    await ctx.reloadConfig();
+    ctx.toast(t('Added "{name}"', { name: item.name }));
+  }));
+}
+
 function measureRow(m = {}) {
   return `<div class="mdef" data-id="${esc(m.id || '')}">
     <input class="input" data-mn value="${esc(m.name || '')}" placeholder="${esc(t('Name, e.g. Weight'))}">
@@ -34,22 +97,28 @@ const splitList = (s) => s.split(',').map((x) => x.trim()).filter(Boolean);
 // ev = existing event to edit, or null to add a new one.
 export function openEventEditor(ctx, ev) {
   const isNew = !ev;
-  const cur = ev || { name: '', ask: [] };
+  // A new button gets a colour no other button has yet, so the Events
+  // screen stays easy to tell apart (any colour, or none, can be picked).
+  const used = new Set(ctx.state.config.events.map((e) => (e.color || '').toLowerCase()));
+  const cur = ev || { name: '', ask: [], color: (COLORS.find(([hex]) => !used.has(hex)) || COLORS[0])[0] };
+  // A button that was never used can be removed; one with entries is hidden
+  // instead, so its history keeps its charts.
+  const removable = !isNew && !ctx.state.entries.some((e) => e.item_id === ev.id);
   const ask = new Set(cur.ask || []);
+  // Most-used first: name, colour, questions. Private and start/finish are
+  // rarer, so they wait under "More options".
   const root = ctx.openSheet(`
-    <div class="sheet-head"><b>${isNew ? t('Add a button') : t('Edit button')}</b></div>
+    <div class="sheet-head"><b>${isNew ? t('Add a button') : t('Edit button')}</b>
+      <button class="ibtn ghost" data-act="cancel" aria-label="${esc(t('Close'))}">${icon('close')}</button></div>
     <div class="label">${t('Name (saved in the log)')}</div>
     <input class="input" data-f="name" value="${esc(cur.name)}" placeholder="${esc(t('e.g. Medicine'))}">
-    <label class="check"><input type="checkbox" data-f="private" ${cur.private ? 'checked' : ''}> ${t('Private — show only a short label on screen')}</label>
-    <input class="input" data-f="label" value="${esc(cur.displayLabel || '')}" placeholder="${esc(t('Label shown on screen (e.g. X)'))}" ${cur.private ? '' : 'hidden'}>
-    <label class="check"><input type="checkbox" data-f="span" ${cur.span ? 'checked' : ''}> ${esc(t('SPAN_OPTION'))}</label>
 
-    <div class="label" style="margin-top:12px">${t('Color')}</div>
+    <div class="label sec">${t('Color')}</div>
     <div class="swatches">
       <button class="swatch none${cur.color ? '' : ' on'}" data-color="" aria-label="${esc(t('No color'))}">✕</button>
       ${COLORS.map(([hex, nm]) => `<button class="swatch${cur.color?.toLowerCase() === hex ? ' on' : ''}" data-color="${hex}" style="--c:${hex}" aria-label="${nm}"></button>`).join('')}
     </div>
-    <div class="label" style="margin-top:12px">${t('After a tap, ask:')}</div>
+    <div class="label sec">${t('After a tap, ask:')}</div>
     ${ASK_OPTIONS.map(([k, text]) => `
       <label class="check"><input type="checkbox" data-ask="${k}" ${ask.has(k) ? 'checked' : ''}> ${esc(t(text))}</label>
       ${k === 'choice' ? `<div class="ask-cfg" data-cfg="choice" ${ask.has('choice') ? '' : 'hidden'}>
@@ -64,14 +133,30 @@ export function openEventEditor(ctx, ev) {
         <button class="btn" data-madd>${t('+ Add a number')}</button></div>` : ''}
     `).join('')}
     <p class="small muted">${esc(t('ONE_QUESTION_HINT'))}</p>
+    <div class="label sec">${t('More options')}</div>
+    <label class="check"><input type="checkbox" data-f="private" ${cur.private ? 'checked' : ''}> ${t('Private — show only a short label on screen')}</label>
+    <input class="input" data-f="label" value="${esc(cur.displayLabel || '')}" placeholder="${esc(t('Label shown on screen (e.g. X)'))}" ${cur.private ? '' : 'hidden'}>
+    <label class="check"><input type="checkbox" data-f="span" ${cur.span ? 'checked' : ''}> ${esc(t('SPAN_OPTION'))}</label>
     ${remindEditorHtml(cur.remind)}
     <div class="sheet-actions">
       <button class="btn" data-act="cancel">${t('Cancel')}</button>
       <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
-    </div>`);
+    </div>
+    ${removable ? `<button class="linklike danger" data-act="remove">${icon('trash')}<span>${t('Remove this button')}</span></button>` : ''}`);
 
   const f = (k) => root.querySelector(`[data-f="${k}"]`);
   let color = cur.color || '';
+  root.querySelector('[data-act="remove"]')?.addEventListener('click', async () => {
+    if (!confirm(t('Remove "{name}"? It was never used, so nothing is lost.', { name: eventLabel(ev) }))) return;
+    if (ctx.state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+    const cfg = JSON.parse(JSON.stringify(ctx.state.config));
+    cfg.events = cfg.events.filter((x) => x.id !== ev.id);
+    const res = await saveConfig(cfg);
+    if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
+    ctx.closeSheet();
+    await ctx.reloadConfig();
+    ctx.toast(t('Removed'));
+  });
   root.querySelectorAll('.swatch').forEach((sw) => sw.addEventListener('click', () => {
     root.querySelectorAll('.swatch').forEach((x) => x.classList.remove('on'));
     sw.classList.add('on');
@@ -88,7 +173,7 @@ export function openEventEditor(ctx, ev) {
   root.querySelector('[data-mlist]').addEventListener('click', (e) => {
     if (e.target.closest('[data-mdel]')) e.target.closest('.mdef').remove();
   });
-  root.querySelector('[data-act="cancel"]').addEventListener('click', () => ctx.closeSheet());
+  root.querySelectorAll('[data-act="cancel"]').forEach((b) => b.addEventListener('click', () => ctx.closeSheet()));
   const readRemind = wireRemindEditor(root);
 
   root.querySelector('[data-act="save"]').addEventListener('click', async () => {
