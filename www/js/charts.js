@@ -11,11 +11,18 @@
 
 import { esc } from './util.js';
 
-// The card surface and its chart chrome (see app.css), and the series
-// colours — checked for contrast and colour-blind separation against this
-// surface with the dataviz validator (blue, orange, aqua; in this order).
-const INK = { grid: '#2e333d', base: '#454c58', muted: '#9aa0aa', text: '#e8eaed', surface: '#1c1f26' };
+// The series colours — checked for contrast and colour-blind separation
+// with the dataviz validator against both card surfaces: the dark theme's
+// #1c1f26 and the Girl theme's white (blue, orange, aqua; in this order).
 export const SERIES = ['#3987e5', '#d95926', '#199e70'];
+
+// The chart chrome follows the theme: grid, baseline and the ring around
+// dots are CSS variables in app.css, read each time a chart is drawn.
+function ink() {
+  const css = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+  return { grid: v('--ch-grid', '#2e333d'), base: v('--ch-base', '#454c58'), surface: v('--card', '#1c1f26') };
+}
 
 const H = { line: 150, small: 112 };
 const M = { top: 12, bottom: 24, left: 34 };
@@ -50,6 +57,7 @@ function barPath(x, y, w, h) {
 //   yMin, yMax, yTicks, yTickLabel(v), fmt(y), xFmt(ms) — date in the readout,
 //   xAxisFmt(ms) — the 3 dates under the chart }
 export function timeChart(spec) {
+  const INK = ink();
   const W = spec.width;
   const Hh = spec.small ? H.small : H.line;
   // Room on the right for the last values written at the line ends.
@@ -139,6 +147,7 @@ export function timeChart(spec) {
 // A column chart over time buckets.
 // spec: { width, small, buckets: [{ label, axis, value }], color, fmt(v), label }
 export function columnChart(spec) {
+  const INK = ink();
   const W = spec.width;
   const Hh = spec.small ? H.small : H.line;
   const pw = W - M.left - 12;
@@ -189,6 +198,7 @@ export function columnChart(spec) {
 // a readout (crosshair + highlighted marks + values). Names in the readout
 // are set with textContent: they can be names the user typed.
 function mount(W, Hh, inner, count, readout, label, nearest) {
+  const INK = ink();
   const box = document.createElement('div');
   box.className = 'chart';
   box.tabIndex = 0;
