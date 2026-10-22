@@ -34,6 +34,13 @@
   --chip-on-sub: #e3eeff;
   --ch-grid: #2e333d;
   --ch-base: #454c58;
+  /* Cycle tab calendar (cycle.js): period, fertile days, PMS days. Checked
+     with the dataviz validator on the card colour (colour-blind safe, >= 3:1);
+     white numbers on the period colour 4.7:1. */
+  --cy-period: #c2457a;
+  --cy-on-period: #fff;
+  --cy-fertile: #3987e5;
+  --cy-pms: #c98500;
   --nav-h: 66px;
   color-scheme: dark;
 }
@@ -722,6 +729,10 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
   --chip-on-sub: #ffe3ef;
   --ch-grid: #f1e3e9;
   --ch-base: #d8c2cc;
+  --cy-period: #cc356e;
+  --cy-on-period: #fff;
+  --cy-fertile: #2a78d6;
+  --cy-pms: #c98500;
   color-scheme: light;
 }
 /* Watercolour blobs and two flower sprays, fixed behind everything.
@@ -874,3 +885,78 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .ldef-top { display: flex; gap: 6px; align-items: center; }
 .ldef-top .input { margin: 4px 0; }
 .ldef textarea { resize: vertical; min-height: 64px; }
+
+/* --- Cycle tab (cycle.js) --- */
+.cy-hero { padding: 18px 16px 16px; }
+.cy-big { font-size: 26px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.cy-sub { color: var(--muted); margin-top: 4px; font-size: 15px; }
+.cy-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.cy-pills .pill {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 4px 12px;
+  border-radius: 16px; font-size: 14px; font-weight: 600; color: var(--text); background: var(--card2); border-color: transparent;
+}
+.cy-chance-high { background: color-mix(in srgb, var(--cy-fertile) 26%, var(--card)) !important; }
+.cy-chance-medium { background: color-mix(in srgb, var(--cy-fertile) 14%, var(--card)) !important; }
+.cy-note { margin: 12px 0 0; line-height: 1.5; }
+.cy-actions { display: grid; gap: 10px; margin-top: 16px; }
+.cy-actions .btn { min-height: 54px; }
+
+.cy-cal { padding: 10px 10px 12px; }
+.cy-cal-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.cy-month { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.cy-month b { font-size: 17px; }
+.cy-month b::first-letter { text-transform: uppercase; }
+.cy-month .text-btn { font-size: 13px; min-height: 28px; }
+.cy-wd, .cy-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; text-align: center; }
+.cy-wd span { font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 0; }
+.cy-d {
+  position: relative; aspect-ratio: 1; min-height: 38px; width: 100%; max-width: 48px; justify-self: center;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 2px solid transparent; border-radius: 50%; background: none;
+  color: var(--text); font: inherit; font-size: 15px; font-variant-numeric: tabular-nums;
+}
+.cy-d.blank { visibility: hidden; }
+.cy-d:active { background: var(--card2); }
+.cy-d.c-per { background: var(--cy-period); color: var(--cy-on-period); font-weight: 700; }
+.cy-d.c-exp { border: 2px dashed var(--cy-period); background: color-mix(in srgb, var(--cy-period) 10%, transparent); }
+.cy-d.c-fer { background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); }
+.cy-d.c-ovu { background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); border-color: var(--cy-fertile); font-weight: 700; }
+/* PMS: a short bar under the number; something logged: a dot above it. */
+.cy-d.c-pms::after {
+  content: ''; position: absolute; bottom: 3px; left: 32%; right: 32%; height: 3px; border-radius: 2px; background: var(--cy-pms);
+}
+.cy-d.c-has::before {
+  content: ''; position: absolute; top: 3px; left: calc(50% - 2.5px); width: 5px; height: 5px; border-radius: 50%; background: var(--muted);
+}
+.cy-d.c-per.c-has::before { background: var(--cy-on-period); }
+.cy-d.c-today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text); font-weight: 800; }
+.cy-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 12px 4px 0; font-size: 13px; color: var(--muted); }
+.cy-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+.cy-tap { margin: 8px 4px 0; }
+.cy-sw { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid transparent; }
+.cy-sw.c-per { background: var(--cy-period); }
+.cy-sw.c-exp { border: 2px dashed var(--cy-period); }
+.cy-sw.c-fer { background: color-mix(in srgb, var(--cy-fertile) 40%, transparent); }
+.cy-sw.c-ovu { border-color: var(--cy-fertile); background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); }
+.cy-sw.c-pms { width: 14px; height: 4px; border: 0; border-radius: 2px; background: var(--cy-pms); }
+.cy-sw.c-has { width: 6px; height: 6px; border: 0; background: var(--muted); }
+.cy-tag .cy-sw:not([class*="c-"]) { display: none; }
+
+.cy-coming .cy-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.cy-coming .cy-row:first-child { border-top: 0; }
+.cy-row-text { flex: 1; min-width: 0; }
+.cy-row-text span { display: block; color: var(--text); }
+.cy-row-text small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.cy-rel { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.cy-stats { display: flex; gap: 28px; margin-bottom: 6px; }
+.cy-stat b { display: block; font-size: 22px; }
+.cy-stat span { color: var(--muted); font-size: 13px; }
+.cy-pat + .cy-pat { margin-top: 12px; }
+.cy-pat-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.cy-pat-item { padding: 6px 12px; border-radius: 14px; background: var(--card2); font-weight: 600; font-size: 14px; }
+.cy-pat-item small { color: var(--muted); font-weight: 500; }
+.cy-settings { margin-top: 18px; }
+.cy-disclaimer { margin: 12px 6px 0; line-height: 1.5; }
+.cy-day-acts { display: grid; gap: 8px; margin-top: 16px; }
+.cy-pick { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.cy-set .label-block { margin-top: 4px; }

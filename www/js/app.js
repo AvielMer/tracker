@@ -9,8 +9,10 @@ import { renderAbout } from './about.js';
 import { renderStats } from './stats.js';
 import { renderSettings, settingsPageTitle } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
+import { renderCycle } from './cycle.js';
 import { initWelcome, renderWelcome } from './welcome.js';
 import { applyThemeHint, initTheme } from './theme.js';
+import { initTabs, TAB_INFO, visibleTabs } from './tabs.js';
 import { icon } from './icons.js';
 import { $, esc } from './util.js';
 import {
@@ -23,6 +25,7 @@ applyThemeHint();
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
+  cycle: { title: 'Cycle', render: renderCycle },
   training: { title: 'Training', render: renderTraining },
   log: { title: 'Log', render: renderLog },
   stats: { title: 'Stats', render: renderStats },
@@ -30,8 +33,9 @@ const SCREENS = {
   // Not a tab: opened from the ⓘ in the header and from Settings.
   about: { title: 'About', render: renderAbout, tab: 'settings' },
 };
-// The tabs at the bottom, with their icons (icons.js).
-const TABS = [['events', 'grid'], ['training', 'dumbbell'], ['log', 'list'], ['stats', 'chart'], ['settings', 'sliders']];
+// The tabs at the bottom: the ones chosen in Settings → Tabs (tabs.js),
+// then Settings.
+const navTabs = () => [...visibleTabs(state.config), 'settings'];
 
 const state = {
   config: { events: [], exercises: [], routines: [] },
@@ -46,9 +50,19 @@ const ctx = { state, toast, openSheet, closeSheet, refresh, reloadConfig, reload
 
 // "#settings/buttons" → { name: 'settings', sub: 'buttons' }: a Settings
 // page has its own address, so the phone's Back button returns to the menu.
+// No address: the first tab (Settings → Tabs decides which).
 function currentRoute() {
   const [name, sub = ''] = location.hash.slice(1).split('/');
-  return SCREENS[name] ? { name, sub } : { name: 'events', sub: '' };
+  return SCREENS[name] ? { name, sub } : { name: navTabs()[0], sub: '' };
+}
+
+// The tab bar, redrawn only when the tabs change.
+let navKey = '';
+function drawNav() {
+  const tabs = navTabs();
+  if (tabs.join() === navKey) return;
+  navKey = tabs.join();
+  $('.nav').innerHTML = tabs.map((key) => `<a href="#${key}" data-tab="${key}"><span class="ico">${icon(TAB_INFO[key][1])}</span><span class="lbl"></span></a>`).join('');
 }
 
 // True once the user moved between screens: then ‹ (back) returns to where
@@ -62,13 +76,14 @@ function refresh() {
     return;
   }
   const { name, sub } = currentRoute();
+  drawNav();
   document.querySelectorAll('.nav a').forEach((a) => {
     const key = a.dataset.tab;
     a.classList.toggle('on', key === (SCREENS[name].tab || name));
     a.querySelector('.lbl').textContent = t(SCREENS[key].title);
   });
   // Header: a Settings page or About gets ‹ back and its own title; the
-  // Events screen shows today's date above its title.
+  // Events and Cycle screens show today's date above their title.
   const pageTitle = name === 'settings' ? settingsPageTitle(sub) : null;
   $('#title').textContent = t(pageTitle || SCREENS[name].title);
   const back = $('#back-btn');
@@ -76,8 +91,9 @@ function refresh() {
   $('.top').classList.toggle('sub', !back.hidden);
   back.setAttribute('aria-label', t('Back'));
   const eyebrow = $('#eyebrow');
-  eyebrow.hidden = name !== 'events';
-  eyebrow.textContent = name === 'events' ? longDate() : '';
+  const dated = name === 'events' || name === 'cycle';
+  eyebrow.hidden = !dated;
+  eyebrow.textContent = dated ? longDate() : '';
   $('#about-btn').setAttribute('aria-label', t('About this app'));
   // On a page with ‹ the title needs the room (About is in the Settings menu).
   $('#about-btn').hidden = !back.hidden;
@@ -193,7 +209,6 @@ function registerServiceWorker() {
 }
 
 async function start() {
-  $('.nav').innerHTML = TABS.map(([key, ic]) => `<a href="#${key}" data-tab="${key}"><span class="ico">${icon(ic)}</span><span class="lbl"></span></a>`).join('');
   $('#back-btn').innerHTML = icon('back', 'flip');
   $('#about-btn').innerHTML = icon('info');
   $('#back-btn').addEventListener('click', (e) => {
@@ -212,6 +227,7 @@ async function start() {
 
   await initLang();
   await initTheme();
+  await initTabs();
   try {
     state.entries = await storage.listEntries();
     state.remindersDismissed = await loadDismissed();
@@ -237,7 +253,8 @@ async function start() {
     if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome) reloadConfig();
   });
   setInterval(() => {
-    if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome && currentRoute().name === 'events') refresh();
+    if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome
+      && ['events', 'cycle'].includes(currentRoute().name)) refresh();
   }, 60000);
 }
 
