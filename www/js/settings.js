@@ -11,7 +11,7 @@ import { translateBuiltInNames } from './library.js';
 import { parseBackup, toBackup, toCSV } from './exporter.js';
 import { downloadFile, esc, localDate, readFileText } from './util.js';
 import {
-  getDirPref, getLang, languages, setDirPref, setLang, t,
+  autoMonthFirst, getDateOrder, getDirPref, getLang, languages, setDateOrder, setDirPref, setLang, t,
 } from './i18n.js';
 import { openSetupAI, openTranslateAI } from './ai.js';
 import { remindTimes } from './reminders.js';
@@ -43,6 +43,9 @@ export async function renderSettings(el, ctx) {
   <div class="lang-row">${[['auto', 'Automatic'], ['ltr', 'Left → right'], ['rtl', 'Right → left']].map(([v, lbl]) =>
     `<button class="btn${v === getDirPref() ? ' primary' : ''}" data-dir="${v}">${esc(t(lbl))}</button>`).join('')}</div>
   <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
+  <div class="label" style="margin-top:12px">${t('Dates')}</div>
+  <div class="lang-row">${[['auto', `${t('Automatic')} (${autoMonthFirst() ? '12/31' : '31/12'})`], ['dmy', '31/12/2026'], ['mdy', '12/31/2026']].map(([v, lbl]) =>
+    `<button class="btn${v === getDateOrder() ? ' primary' : ''}" data-date-order="${v}">${esc(lbl)}</button>`).join('')}</div>
   <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: languages().find(([c]) => c === getLang())?.[1] || getLang() }))}</button>
   <p class="small muted">${esc(t('TRANSLATE_HINT'))}</p>
 
@@ -123,6 +126,10 @@ export async function renderSettings(el, ctx) {
   }));
   el.querySelectorAll('[data-dir]').forEach((b) => b.addEventListener('click', async () => {
     await setDirPref(b.dataset.dir);
+    ctx.refresh();
+  }));
+  el.querySelectorAll('[data-date-order]').forEach((b) => b.addEventListener('click', async () => {
+    await setDateOrder(b.dataset.dateOrder);
     ctx.refresh();
   }));
 

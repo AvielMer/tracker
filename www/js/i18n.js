@@ -24,6 +24,8 @@ let wanted = 'en';
 let dirPref = 'auto';
 // The added language: { code, name, dir, texts, skipped } or null.
 let pack = null;
+// Date order: 'auto', 'dmy' (31/12/2026) or 'mdy' (12/31/2026), kv "date_order".
+let dateOrder = 'auto';
 
 export function getLang() { return lang; }
 export function getDirPref() { return dirPref; }
@@ -40,6 +42,7 @@ export async function initLang() {
   try {
     saved = await storage.getValue('ui_lang');
     dirPref = (await storage.getValue('ui_dir')) || 'auto';
+    dateOrder = (await storage.getValue('date_order')) || 'auto';
   } catch { /* use defaults */ }
   const phone = (navigator.language || 'en').slice(0, 2).toLowerCase();
   wanted = saved || (phone === 'iw' ? 'he' : phone);
@@ -136,12 +139,54 @@ export function t(key, vars = {}) {
   return s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 }
 
-// Dates in the current language ("Fri 16 Oct", "пт, 16 окт.", "יום ו׳, 16 באוק׳").
+// --- dates -------------------------------------------------------------------
+// Dates follow where the phone is, not only the app's language (found by
+// the user: English in Israel showed 10/21/2026; there it's 21/10/2026).
+// Only the US writes month first. WHY the time zone and not the phone's
+// language: many phones outside the US run "English (United States)".
+const US_TZ = /^(America\/(New_York|Detroit|Kentucky\/|Indiana\/|Chicago|Menominee|North_Dakota\/|Denver|Boise|Phoenix|Los_Angeles|Anchorage|Juneau|Sitka|Metlakatla|Yakutat|Nome|Adak)|Pacific\/Honolulu|US\/)/;
+
+export function getDateOrder() { return dateOrder; }
+
+export async function setDateOrder(v) {
+  dateOrder = ['dmy', 'mdy'].includes(v) ? v : 'auto';
+  await storage.setValue('date_order', dateOrder);
+}
+
+// What "Automatic" means on this phone: month first only for English in
+// a US time zone.
+export function autoMonthFirst() {
+  if (lang.split('-')[0] !== 'en') return false;
+  let tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* unknown */ }
+  return US_TZ.test(tz);
+}
+
+export function monthFirst() {
+  return dateOrder === 'auto' ? autoMonthFirst() : dateOrder === 'mdy';
+}
+
+// The locale dates are written in: the app's language — for English, the
+// British forms (21 Oct, 21/10) unless month first.
+export function dateLocale() {
+  if (lang.split('-')[0] === 'en') return monthFirst() ? 'en-US' : 'en-GB';
+  return lang;
+}
+
+// "21/10/2026" (or 10/21/2026) from "2026-10-21"; Russian writes 21.10.2026.
+export function numericDate(iso) {
+  const [y, m, d] = String(iso).split('-');
+  if (!d) return String(iso);
+  const sep = lang.split('-')[0] === 'ru' ? '.' : '/';
+  return monthFirst() ? `${m}${sep}${d}${sep}${y}` : `${d}${sep}${m}${sep}${y}`;
+}
+
+// Dates with a weekday ("Wed 21 Oct", "пт, 16 окт.", "יום ו׳, 16 באוק׳").
 export function fmtDay(date, withYear) {
   const opts = { weekday: 'short', day: 'numeric', month: 'short' };
   if (withYear) opts.year = 'numeric';
   try {
-    return new Intl.DateTimeFormat(lang, opts).format(date);
+    return new Intl.DateTimeFormat(dateLocale(), opts).format(date);
   } catch {
     return date.toDateString();
   }
@@ -627,5 +672,6 @@ const DICT = {
   'Table': { he: 'טבלה', ru: 'Таблица' },
   'Chart': { he: 'גרף', ru: 'График' },
   'Nothing logged in this period.': { he: 'לא נרשם כלום בתקופה הזו.', ru: 'За этот период ничего не записано.' },
+  'Dates': { he: 'תאריכים', ru: 'Даты' },
   'ABOUT_STATS': { en: 'charts of what you logged: blood pressure, weight, mood, how often each button was used, and your training, for anything from 7 days to a year. Tap a chart to read its numbers.', he: 'גרפים של מה שרשמת: לחץ דם, משקל, מצב רוח, כמה פעמים השתמשת בכל כפתור, והאימונים, מ-7 ימים ועד שנה. הקשה על גרף מראה את המספרים.', ru: 'графики того, что вы записали: давление, вес, самочувствие, как часто нажималась каждая кнопка, и тренировки — от 7 дней до года. Нажмите на график, чтобы увидеть числа.' },
 };
