@@ -178,6 +178,30 @@ export function validateConfig(obj) {
     });
   });
 
+  // "cycle": the Cycle tab's settings (cycle.js / cycleCalc.js):
+  // { "period": id of the start/finish button marking period days,
+  //   "diary": id of a diary button (optional), "length" / "periodLength":
+  //   the usual cycle / period length in days, used until the log has its
+  //   own, "fertile" / "pms": show those days (default true) }.
+  // The ids aren't checked against the buttons on purpose: removing a
+  // button must not make the setup invalid — the tab then asks again.
+  if (obj.cycle != null) {
+    const c = obj.cycle;
+    if (typeof c !== 'object' || Array.isArray(c)) {
+      errors.push('"cycle" must look like { "period": "period", "diary": "period_diary" }');
+    } else {
+      for (const k of ['period', 'diary']) {
+        if (k in c && c[k] !== null && !(typeof c[k] === 'string' && c[k])) errors.push(`cycle: "${k}" must be the id of a button`);
+      }
+      if ('length' in c && !(Number.isInteger(c.length) && c.length >= 20 && c.length <= 45)) errors.push('cycle: "length" must be a whole number of days from 20 to 45');
+      if ('periodLength' in c && !(Number.isInteger(c.periodLength) && c.periodLength >= 1 && c.periodLength <= 12)) errors.push('cycle: "periodLength" must be a whole number of days from 1 to 12');
+      for (const k of ['fertile', 'pms']) {
+        if (k in c && typeof c[k] !== 'boolean') errors.push(`cycle: "${k}" must be true or false`);
+      }
+      out.cycle = { ...c };
+    }
+  }
+
   // "language": one more UI language, translated by an AI (see i18n.js):
   // { "code": "fr", "name": "Français", "dir": "ltr", "texts": { … } }.
   if (obj.language != null) {

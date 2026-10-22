@@ -55,5 +55,6 @@
     {"id": "push", "name": "День жима", "exercises": [{"id": "dips", "sets": 4, "reps": 10}, {"id": "pushups", "sets": 3, "reps": 15}, {"id": "pike_pushups", "sets": 3, "reps": 8}]},
     {"id": "legs_core", "name": "Ноги и пресс", "exercises": [{"id": "squats", "sets": 3, "reps": 20}, {"id": "lunges", "sets": 3, "reps": 12}, {"id": "leg_raises", "sets": 3, "reps": 10}, {"id": "plank", "sets": 2, "reps": 45}]},
     {"id": "full", "name": "Всё тело", "exercises": [{"id": "pullups", "sets": 3, "reps": 8}, {"id": "pushups", "sets": 3, "reps": 15}, {"id": "squats", "sets": 3, "reps": 20}, {"id": "plank", "sets": 2, "reps": 45}]}
-  ]
+  ],
+  "cycle": { "period": "period", "diary": "period_diary" }
 }

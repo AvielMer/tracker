@@ -65,6 +65,14 @@ button** at the end of the Events screen, and change anything in Settings.
   day you missed.
 - **Daily goals:** for example 8 glasses of water: the button shows 3/8
   and a bar that fills up.
+- **Cycle tab:** when your next period is due, your fertile days and PMS
+  days, learned from your Period button. A calendar shows them months
+  ahead for planning; tap a day to see it or to mark a past period. It also
+  shows what you tend to log before and during your period (from your
+  diary, moods and other buttons). Predictions are estimates — never birth
+  control.
+- **Your tabs:** show, hide and reorder the tabs (for example only Cycle,
+  Log and Stats). The app opens on the first one. Settings → Tabs.
 - **Training:** pick a routine or a free session.
   - ▶ Start set and ✓ Done time each set and your rest, with a beep when
     the rest is over.
@@ -185,6 +193,10 @@ David Adom **101**.
   המחזור (דימום, תסמינים, רגשות, אנרגיה, הפרשות, בדיקות ביוץ והיריון ועוד,
   בהקשה) ו"שתיית מים" עם יעד יומי (3/8). מוסיפים אותם ב"הוספת כפתור" ← מוכנים.
   לכל כפתור אפשר גם להוסיף רשימות תשובות משלך.
+- **לשונית מחזור:** מתי צפוי המחזור הבא, הימים הפוריים וימי ה-PMS, עם לוח שנה
+  לתכנון מראש ומה שנוטה לקרות לפני המחזור ובזמנו. אלה הערכות — לא אמצעי מניעה.
+- **הלשוניות שלך:** אפשר להסתיר לשוניות ולשנות את הסדר שלהן (הגדרות ← לשוניות).
+  האפליקציה נפתחת בלשונית הראשונה.
 - **שינוי כפתורים בעזרת AI:** הגדרות ← שינויים בעזרת AI ← העתק את הפרומפט,
   הדבק אותו ב-Claude או ב-ChatGPT וכתוב מה אתה רוצה. אחר כך הדבק את התשובה
   בחזרה באפליקציה.
@@ -216,6 +228,11 @@ David Adom **101**.
   тесты на овуляцию и беременность и другое — одним нажатием) и «Стаканы
   воды» с целью на день (3/8). Добавить: «Новая кнопка» → «Готовые». В любую
   кнопку можно добавить свои списки ответов.
+- **Вкладка «Цикл»:** когда ждать следующих месячных, фертильные дни и дни
+  ПМС, календарь на месяцы вперёд и то, что у вас обычно бывает перед
+  месячными и во время них. Это оценки, а не контрацепция.
+- **Ваши вкладки:** вкладки можно скрыть и переставить (Настройки →
+  Вкладки). Приложение открывается на первой.
 - **Важно:** приложение не даёт медицинских советов. Если вы в опасности
   или думаете навредить себе, позвоните прямо сейчас. В Израиле: ЭРАН,
   эмоциональная первая помощь, 1201 (круглосуточно), Маген Давид Адом 101.

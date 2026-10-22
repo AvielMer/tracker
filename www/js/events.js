@@ -101,24 +101,7 @@ export function renderEvents(el, ctx) {
     <button class="ev ev-add" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
   </div>` : empty}`;
   el.querySelector('[data-act="add"]').addEventListener('click', () => openAddButtonSheet(ctx));
-
-  // Reminder cards: "Log now" is the same as tapping the button; a routine
-  // starts right away; ✕ = not now (until the reminder's next time).
-  el.querySelectorAll('.reminder').forEach((card) => {
-    const { type, id } = card.dataset;
-    card.querySelector('[data-rem-go]').addEventListener('click', () => {
-      if (type === 'routine') { startRoutine(ctx, id); return; }
-      const ev = state.config.events.find((e) => e.id === id);
-      if (!ev) return;
-      const run = ev.span ? openSpan(state, ev.id) : null;
-      if (run) openFinishSheet(ctx, ev, run);
-      else logEvent(ctx, ev);
-    });
-    card.querySelector('[data-rem-x]').addEventListener('click', async () => {
-      await dismissReminder(state, card.dataset.key);
-      ctx.refresh();
-    });
-  });
+  wireReminders(el, ctx);
 
   el.insertAdjacentHTML('beforeend', recentHtml(state));
   el.querySelectorAll('.recent-row').forEach((row) => {
@@ -137,6 +120,28 @@ export function renderEvents(el, ctx) {
       const run = ev.span ? openSpan(state, ev.id) : null;
       if (run) openFinishSheet(ctx, ev, run);
       else logEvent(ctx, ev);
+    });
+  });
+}
+
+// Reminder cards (reminders.js remindersHtml): "Log now" is the same as
+// tapping the button; a routine starts right away; ✕ = not now (until the
+// reminder's next time). Also used by the Cycle tab when Events is hidden.
+export function wireReminders(el, ctx) {
+  const { state } = ctx;
+  el.querySelectorAll('.reminder').forEach((card) => {
+    const { type, id } = card.dataset;
+    card.querySelector('[data-rem-go]').addEventListener('click', () => {
+      if (type === 'routine') { startRoutine(ctx, id); return; }
+      const ev = state.config.events.find((e) => e.id === id);
+      if (!ev) return;
+      const run = ev.span ? openSpan(state, ev.id) : null;
+      if (run) openFinishSheet(ctx, ev, run);
+      else logEvent(ctx, ev);
+    });
+    card.querySelector('[data-rem-x]').addEventListener('click', async () => {
+      await dismissReminder(state, card.dataset.key);
+      ctx.refresh();
     });
   });
 }
@@ -164,28 +169,39 @@ function recentHtml(state) {
 }
 
 // Logs one event. Also used by the home-screen shortcut (?log=<id>).
-export async function logEvent(ctx, ev) {
+// opts.date ("YYYY-MM-DD"): log it on an earlier day, at this time of day
+// (the Cycle tab's calendar: "Add to the diary" on a day that's past).
+export async function logEvent(ctx, ev, opts = {}) {
   const { state } = ctx;
   const label = eventLabel(ev);
   const nowMs = Date.now();
-
-  const lastEntry = [...state.entries].reverse()
-    .find((e) => COUNTED.has(e.kind) && e.item_id === ev.id);
-  const lastMs = Math.max(lastTap.get(ev.id) || 0, lastEntry ? Date.parse(lastEntry.ts) : 0);
-  if (nowMs - lastMs < DOUBLE_TAP_MS) {
-    const secs = Math.max(1, Math.round((nowMs - lastMs) / 1000));
-    ctx.toast(t('Double tap ignored — {label} was logged {secs}s ago', { label, secs }));
-    return;
+  let at = new Date(nowMs);
+  const past = !!opts.date && opts.date < localDate();
+  if (past) {
+    const [Y, M, D] = opts.date.split('-').map(Number);
+    at = new Date(Y, M - 1, D, at.getHours(), at.getMinutes(), at.getSeconds());
+  } else {
+    const lastEntry = [...state.entries].reverse()
+      .find((e) => COUNTED.has(e.kind) && e.item_id === ev.id);
+    const lastMs = Math.max(lastTap.get(ev.id) || 0, lastEntry ? Date.parse(lastEntry.ts) : 0);
+    if (nowMs - lastMs < DOUBLE_TAP_MS) {
+      const secs = Math.max(1, Math.round((nowMs - lastMs) / 1000));
+      ctx.toast(t('Double tap ignored — {label} was logged {secs}s ago', { label, secs }));
+      return;
+    }
+    lastTap.set(ev.id, nowMs);
   }
-  lastTap.set(ev.id, nowMs);
 
-  const nth = occurrences(todayEvents(state).filter((e) => e.item_id === ev.id)) + 1;
+  // Its number within its day (on an earlier day: among the entries before it).
+  const day = localDate(at);
+  const nth = occurrences(state.entries.filter((e) => COUNTED.has(e.kind) && e.item_id === ev.id
+    && e.date === day && Date.parse(e.ts) < at.getTime())) + 1;
   const rec = makeRecord({
     kind: ev.span ? 'event_start' : 'event',
     item_id: ev.id,
     item_name: ev.name, // real name: goes to the log/exports, never on screen
     nth_today: nth,
-  }, new Date(nowMs));
+  }, at);
 
   try {
     await storage.appendEntry(rec);
@@ -195,6 +211,7 @@ export async function logEvent(ctx, ev) {
     return;
   }
   state.entries.push(rec);
+  if (past) state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
   if (navigator.vibrate) navigator.vibrate(30);
   ctx.refresh();
 
@@ -203,7 +220,8 @@ export async function logEvent(ctx, ev) {
   } else if (ev.ask && ev.ask.length) {
     openAskSheet(ctx, ev, rec);
   } else {
-    ctx.toast(t(ev.span ? '{label} started {time}' : '{label} #{n} logged {time}', { label, n: nth, time: hhmm(rec.time) }), {
+    ctx.toast(past ? t('{label} saved · {day}', { label, day: friendlyDay(rec.date) })
+      : t(ev.span ? '{label} started {time}' : '{label} #{n} logged {time}', { label, n: nth, time: hhmm(rec.time) }), {
       actionLabel: t('Undo'),
       onAction: () => undo(ctx, rec),
     });
@@ -320,7 +338,7 @@ function openAskSheet(ctx, ev, rec) {
     <div class="diary-head">
       <button class="ibtn ghost" data-act="skip" aria-label="${esc(t('Close'))}">${icon('close')}</button>
       <div class="diary-title"><b>${esc(label)}</b>
-        <span class="muted small">${esc(t('logged {time}', { time: hhmm(rec.time) }))} · <button class="text-btn" data-act="undo">${t('Undo')}</button></span></div>
+        <span class="muted small">${esc(t('logged {time}', { time: rec.date === localDate() ? hhmm(rec.time) : `${friendlyDay(rec.date)} ${hhmm(rec.time)}` }))} · <button class="text-btn" data-act="undo">${t('Undo')}</button></span></div>
       ${instant ? '<span class="diary-gap"></span>' : `<button class="ibtn save-check" data-act="save" aria-label="${esc(t('Save'))}">${icon('check')}</button>`}
     </div>
     ${dayStripHtml(day)}
@@ -616,7 +634,7 @@ function openBpSheet(ctx, ev, first) {
 // Finishing takes two taps (button, then "Finish now") on purpose: a
 // finish closes something that may have run for days, so an accidental
 // brush of the button must not do it.
-function openFinishSheet(ctx, ev, start) {
+export function openFinishSheet(ctx, ev, start) {
   const label = eventLabel(ev);
   const mins = () => (Date.now() - Date.parse(start.ts)) / 60000;
   const root = ctx.openSheet(`

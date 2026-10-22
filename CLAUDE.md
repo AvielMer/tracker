@@ -379,6 +379,62 @@ Example:
     intercourse; measures weight + temp; note). Not pre-picked; offered in
     the welcome and under "Add a button" → Ready-made.
   - The AI prompt (ai.js) documents "lists" and "goal".
+- Tabs (asked for as "the period should be a separate tab that you can just
+  open, and the training tab can be removed, or the events tab too"):
+  `tabs.js`. kv "ui_tabs" = the visible main tabs in order (events, cycle,
+  training, log, stats); missing = automatic (Cycle only once config
+  "cycle"."period" is a start/finish button). Settings is always last. The
+  first tab is where the app opens (app.js currentRoute falls back to it);
+  a hidden tab still opens by link. Settings → Tabs (#settings/tabs): eye =
+  show/hide (at least one stays), Reorder = ↑ ↓. With Events hidden, its due
+  reminder cards show on the Cycle tab (events.js wireReminders).
+- Cycle tab (asked for as "projections to allow planning like going out,
+  trying for a baby or safe sex, and the days that might be tricky — when
+  fertile, more flirty"): `cycle.js` (screen) + `cycleCalc.js` (pure, no
+  DOM — test it in node).
+  - Config "cycle": {"period": id of a start/finish button, "diary": id
+    (optional), "length" 20–45 (usual cycle, default 28), "periodLength"
+    1–12 (default 5), "fertile" / "pms" (show them, default true)}.
+    Validated; the ids are NOT cross-checked (removing a button must not
+    break the setup — the tab then asks again). Default configs:
+    {"period": "period", "diary": "period_diary"}. Settings → Cycle
+    (#settings/cycle) edits it; default values aren't written. Not in the
+    AI prompt (mergeAnswer keeps it as it was).
+  - Engine: periods = the period button's event_start/event_end. Cycle =
+    mean of the last 6 gaps between starts that are 18–50 days (else the
+    usual length); their min/max widen the fertile window. Period length =
+    mean of the last 6 ended periods. Next = last start + average;
+    ovulation = next − 14; fertile = ovulation −5…+1 (a finished cycle) or
+    [start + min − 19, start + max − 13] (current and future ones); PMS =
+    the 5 days before. Late: predictions restart from today; more than a
+    whole cycle late = "stale" (no predictions, the tab says why). No end:
+    "running" for under 14 days, else "forgot to end" (shown at the usual
+    length; the card says how to end it). A gap outside 18–50 days gets no
+    fertile or PMS guesses. Chance of pregnancy: high = ovulation and the 2
+    days before, medium = the rest of the fertile window, else low; never
+    shown while late.
+  - Screen: status card (Period in N days / day N / late / none yet) with
+    Period started|ended (logEvent / openFinishSheet; a forgotten open
+    period gets an end first) and the diary button. Month calendar (week
+    starts where the phone is: i18n weekStart(), Israel and US = Sunday):
+    period = solid --cy-period with --cy-on-period number, expected =
+    dashed ring, fertile = --cy-fertile tint, ovulation = ring, PMS =
+    --cy-pms bar, dot = something logged, today = ring; legend. Tap a day:
+    tags, phase note, that day's entries (tap → Log editor), "Add to
+    <diary>" (logEvent opts.date logs it on that day), and period changes:
+    started this day (new — with an end at the usual length if it's over,
+    closing an older open period — or moving the start of the period the
+    day is in / one starting ≤7 days later), ended this day (set or
+    extend), remove; all with Undo (commit() then reloads the log).
+    Coming up (next 3 periods + fertile windows, Intl formatRange dates),
+    Your cycle (averages; regular if max − min ≤ 7), Your patterns
+    (cycleCalc.patterns: in PMS / period / fertile days, what was logged at
+    least twice and at least 1.5 times as often per day as on other days —
+    pick-list answers, mood faces, other buttons by eventLabel — shown as
+    "4 of 5 times"), Cycle settings, and the "not birth control" note.
+  - Colours (dataviz validator, all pairs, both themes): dark #c2457a /
+    #3987e5 / #c98500 on #1c1f26; girl #cc356e / #2a78d6 / #c98500 on
+    white; white numbers on the period colour ≥ 4.7:1.
 - About screen (`about.js`, route #about, not a tab — the header ⓘ on the
   main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli

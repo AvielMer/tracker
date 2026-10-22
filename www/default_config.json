@@ -97,5 +97,6 @@
         { "id": "plank", "sets": 2, "reps": 45 }
       ]
     }
-  ]
+  ],
+  "cycle": { "period": "period", "diary": "period_diary" }
 }

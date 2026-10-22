@@ -22,6 +22,10 @@ import { openSetupAI, openTranslateAI } from './ai.js';
 import { remindText, remindTimes } from './reminders.js';
 import { restartWelcome } from './welcome.js';
 import { getTheme, setTheme, THEMES } from './theme.js';
+import {
+  hasCycle, MAIN_TABS, setTabs, TAB_INFO, visibleTabs,
+} from './tabs.js';
+import { cycleSettings, DEFAULTS as CYCLE_DEFAULTS } from './cycleCalc.js';
 import { icon } from './icons.js';
 
 // The pages, in menu order. title: translation key; tint: the icon's colour.
@@ -29,7 +33,9 @@ const PAGES = {
   buttons: { title: 'Buttons', icon: 'grid', tint: '#4f9cf9', render: pageButtons },
   training: { title: 'Exercises & routines', icon: 'dumbbell', tint: '#e8833a', render: pageTraining },
   reminders: { title: 'Reminders', icon: 'bell', tint: '#d4a72c', render: pageReminders },
+  cycle: { title: 'Cycle', icon: 'drop', tint: '#e0559a', render: pageCycle },
   look: { title: 'Theme', icon: 'palette', tint: '#e0559a', render: pageLook },
+  tabs: { title: 'Tabs', icon: 'grid', tint: '#4f9cf9', render: pageTabs },
   language: { title: 'Language & dates', icon: 'globe', tint: '#2bb5a0', render: pageLanguage },
   data: { title: 'Backup & export', icon: 'download', tint: '#46b450', render: pageData },
   ai: { title: 'Change with AI', icon: 'sparkle', tint: '#b06ad9', render: pageAI },
@@ -84,14 +90,17 @@ function renderMenu(el, ctx) {
     const p = PAGES[key];
     return `<a class="lrow-main" href="#settings/${key}">${tile(p.icon, p.tint)}${rowText(esc(t(p.title)), esc(sub), warn ? ' warn' : '')}${chevron()}</a>`;
   };
+  const tabs = visibleTabs(state.config);
   el.innerHTML = `
     <div class="card list">
       ${row('buttons', t('Add, change, hide or reorder your buttons'))}
       ${row('training', t('For the Training tab'))}
+      ${tabs.includes('cycle') || hasCycle(state.config) ? row('cycle', t('For the Cycle tab')) : ''}
       ${row('reminders', nRemind ? t('{n} reminders', { n: nRemind }) : t('When to remind you, for each button or routine'))}
     </div>
     <div class="card list">
       ${row('look', t(THEMES.find(([id]) => id === getTheme())[1]))}
+      ${row('tabs', tabs.map((k) => t(TAB_INFO[k][0])).join(' · '))}
       ${row('language', `${langName()} · ${numericDate(localDate())}`)}
       ${row('data', t('{n} entries on this phone', { n: state.entries.length }))}
       ${row('ai', t('Describe changes in your own words'))}
@@ -287,6 +296,101 @@ function pageLook(el, ctx) {
   el.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', async () => {
     await setTheme(b.dataset.themePick);
     ctx.refresh();
+  }));
+}
+
+// --- Tabs --------------------------------------------------------------------------
+// Show, hide and reorder the tabs at the bottom (tabs.js). The first one is
+// where the app opens. Settings can't be hidden.
+function pageTabs(el, ctx) {
+  const vis = visibleTabs(ctx.state.config);
+  const rows = [...vis, ...MAIN_TABS.filter((k) => !vis.includes(k))];
+  const re = reordering === 'tabs';
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('TABS_HINT'))}</p>
+    ${listHead(t('Your tabs'), 'tabs', vis.length)}
+    <div class="card list">${rows.map((k) => {
+    const on = vis.includes(k);
+    const i = vis.indexOf(k);
+    const [title, ic, tint] = TAB_INFO[k];
+    const sub = !on ? t('hidden') : i === 0 ? t('Opens first') : '';
+    return `<div class="lrow${on ? '' : ' dim'}" data-tab-row="${k}">
+      <div class="lrow-main">${tile(ic, tint)}${rowText(esc(t(title)), esc(sub))}</div>
+      ${re ? (on ? `<button class="ibtn ghost" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
+        <button class="ibtn ghost" data-act="down" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>` : '')
+    : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!on}" aria-label="${esc(on ? t('Hide') : t('Show'))}">${icon(on ? 'eye' : 'eyeOff')}</button>`}
+    </div>`;
+  }).join('')}
+      <div class="lrow"><div class="lrow-main">${tile(TAB_INFO.settings[1], TAB_INFO.settings[2])}${rowText(esc(t('Settings')), esc(t('Always there')))}</div></div>
+    </div>`;
+  el.querySelector('[data-reorder]')?.addEventListener('click', () => {
+    reordering = re ? null : 'tabs';
+    pageTabs(el, ctx);
+  });
+  el.querySelectorAll('[data-tab-row]').forEach((row) => row.addEventListener('click', async (e) => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    const k = row.dataset.tabRow;
+    const list = [...vis];
+    const i = list.indexOf(k);
+    if (act === 'hide') {
+      if (i >= 0 && list.length === 1) { ctx.toast(t('Keep at least one tab')); return; }
+      if (i >= 0) list.splice(i, 1); else list.push(k);
+    } else if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
+    else if (act === 'down' && i >= 0 && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
+    else return;
+    await setTabs(list);
+    ctx.refresh();
+    if (act === 'hide') ctx.toast(t(i >= 0 ? 'Tab hidden' : 'Tab shown'));
+  }));
+}
+
+// --- Cycle -----------------------------------------------------------------------
+// The Cycle tab's settings (config "cycle"): which button marks the period
+// days, the diary button, the usual lengths (until the log has its own)
+// and whether fertile and PMS days are shown. Each control saves at once.
+function pageCycle(el, ctx) {
+  const { config } = ctx.state;
+  const cs = cycleSettings(config);
+  const spans = config.events.filter((e) => e.span);
+  const opt = (e, cur) => `<option value="${esc(e.id)}"${e.id === cur ? ' selected' : ''}>${esc(eventLabel(e))}</option>`;
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('CYCLE_SETTINGS_HINT'))}</p>
+    <div class="card pad cy-set">
+      <label class="label-block">${esc(t('Period button'))}<select class="input" data-c="period">
+        ${spans.some((e) => e.id === cs.period) ? '' : `<option value="" selected>${esc(t('— choose —'))}</option>`}
+        ${spans.map((e) => opt(e, cs.period)).join('')}</select></label>
+      <p class="small muted">${esc(t('PERIOD_BUTTON_HINT'))}</p>
+      <label class="label-block">${esc(t('Diary button'))}<select class="input" data-c="diary">
+        <option value="">${esc(t('None'))}</option>
+        ${config.events.filter((e) => !e.span).map((e) => opt(e, cs.diary)).join('')}</select></label>
+      <label class="label-block">${esc(t('Usual cycle length (days)'))}<input class="input" data-c="length" inputmode="numeric" value="${cs.length}"></label>
+      <label class="label-block">${esc(t('Usual period length (days)'))}<input class="input" data-c="periodLength" inputmode="numeric" value="${cs.periodLength}"></label>
+      <p class="small muted">${esc(t('USUAL_LENGTH_HINT'))}</p>
+      <label class="check"><input type="checkbox" data-c="fertile" ${cs.fertile ? 'checked' : ''}> ${esc(t('Show fertile days and ovulation'))}</label>
+      <label class="check"><input type="checkbox" data-c="pms" ${cs.pms ? 'checked' : ''}> ${esc(t('Show PMS days'))}</label>
+    </div>
+    <a class="btn wide" href="#cycle">${icon('drop')}<span>${esc(t('Open the Cycle tab'))}</span></a>`;
+  const LIMITS = { length: [20, 45], periodLength: [1, 12] };
+  el.querySelectorAll('[data-c]').forEach((inp) => inp.addEventListener('change', () => {
+    const k = inp.dataset.c;
+    let v;
+    if (inp.type === 'checkbox') v = inp.checked;
+    else if (LIMITS[k]) {
+      v = Number(inp.value.trim());
+      const [lo, hi] = LIMITS[k];
+      if (!(Number.isInteger(v) && v >= lo && v <= hi)) {
+        ctx.toast(t('Type a whole number from {lo} to {hi}', { lo, hi }));
+        inp.value = cs[k];
+        return;
+      }
+    } else v = inp.value || null;
+    change(ctx, (cfg) => {
+      cfg.cycle = { ...(cfg.cycle || {}) };
+      // A default value needn't be written into the setup file.
+      if (v === null || v === CYCLE_DEFAULTS[k]) delete cfg.cycle[k]; else cfg.cycle[k] = v;
+      return true;
+    }, t('Saved'));
   }));
 }
 

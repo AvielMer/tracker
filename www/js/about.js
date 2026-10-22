@@ -25,6 +25,7 @@ export function renderAbout(el, ctx) {
     ${sec(t('Install on your phone'), p('ABOUT_INSTALL'))}
     ${sec(t('How to use it'), `<ul class="about-list">
       <li><b>${t('Events')}</b> — ${esc(t('ABOUT_EVENTS'))}</li>
+      <li><b>${t('Cycle')}</b> — ${esc(t('ABOUT_CYCLE'))}</li>
       <li><b>${t('Training')}</b> — ${esc(t('ABOUT_TRAINING'))}</li>
       <li><b>${t('Log')}</b> — ${esc(t('ABOUT_LOG'))}</li>
       <li><b>${t('Stats')}</b> — ${esc(t('ABOUT_STATS'))}</li>
