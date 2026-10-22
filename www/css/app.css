@@ -960,3 +960,21 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .cy-day-acts { display: grid; gap: 8px; margin-top: 16px; }
 .cy-pick { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .cy-set .label-block { margin-top: 4px; }
+
+/* --- cute animations (funpack.js; the pack brings its own styles for the
+   buddy itself) --- */
+.cy-hero.with-buddy { padding-top: 44px; }
+.fun-offer { padding: 16px; text-align: center; }
+.fun-offer-pics { font-size: 26px; letter-spacing: 2px; }
+.fun-offer b { display: block; font-size: 18px; margin-top: 4px; }
+.fun-offer p { margin: 6px 0 12px; color: var(--muted); line-height: 1.45; }
+.fun-offer .btn-row { justify-content: center; }
+.fun-sec .btn { margin-top: 10px; }
+.fun-pick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 6px 0 8px; }
+.fun-pick-b {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 8px;
+  border: 2px solid transparent; border-radius: 16px; background: var(--card2);
+  color: var(--text); font: inherit; font-size: 12px; font-weight: 600;
+}
+.fun-pick-b svg { width: 100%; max-width: 62px; height: auto; aspect-ratio: 120 / 124; overflow: visible; }
+.fun-pick-b.on { border-color: var(--accent); background: var(--accent-soft); }

@@ -8,6 +8,9 @@
 // logged, mark a period's start or end), what's coming up, the averages,
 // and the user's own patterns per phase. Settings → Cycle holds the
 // settings (config "cycle").
+// With the cute animations downloaded (funpack.js), an animal buddy peeks
+// over the status card, changes with the phase, talks (its lines are
+// translated here) and reacts to taps; the calendar gets stickers.
 
 import * as storage from './storage.js';
 import {
@@ -31,6 +34,9 @@ import {
 import {
   buildCycle, comingUp, cycleSettings, dayInfo, dayNum, isoOf, patterns,
 } from './cycleCalc.js';
+import {
+  dismissOffer, downloadFun, funPrefs, loadFun, offerDismissed,
+} from './funpack.js';
 
 // Names and notes of the phases (translation keys). The notes are the
 // "tricky days" in general words; "Your patterns" below shows the user's own.
@@ -40,6 +46,17 @@ const PHASE_NAME = {
 };
 
 let shift = 0; // the calendar's month, counted from this month
+// The calendar's little entrance animation plays when the tab is opened or
+// the month changes — not on the refresh every minute.
+let lastRender = { at: 0, shift: 0 };
+// Set by the period button and by Download: the next drawing of the tab
+// celebrates if the log really changed (or the animations just arrived).
+let cheer = null;
+
+// What the buddy says, per mood (3 lines each; tap for the next one).
+const buddyLines = (mood) => [1, 2, 3].map((n) => t(`BUDDY_${mood}_${n}`));
+const periodCount = (state, id) => state.entries.filter((e) => e.item_id === id
+  && (e.kind === 'event_start' || e.kind === 'event_end')).length;
 
 const dateOf = (d) => {
   const [Y, M, D] = isoOf(d).split('-').map(Number);
@@ -75,7 +92,9 @@ export async function renderCycle(el, ctx) {
   const diaryEv = state.config.events.find((e) => e.id === cs.diary && !e.span) || null;
   const today = dayNum(localDate());
   const m = buildCycle(state.entries, periodEv.id, cs, today);
-  el.innerHTML = `${rem}${heroHtml(m, cs, diaryEv, today)}
+  const fun = await loadFun();
+  const offer = !fun && !(await offerDismissed());
+  el.innerHTML = `${rem}${offer ? offerHtml() : ''}${fun ? '<div class="fun-stage" data-stage></div>' : ''}${heroHtml(m, cs, diaryEv, today, !!fun)}
     ${calendarHtml(m, cs, state, periodEv.id, today)}
     ${comingHtml(m, today)}
     ${statsHtml(m, cs)}
@@ -83,8 +102,11 @@ export async function renderCycle(el, ctx) {
     <a class="btn wide cy-settings" href="#settings/cycle">${icon('sliders')}<span>${esc(t('Cycle settings'))}</span></a>
     <p class="small muted cy-disclaimer">${esc(t('CYCLE_DISCLAIMER'))}</p>`;
   wireReminders(el, ctx);
+  if (fun) await mountFun(el, fun, m, cs, today, periodCount(state, periodEv.id));
+  wireOffer(el, ctx);
 
   el.querySelector('[data-act="period"]').addEventListener('click', async () => {
+    cheer = { at: Date.now(), count: periodCount(state, periodEv.id) };
     const run = openSpan(state, periodEv.id);
     if (run && m?.running) { openFinishSheet(ctx, periodEv, run); return; }
     // A period never ended in the app ended before this new one.
@@ -100,6 +122,77 @@ export async function renderCycle(el, ctx) {
   el.querySelectorAll('.cy-d[data-day]').forEach((b) => b.addEventListener('click', () => {
     openDay(ctx, Number(b.dataset.day), m, cs, periodEv, diaryEv);
   }));
+}
+
+// --- the cute animations (a separate download, funpack.js) -------------------------
+
+// The buddy's mood: the phase shown on the status card.
+function buddyMood(m, cs, today) {
+  if (!m || m.stale) return 'hello';
+  const info = dayInfo(m, today);
+  const ph = shownPhase(m, info, cs, today);
+  if (ph === 'fertile' && info.ovulation) return 'ovulation';
+  return ph || 'hello';
+}
+
+async function mountFun(el, fun, m, cs, today, count) {
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const stage = el.querySelector('[data-stage]');
+  const intro = shift !== lastRender.shift || Date.now() - lastRender.at > 90000;
+  lastRender = { at: Date.now(), shift };
+  try {
+    const { animal } = await funPrefs();
+    const mood = buddyMood(m, cs, today);
+    fun.mountStage(stage, {
+      animal, mood, lines: buddyLines(mood), start: today, label: t('Your buddy — tap to say hi'), reduceMotion,
+    });
+    fun.decorateCalendar(el.querySelector('.cy-cal'), { intro, reduceMotion });
+    if (cheer && count > cheer.count && Date.now() - cheer.at < 120000) {
+      cheer = null;
+      fun.celebrate(stage);
+    }
+  } catch (e) {
+    // The animations are extra: a problem in them never breaks the tab.
+    stage.remove();
+    console.warn('Cute animations:', e);
+  }
+}
+
+function offerHtml() {
+  return `<div class="card fun-offer">
+    <div class="fun-offer-pics" aria-hidden="true">🐰 🐱 🐼 🦊 🐻</div>
+    <b>${esc(t('Make it cute ✨'))}</b>
+    <p>${esc(t('FUN_OFFER'))}</p>
+    <div class="btn-row">
+      <button class="btn primary" data-fun="get">${icon('download')}<span>${esc(t('Download'))}</span></button>
+      <button class="btn" data-fun="no">${esc(t('Not now'))}</button>
+    </div>
+  </div>`;
+}
+
+function wireOffer(el, ctx) {
+  const get = el.querySelector('.fun-offer [data-fun="get"]');
+  if (!get) return;
+  get.addEventListener('click', async () => {
+    get.disabled = true;
+    get.querySelector('span').textContent = t('Downloading…');
+    try {
+      await downloadFun();
+    } catch (e) {
+      get.disabled = false;
+      get.querySelector('span').textContent = t('Download');
+      ctx.toast(t('FUN_FAIL'), { error: true });
+      console.warn('Download failed:', e);
+      return;
+    }
+    cheer = { at: Date.now(), count: -1 };
+    ctx.refresh();
+    ctx.toast(t('Animations downloaded ✨'));
+  });
+  el.querySelector('.fun-offer [data-fun="no"]').addEventListener('click', async () => {
+    await dismissOffer();
+    ctx.refresh();
+  });
 }
 
 // --- status card -------------------------------------------------------------------
@@ -134,7 +227,7 @@ function dayTags(m, info, cs, d) {
   return out;
 }
 
-function heroHtml(m, cs, diaryEv, today) {
+function heroHtml(m, cs, diaryEv, today, buddy) {
   let big;
   let sub = '';
   let note = '';
@@ -164,7 +257,7 @@ function heroHtml(m, cs, diaryEv, today) {
     }
     if (m.forgotEnd) note = t('FORGOT_END_NOTE', { n: today - m.last.start + 1 });
   }
-  return `<section class="card cy-hero">
+  return `<section class="card cy-hero${buddy ? ' with-buddy' : ''}">
     <div class="cy-big">${esc(big)}</div>
     ${sub ? `<div class="cy-sub">${esc(sub)}</div>` : ''}
     ${tags.length ? `<div class="cy-pills">${tags.join('')}</div>` : ''}

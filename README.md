@@ -71,6 +71,10 @@ button** at the end of the Events screen, and change anything in Settings.
   shows what you tend to log before and during your period (from your
   diary, moods and other buttons). Predictions are estimates — never birth
   control.
+- **Cute animations (optional):** an animal buddy for the Cycle tab (bunny,
+  kitty, panda, fox or bear) that changes with your cycle, talks, and reacts
+  when you tap it, plus little animations to pop. A small separate download
+  (Settings → Cycle), so the app itself stays light.
 - **Your tabs:** show, hide and reorder the tabs (for example only Cycle,
   Log and Stats). The app opens on the first one. Settings → Tabs.
 - **Training:** pick a routine or a free session.
@@ -195,6 +199,9 @@ David Adom **101**.
   לכל כפתור אפשר גם להוסיף רשימות תשובות משלך.
 - **לשונית מחזור:** מתי צפוי המחזור הבא, הימים הפוריים וימי ה-PMS, עם לוח שנה
   לתכנון מראש ומה שנוטה לקרות לפני המחזור ובזמנו. אלה הערכות — לא אמצעי מניעה.
+- **אנימציות חמודות (לא חובה):** דמות של חיה ללשונית המחזור (ארנבון, חתלתול,
+  פנדה, שועל או דובון) שמשתנה לפי המחזור, מדברת ומגיבה כשמקישים עליה. הורדה
+  קטנה ונפרדת (הגדרות ← מחזור), כדי שהאפליקציה עצמה תישאר קלה.
 - **הלשוניות שלך:** אפשר להסתיר לשוניות ולשנות את הסדר שלהן (הגדרות ← לשוניות).
   האפליקציה נפתחת בלשונית הראשונה.
 - **שינוי כפתורים בעזרת AI:** הגדרות ← שינויים בעזרת AI ← העתק את הפרומפט,
@@ -231,6 +238,10 @@ David Adom **101**.
 - **Вкладка «Цикл»:** когда ждать следующих месячных, фертильные дни и дни
   ПМС, календарь на месяцы вперёд и то, что у вас обычно бывает перед
   месячными и во время них. Это оценки, а не контрацепция.
+- **Милые анимации (по желанию):** зверёк-помощник для вкладки «Цикл» (зайка,
+  котик, панда, лисичка или мишка), который меняется вместе с циклом,
+  разговаривает и отвечает на нажатия. Небольшая отдельная загрузка
+  (Настройки → Цикл), чтобы само приложение оставалось лёгким.
 - **Ваши вкладки:** вкладки можно скрыть и переставить (Настройки →
   Вкладки). Приложение открывается на первой.
 - **Важно:** приложение не даёт медицинских советов. Если вы в опасности

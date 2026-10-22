@@ -3,8 +3,10 @@
 // WHY a version number: the phone keeps the cached files until this file
 // changes. Bump VERSION whenever any file in www/ changes, so the phone
 // downloads the new version (the app then shows "App updated · Reload").
+// NOT in the list on purpose: fun/pack.js, the cute animations — the app
+// downloads them only when asked and keeps them itself (js/funpack.js).
 
-const VERSION = 'v23';
+const VERSION = 'v24';
 const CACHE = `tracker-${VERSION}`;
 
 const SHELL = [
@@ -28,6 +30,7 @@ const SHELL = [
   './js/exercisePicker.js',
   './js/events.js',
   './js/exporter.js',
+  './js/funpack.js',
   './js/i18n.js',
   './js/icons.js',
   './js/library.js',
