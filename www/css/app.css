@@ -486,3 +486,13 @@ select.input { appearance: auto; }
 .tip-row { display: flex; align-items: center; gap: 6px; }
 .tip-key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; }
 .tip-name { color: var(--muted); unicode-bidi: plaintext; }
+
+/* Date/time fields written in the app's own format (util.js pickerField):
+   the phone's own input lies invisible on top, so a tap opens its picker. */
+.pf { position: relative; display: block; margin: 6px 0; }
+.pf .pf-show { margin: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+.pf-native {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0;
+  border: 0; opacity: 0; cursor: pointer; font: inherit;
+}
+.pf:focus-within .pf-show { border-color: var(--accent); }

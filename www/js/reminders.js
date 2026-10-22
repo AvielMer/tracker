@@ -12,7 +12,9 @@
 import * as storage from './storage.js';
 import { DAYS, eventLabel } from './config.js';
 import { getLang, t } from './i18n.js';
-import { esc, localDate } from './util.js';
+import {
+  esc, localDate, pickerField, wirePickerFields,
+} from './util.js';
 
 const KEY = 'reminders_dismissed';
 // Done a little early still counts: a mood check-in at 20:30 answers the
@@ -104,7 +106,7 @@ function dayLetter(d) {
 function remindRow(r = { time: '21:00' }) {
   const on = new Set(r.days || DAYS);
   return `<div class="rrow">
-    <input class="input rtime" type="time" data-rtime value="${esc(r.time)}" aria-label="${esc(t('Time'))}">
+    ${pickerField('time', `data-rtime aria-label="${esc(t('Time'))}"`, r.time, 'rtime')}
     <div class="rdays">${weekOrder().map((d) => `<button class="rday${on.has(d) ? ' on' : ''}" data-day="${d}" aria-pressed="${on.has(d)}">${esc(dayLetter(d))}</button>`).join('')}</div>
     <button class="ibtn" data-rdel aria-label="${esc(t('Remove'))}">✕</button>
   </div>`;
@@ -122,6 +124,7 @@ export function remindEditorHtml(list) {
 // unchecked — to keep them when an editor redraws itself.
 export function wireRemindEditor(root) {
   const list = root.querySelector('[data-rlist]');
+  wirePickerFields(list);
   root.querySelector('[data-radd]').addEventListener('click', () => list.insertAdjacentHTML('beforeend', remindRow()));
   list.addEventListener('click', (e) => {
     const day = e.target.closest('[data-day]');

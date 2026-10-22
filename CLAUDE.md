@@ -330,6 +330,19 @@ Example:
   Right → left (kv "ui_dir"). When the layout direction differs from
   the language's, <html> gets class "bidi-plain" so each text picks its
   own direction (unicode-bidi: plaintext) while the layout stays put.
+- Dates (found by the user: "in Israel it's dd/mm/yyyy", the English UI
+  showed US dates and the Log editor's native date box said 10/21/2026):
+  dates follow WHERE the phone is, judged by its time zone (many phones
+  outside the US run "English (United States)"): month first only for
+  English in a US time zone. i18n.js: dateLocale() (en-GB vs en-US for
+  English, else the language), numericDate() (21/10/2026; ru 21.10.2026),
+  Settings → Language → Dates: Automatic (shows what it picked) /
+  31/12/2026 / 12/31/2026 (kv "date_order"). Times are 24-hour everywhere
+  (hourCycle h23 in Intl). Native date/time boxes write the PHONE's format,
+  so they're pickerField()s (util.js): our text underneath, the native
+  input invisible on top (a tap still opens the phone's picker) — used in
+  the Log editor and reminder rows. Wire them on an element redrawn with
+  its sheet, never the persistent sheet body.
 - Event buttons can have "color": "#rrggbb" (validated; editor offers
   10 swatches in config.js COLORS). Missing color = plain gray button.
 - ts includes milliseconds (…T15:03:05.123+03:00) so entries made in

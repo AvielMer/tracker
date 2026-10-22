@@ -1,6 +1,8 @@
 // Small helpers shared by all screens.
 
-import { fmtDay, t } from './i18n.js';
+import {
+  fmtDay, getLang, numericDate, t,
+} from './i18n.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -61,6 +63,44 @@ export function friendlyDay(dateStr) {
   if (dateStr === localDate(y)) return t('Yesterday');
   const [Y, M, D] = dateStr.split('-').map(Number);
   return fmtDay(new Date(Y, M - 1, D), Y !== new Date().getFullYear());
+}
+
+// A date or time field that SHOWS its value in the app's own format
+// ("Wed 21/10/2026", 24-hour clock) but still opens the phone's own picker.
+// WHY: a plain date box writes the date the way the PHONE's language does
+// (10/21/2026 and AM/PM on an "English (United States)" phone, even in
+// Israel). The real <input> lies on top, invisible, so a tap opens the
+// phone's picker as usual; the text under it is ours. cls: extra classes
+// for the field's box. Wire the fields with wirePickerFields().
+export function pickerField(type, attrs, value, cls = '') {
+  return `<span class="pf ${cls}"><span class="input pf-show" aria-hidden="true">${esc(pickedText(type, value))}</span>
+    <input class="pf-native" type="${type}" ${attrs} value="${esc(value)}"></span>`;
+}
+
+function pickedText(type, v) {
+  if (!v) return '—';
+  if (type !== 'date') return v; // "21:00" / "08:06:00": already 24-hour
+  const [Y, M, D] = v.split('-').map(Number);
+  let wd = '';
+  try { wd = new Intl.DateTimeFormat(getLang(), { weekday: 'short' }).format(new Date(Y, M - 1, D)); } catch { /* none */ }
+  return `${wd} ${numericDate(v)}`.trim();
+}
+
+// Keeps the shown text in step with the picker. Wire an element that is
+// redrawn with its sheet (not the sheet itself, which stays and would
+// collect listeners).
+export function wirePickerFields(box) {
+  const update = (e) => {
+    const inp = e.target.closest?.('.pf-native');
+    if (inp) inp.parentElement.querySelector('.pf-show').textContent = pickedText(inp.type, inp.value);
+  };
+  box.addEventListener('input', update);
+  box.addEventListener('change', update);
+  // Desktop browsers open the picker only on request.
+  box.addEventListener('click', (e) => {
+    const inp = e.target.closest?.('.pf-native');
+    try { inp?.showPicker?.(); } catch { /* already open, or not allowed */ }
+  });
 }
 
 export function downloadFile(filename, text, mime) {

@@ -4,7 +4,7 @@
 import * as storage from './storage.js';
 import { eventLabel } from './config.js';
 import {
-  esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime,
+  esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime, pickerField, wirePickerFields,
 } from './util.js';
 import { t } from './i18n.js';
 import {
@@ -165,8 +165,8 @@ export function openDetails(ctx, e) {
       <button class="btn danger" data-act="delete">${t('Delete')}</button>
     </div>
     <div class="edit-grid">
-      <label>${t('Date')}<input class="input" type="date" data-e="date" value="${esc(e.date)}"></label>
-      <label>${t('Time')}<input class="input" type="time" step="1" data-e="time" value="${esc(e.time)}"></label>
+      <label>${t('Date')}${pickerField('date', 'data-e="date"', e.date)}</label>
+      <label>${t('Time')}${pickerField('time', 'step="1" data-e="time"', e.time)}</label>
       ${fields.map(([k, lbl, type]) => `<label>${esc(t(lbl))}${k === 'amount' && unit ? ` (${esc(unit)})` : ''}
         <input class="input" data-e="${k}" ${type === 'num' ? 'inputmode="decimal"' : ''} value="${esc(e[k] ?? '')}"
           ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
@@ -186,6 +186,7 @@ export function openDetails(ctx, e) {
     </div>`);
 
   const val = (k) => root.querySelector(`[data-e="${k}"]`).value.trim();
+  wirePickerFields(root.querySelector('.edit-grid'));
 
   root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
 

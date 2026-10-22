@@ -18,15 +18,18 @@ import { eventLabel } from './config.js';
 import { columnChart, SERIES, timeChart } from './charts.js';
 import { MOODS } from './events.js';
 import { esc } from './util.js';
-import { getLang, t } from './i18n.js';
+import { dateLocale, getLang, t } from './i18n.js';
 
 const PERIODS = [[7, '7 days'], [30, '30 days'], [91, '3 months'], [365, '1 year']];
 const KEY = 'stats_period';
 let period = 30;
 let loaded = false;
 
+// Dates in the app's date style (21 Oct / Oct 21, see i18n.js); times
+// always on the 24-hour clock, like everywhere else in the app.
 const fmtWith = (opts) => {
-  try { return new Intl.DateTimeFormat(getLang(), opts); } catch { return new Intl.DateTimeFormat('en', opts); }
+  const o = opts.hour ? { ...opts, hourCycle: 'h23' } : opts;
+  try { return new Intl.DateTimeFormat(dateLocale(), o); } catch { return new Intl.DateTimeFormat('en-GB', o); }
 };
 
 // The bars' time slots: days (7 and 30 days), weeks of 7 days ending today
