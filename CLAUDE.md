@@ -435,6 +435,22 @@ Example:
   - Colours (dataviz validator, all pairs, both themes): dark #c2457a /
     #3987e5 / #c98500 on #1c1f26; girl #cc356e / #2a78d6 / #c98500 on
     white; white numbers on the period colour ≥ 4.7:1.
+- Colour on the Cycle tab (asked for as "even in dark mode the period tab
+  should be colorful"): app.js sets body[data-screen] to the screen
+  shown, for screen-only looks. The status card takes its phase's colour
+  (.cy-hero.ph-<phase>: period rose, after the period --cy-fresh green,
+  fertile/ovulation blue, after ovulation and late --cy-calm violet, PMS
+  amber) fading into violet; section titles get coloured icon tiles
+  (.cy-h/.cy-hi); Coming up rows, Your cycle tiles and pattern blocks are
+  tinted (--cy-tint); rose main buttons (--cy-btn) on the tab, its offer
+  card and the day sheet; the active Cycle icon in the bar turns rose
+  (--cy-nav). Dark theme only: a night sky behind the tab (fixed
+  body::before glows + stars, body::after twinkling stars — still with
+  reduced motion) and a moon in the header beside ⓘ (mirrored in RTL).
+  Tints are variables per theme (--cy-mix, --cy-tint, --cy-fer-mix,
+  --cy-exp-mix, --cy-sub, --cy-glow); contrast checked: body text ≥ 8.5:1
+  and small text ≥ 4.6:1 on every tint (dark uses --cy-sub #c9cdd6 on the
+  status card), white on the button gradient ≥ 5.2:1.
 - Cute animations for the Cycle tab (asked for, after girls said the tab
   was too plain, as "smiley animal themes and interactive animations; since
   it might be heavy, a separate thing you download in the app so the app

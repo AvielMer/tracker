@@ -72,10 +72,13 @@ let movedInApp = false;
 function refresh() {
   document.body.classList.toggle('welcoming', state.welcome);
   if (state.welcome) {
+    document.body.dataset.screen = 'welcome';
     renderScreen(renderWelcome);
     return;
   }
   const { name, sub } = currentRoute();
+  // For looks that belong to one screen (the Cycle tab's colours, app.css).
+  document.body.dataset.screen = name;
   drawNav();
   document.querySelectorAll('.nav a').forEach((a) => {
     const key = a.dataset.tab;
