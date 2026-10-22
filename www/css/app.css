@@ -799,3 +799,78 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .tprev-girl .tp-bar { background: #3a2130; opacity: .75; }
 .tprev-girl .tp-grid i { background: linear-gradient(155deg, color-mix(in srgb, var(--c) 34%, #fff), color-mix(in srgb, var(--c) 15%, #fff)); }
 .tprev-girl .tp-nav { background: #fff; border-top: 1px solid #f2d4df; }
+
+/* --- pick-lists (lists.js): a card per list, answers as pills with a
+   round icon badge — asked for as "look similar" to the My Calendar app --- */
+.opt-card {
+  margin: 10px 0; padding: 12px 12px 14px; border-radius: 18px;
+  background: color-mix(in srgb, var(--card2) 55%, var(--card));
+}
+.opt-card .label { margin: 0 2px 10px; font-size: 16px; }
+.opt-hint { font-size: 12px; font-weight: 500; color: var(--muted); margin-inline-start: 6px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+  padding-block: 5px; padding-inline: 6px 16px; border: 0; border-radius: 22px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 15px; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08); touch-action: manipulation;
+}
+.opt:not(:has(.opt-ico)) { padding-inline: 16px; }
+.opt-ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 32px; height: 32px; padding: 0 5px; border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--card)); font-size: 15px; line-height: 1;
+}
+.opt.on { background: var(--accent); color: var(--on-accent); }
+.opt.on .opt-ico { background: rgba(255, 255, 255, .88); }
+.edit-lists { margin-top: 6px; }
+
+/* Diary sheet header: ✕ · title · ✓ (stays on top while scrolling). */
+.diary-head {
+  position: sticky; top: -10px; z-index: 2; display: flex; align-items: center; gap: 8px;
+  margin: -2px -16px 4px; padding: 6px 12px 8px; background: var(--card);
+}
+.diary-title { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.diary-title b { font-size: 18px; }
+.diary-title .text-btn { min-height: 28px; padding: 0 4px; font-size: 13px; }
+.diary-gap { width: 44px; flex: none; }
+.ibtn.save-check { background: var(--accent); color: var(--on-accent); border-radius: 12px; }
+.ibtn.save-check .ic { stroke-width: 3; }
+/* The last 7 days: which day this entry belongs to. */
+.daystrip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 4px 0 6px; }
+.day-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 64px;
+  padding: 2px 0; border: 0; background: none; color: var(--muted); font: inherit;
+}
+.day-pick small { font-size: 12px; }
+.day-pick b {
+  display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card2); color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums;
+}
+.day-pick.on { color: var(--text); font-weight: 600; }
+.day-pick.on b { box-shadow: inset 0 0 0 2.5px var(--accent); background: var(--card); }
+
+/* A daily goal on a button tile: "3/8" and a thin bar. */
+.ev-count.goal { min-width: 44px; font-variant-numeric: tabular-nums; }
+.ev-count.goal.done::after { content: ' ✓'; }
+.ev-goal {
+  align-self: stretch; display: block; height: 6px; margin-top: 8px; border-radius: 3px; overflow: hidden;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+.ev-goal i { display: block; height: 100%; border-radius: 3px; background: var(--c, var(--accent)); }
+
+/* Stats: how often each answer was picked. */
+.bar-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.bl-row { display: grid; grid-template-columns: minmax(0, 40%) 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+.bl-name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-ico { flex: none; }
+.bl-bar { display: block; height: 10px; }
+.bl-bar i { display: block; height: 100%; border-start-end-radius: 4px; border-end-end-radius: 4px; }
+.bl-n { min-width: 2ch; text-align: end; font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* Button editor: one pick-list. */
+.ldef { padding: 8px 0; border-top: 1px solid var(--line); }
+.ldef:first-child { border-top: 0; }
+.ldef-top { display: flex; gap: 6px; align-items: center; }
+.ldef-top .input { margin: 4px 0; }
+.ldef textarea { resize: vertical; min-height: 64px; }

@@ -7,7 +7,7 @@ export const FIELDS = [
   'id', 'ts', 'date', 'time', 'kind', 'item_id', 'item_name', 'nth_today',
   'session_id', 'set_no', 'reps', 'seconds', 'weight', 'work_sec', 'rest_sec', 'intensity',
   'duration_min', 'choice', 'amount', 'unit', 'count', 'bp_sys', 'bp_dia',
-  'pulse', 'measures', 'mood', 'note',
+  'pulse', 'measures', 'answers', 'mood', 'note',
 ];
 // "mood": the answer to "How do you feel?", 1 (awful) to 5 (great).
 // work_sec / rest_sec (training sets): how long the set took, and how long
@@ -15,6 +15,8 @@ export const FIELDS = [
 // "measures" is an object { measure_id: number } for a button's own number
 // fields (e.g. { "weight": 78.5 }). In CSV it becomes one column per id,
 // named m_<id>, so it stays easy to analyse in a spreadsheet.
+// "answers" is an object { list_id: "answer" | ["answer", ...] } for a
+// button's pick-lists (lists.js); in CSV one column per list, a_<id>.
 
 // event_start / event_end: a start/finish button ("span"), e.g. a water
 // bottle opened today and finished tomorrow. The end's session_id is the
@@ -43,5 +45,6 @@ export function normalizeRecord(r) {
   const rec = {};
   for (const f of FIELDS) rec[f] = r[f] ?? null;
   if (rec.measures !== null && (typeof rec.measures !== 'object' || Array.isArray(rec.measures))) rec.measures = null;
+  if (rec.answers !== null && (typeof rec.answers !== 'object' || Array.isArray(rec.answers))) rec.answers = null;
   return rec;
 }

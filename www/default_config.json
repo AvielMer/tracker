@@ -11,7 +11,33 @@
     },
     { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}] },
     {"id": "water_bottle", "name": "Water bottle", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "L", "values": [0.5, 1, 1.5, 2]}},
-    { "id": "coffee", "name": "Coffee", "color": "#d4a72c", "ask": ["count"] }
+    { "id": "coffee", "name": "Coffee", "color": "#d4a72c", "ask": ["count"] },
+    { "id": "drink_water", "name": "Drink water", "color": "#4f9cf9", "goal": 8 },
+    { "id": "period", "name": "Period", "color": "#e0559a", "span": true },
+    {
+      "id": "period_diary", "name": "Period diary", "color": "#b06ad9", "ask": ["lists", "measures", "note"],
+      "lists": [
+        { "id": "flow", "name": "Flow",
+          "options": [{"name": "Light", "icon": "🩸"}, {"name": "Medium", "icon": "🩸🩸"}, {"name": "Heavy", "icon": "🩸🩸🩸"}, {"name": "Very heavy", "icon": "🌊"}] },
+        { "id": "symptoms", "name": "Symptoms", "multi": true,
+          "options": [{"name": "Cramps", "icon": "⚡"}, {"name": "Headache", "icon": "🤕"}, {"name": "Bloating", "icon": "🎈"}, {"name": "Back pain", "icon": "🦴"}, {"name": "Tender breasts", "icon": "💗"}, {"name": "Acne", "icon": "🔴"}, {"name": "Tired", "icon": "😴"}, {"name": "Nausea", "icon": "🤢"}, {"name": "Cravings", "icon": "🍫"}, {"name": "Dizzy", "icon": "💫"}] },
+        { "id": "feelings", "name": "Feelings", "multi": true,
+          "options": [{"name": "Calm", "icon": "😌"}, {"name": "Happy", "icon": "😊"}, {"name": "Loving", "icon": "🥰"}, {"name": "Sensitive", "icon": "🥺"}, {"name": "Sad", "icon": "😢"}, {"name": "Anxious", "icon": "😟"}, {"name": "Angry", "icon": "😠"}, {"name": "Irritable", "icon": "😤"}] },
+        { "id": "energy", "name": "Energy",
+          "options": [{"name": "Low", "icon": "😴"}, {"name": "Medium", "icon": "🙂"}, {"name": "High", "icon": "💪"}, {"name": "Energized", "icon": "⚡"}] },
+        { "id": "mucus", "name": "Cervical mucus",
+          "options": [{"name": "Dry", "icon": "🌵"}, {"name": "Sticky", "icon": "🍯"}, {"name": "Creamy", "icon": "🥛"}, {"name": "Watery", "icon": "💧"}, {"name": "Egg white", "icon": "🥚"}] },
+        { "id": "ovulation_test", "name": "Ovulation test",
+          "options": [{"name": "Positive", "icon": "➕"}, {"name": "Negative", "icon": "➖"}] },
+        { "id": "pregnancy_test", "name": "Pregnancy test",
+          "options": [{"name": "Positive", "icon": "➕"}, {"name": "Faint line", "icon": "〰️"}, {"name": "Negative", "icon": "➖"}] },
+        { "id": "breast_exam", "name": "Breast self-exam", "multi": true,
+          "options": [{"name": "All fine", "icon": "✅"}, {"name": "Engorgement", "icon": "🎈"}, {"name": "Lump", "icon": "🔵"}, {"name": "Dimple", "icon": "⚪"}, {"name": "Skin redness", "icon": "🔴"}, {"name": "Cracked nipples", "icon": "⚡"}, {"name": "Pain", "icon": "😣"}, {"name": "Nipple discharge", "icon": "💧"}] },
+        { "id": "intercourse", "name": "Intercourse",
+          "options": [{"name": "Protected", "icon": "🛡️"}, {"name": "Unprotected", "icon": "❤️"}] }
+      ],
+      "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}, {"id": "temp", "name": "Temperature", "unit": "°C"}]
+    }
   ],
   "exercises": [
     { "id": "pullups", "name": "Pull-ups", "type": "reps", "allowWeight": true, "start": 8 },

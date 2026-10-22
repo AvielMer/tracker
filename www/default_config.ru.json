@@ -7,7 +7,33 @@
     {"id": "medicine", "name": "Лекарство", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["Парацетамол", "Ибупрофен"], "amount": {"unit": "мг", "values": [200, 400, 500, 1000]}},
     {"id": "blood_pressure", "name": "Давление", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Вес", "unit": "кг"}]},
     {"id": "water_bottle", "name": "Бутылка воды", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "л", "values": [0.5, 1, 1.5, 2]}},
-    {"id": "coffee", "name": "Кофе", "color": "#d4a72c", "ask": ["count"]}
+    {"id": "coffee", "name": "Кофе", "color": "#d4a72c", "ask": ["count"]},
+    { "id": "drink_water", "name": "Стаканы воды", "color": "#4f9cf9", "goal": 8 },
+    { "id": "period", "name": "Месячные", "color": "#e0559a", "span": true },
+    {
+      "id": "period_diary", "name": "Дневник цикла", "color": "#b06ad9", "ask": ["lists", "measures", "note"],
+      "lists": [
+        { "id": "flow", "name": "Обильность",
+          "options": [{"name": "Скудные", "icon": "🩸"}, {"name": "Умеренные", "icon": "🩸🩸"}, {"name": "Обильные", "icon": "🩸🩸🩸"}, {"name": "Очень обильные", "icon": "🌊"}] },
+        { "id": "symptoms", "name": "Симптомы", "multi": true,
+          "options": [{"name": "Спазмы", "icon": "⚡"}, {"name": "Головная боль", "icon": "🤕"}, {"name": "Вздутие", "icon": "🎈"}, {"name": "Боль в спине", "icon": "🦴"}, {"name": "Чувствительная грудь", "icon": "💗"}, {"name": "Акне", "icon": "🔴"}, {"name": "Усталость", "icon": "😴"}, {"name": "Тошнота", "icon": "🤢"}, {"name": "Тяга к еде", "icon": "🍫"}, {"name": "Головокружение", "icon": "💫"}] },
+        { "id": "feelings", "name": "Чувства", "multi": true,
+          "options": [{"name": "Спокойствие", "icon": "😌"}, {"name": "Радость", "icon": "😊"}, {"name": "Нежность", "icon": "🥰"}, {"name": "Ранимость", "icon": "🥺"}, {"name": "Грусть", "icon": "😢"}, {"name": "Тревога", "icon": "😟"}, {"name": "Злость", "icon": "😠"}, {"name": "Раздражение", "icon": "😤"}] },
+        { "id": "energy", "name": "Энергия",
+          "options": [{"name": "Низкая", "icon": "😴"}, {"name": "Средняя", "icon": "🙂"}, {"name": "Высокая", "icon": "💪"}, {"name": "На пике", "icon": "⚡"}] },
+        { "id": "mucus", "name": "Цервикальная слизь",
+          "options": [{"name": "Сухо", "icon": "🌵"}, {"name": "Липкая", "icon": "🍯"}, {"name": "Кремообразная", "icon": "🥛"}, {"name": "Водянистая", "icon": "💧"}, {"name": "Как яичный белок", "icon": "🥚"}] },
+        { "id": "ovulation_test", "name": "Тест на овуляцию",
+          "options": [{"name": "Положительный", "icon": "➕"}, {"name": "Отрицательный", "icon": "➖"}] },
+        { "id": "pregnancy_test", "name": "Тест на беременность",
+          "options": [{"name": "Положительный", "icon": "➕"}, {"name": "Слабая полоска", "icon": "〰️"}, {"name": "Отрицательный", "icon": "➖"}] },
+        { "id": "breast_exam", "name": "Самообследование груди", "multi": true,
+          "options": [{"name": "Всё в порядке", "icon": "✅"}, {"name": "Нагрубание", "icon": "🎈"}, {"name": "Уплотнение", "icon": "🔵"}, {"name": "Впадина", "icon": "⚪"}, {"name": "Покраснение", "icon": "🔴"}, {"name": "Трещины сосков", "icon": "⚡"}, {"name": "Боль", "icon": "😣"}, {"name": "Выделения из сосков", "icon": "💧"}] },
+        { "id": "intercourse", "name": "Секс",
+          "options": [{"name": "Защищённый", "icon": "🛡️"}, {"name": "Незащищённый", "icon": "❤️"}] }
+      ],
+      "measures": [{"id": "weight", "name": "Вес", "unit": "кг"}, {"id": "temp", "name": "Температура", "unit": "°C"}]
+    }
   ],
   "exercises": [
     {"id": "pullups", "name": "Подтягивания", "type": "reps", "allowWeight": true, "start": 8},

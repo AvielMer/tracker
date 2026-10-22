@@ -17,6 +17,7 @@ import * as storage from './storage.js';
 import { eventLabel } from './config.js';
 import { columnChart, SERIES, timeChart } from './charts.js';
 import { MOODS } from './events.js';
+import { optIcon, optName } from './lists.js';
 import { esc } from './util.js';
 import { dateLocale, getLang, t } from './i18n.js';
 
@@ -275,8 +276,26 @@ export async function renderStats(el, ctx) {
         });
       }
     }
+    // Pick-lists: how often each answer was picked in this period. One
+    // answer per entry (e.g. Flow: Light → Heavy) keeps the list's own
+    // order; several at once (Symptoms) shows the most frequent first.
+    for (const l of ask.has('lists') ? ev.lists || [] : []) {
+      const counts = new Map();
+      for (const e of mine) for (const v of [].concat(e.answers?.[l.id] ?? [])) counts.set(v, (counts.get(v) || 0) + 1);
+      if (!counts.size) continue;
+      const order = l.options.map(optName);
+      const pos = (v) => order.indexOf(v) + 1 || 999;
+      const rows = [...counts].sort(l.multi ? (a, b) => b[1] - a[1] || pos(a[0]) - pos(b[0]) : (a, b) => pos(a[0]) - pos(b[0]));
+      charts.push({
+        title: l.name,
+        el: barList(rows, l, nf),
+        table: [[t('Answer'), t('Times')], ...rows.map(([v, n]) => [v, nf.format(n)])],
+      });
+    }
     if (!charts.length) return null;
-    return { name: eventLabel(ev), color: ev.color, summary, charts, reading: ask.has('bp') || ask.has('mood') || ask.has('measures') };
+    // A diary (pick-lists) is a log of events, even when it also has numbers.
+    const reading = (ask.has('bp') || ask.has('mood') || ask.has('measures')) && !ask.has('lists');
+    return { name: eventLabel(ev), color: ev.color, summary, charts, reading };
   };
 
   // --- training --------------------------------------------------------------
@@ -342,6 +361,22 @@ export async function renderStats(el, ctx) {
     holder.insertAdjacentHTML('beforeend', `<h2 class="day">${esc(title)}</h2>`);
     for (const c of list) holder.append(cardEl(c));
   }
+}
+
+// How often each answer was picked: one bar per answer (HTML, not SVG —
+// it's a ranked list). Thin bars in the first series colour, the numbers
+// in text colour beside them.
+function barList(rows, list, nf) {
+  const max = Math.max(...rows.map(([, n]) => n));
+  const el = document.createElement('div');
+  el.className = 'bar-list';
+  el.innerHTML = rows.map(([v, n]) => {
+    const icon = optIcon(list.options.find((o) => optName(o) === v));
+    return `<div class="bl-row"><span class="bl-name">${icon ? `<span class="bl-ico">${esc(icon)}</span>` : ''}${esc(v)}</span>
+      <span class="bl-bar"><i style="width:${Math.max(3, Math.round((n / max) * 100))}%;background:${SERIES[0]}"></i></span>
+      <span class="bl-n">${esc(nf.format(n))}</span></div>`;
+  }).join('');
+  return el;
 }
 
 // One card: name, a short summary, its charts — and the same numbers as

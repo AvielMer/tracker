@@ -7,7 +7,33 @@
     {"id": "medicine", "name": "תרופה", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["אקמול", "נורופן"], "amount": {"unit": "מ״ג", "values": [200, 400, 500, 1000]}},
     {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "משקל", "unit": "ק״ג"}]},
     {"id": "water_bottle", "name": "בקבוק מים", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "ל׳", "values": [0.5, 1, 1.5, 2]}},
-    {"id": "coffee", "name": "קפה", "color": "#d4a72c", "ask": ["count"]}
+    {"id": "coffee", "name": "קפה", "color": "#d4a72c", "ask": ["count"]},
+    { "id": "drink_water", "name": "שתיית מים", "color": "#4f9cf9", "goal": 8 },
+    { "id": "period", "name": "מחזור", "color": "#e0559a", "span": true },
+    {
+      "id": "period_diary", "name": "יומן מחזור", "color": "#b06ad9", "ask": ["lists", "measures", "note"],
+      "lists": [
+        { "id": "flow", "name": "דימום",
+          "options": [{"name": "קל", "icon": "🩸"}, {"name": "בינוני", "icon": "🩸🩸"}, {"name": "כבד", "icon": "🩸🩸🩸"}, {"name": "כבד מאוד", "icon": "🌊"}] },
+        { "id": "symptoms", "name": "תסמינים", "multi": true,
+          "options": [{"name": "התכווצויות", "icon": "⚡"}, {"name": "כאב ראש", "icon": "🤕"}, {"name": "נפיחות", "icon": "🎈"}, {"name": "כאב גב", "icon": "🦴"}, {"name": "רגישות בשדיים", "icon": "💗"}, {"name": "אקנה", "icon": "🔴"}, {"name": "עייפות", "icon": "😴"}, {"name": "בחילה", "icon": "🤢"}, {"name": "חשקים", "icon": "🍫"}, {"name": "סחרחורת", "icon": "💫"}] },
+        { "id": "feelings", "name": "רגשות", "multi": true,
+          "options": [{"name": "רוגע", "icon": "😌"}, {"name": "שמחה", "icon": "😊"}, {"name": "אהבה", "icon": "🥰"}, {"name": "רגישות", "icon": "🥺"}, {"name": "עצב", "icon": "😢"}, {"name": "חרדה", "icon": "😟"}, {"name": "כעס", "icon": "😠"}, {"name": "עצבנות", "icon": "😤"}] },
+        { "id": "energy", "name": "אנרגיה",
+          "options": [{"name": "נמוכה", "icon": "😴"}, {"name": "בינונית", "icon": "🙂"}, {"name": "גבוהה", "icon": "💪"}, {"name": "בשיא", "icon": "⚡"}] },
+        { "id": "mucus", "name": "הפרשות",
+          "options": [{"name": "יבש", "icon": "🌵"}, {"name": "דביק", "icon": "🍯"}, {"name": "קרמי", "icon": "🥛"}, {"name": "מימי", "icon": "💧"}, {"name": "כמו חלבון ביצה", "icon": "🥚"}] },
+        { "id": "ovulation_test", "name": "בדיקת ביוץ",
+          "options": [{"name": "חיובית", "icon": "➕"}, {"name": "שלילית", "icon": "➖"}] },
+        { "id": "pregnancy_test", "name": "בדיקת היריון",
+          "options": [{"name": "חיובית", "icon": "➕"}, {"name": "קו חלש", "icon": "〰️"}, {"name": "שלילית", "icon": "➖"}] },
+        { "id": "breast_exam", "name": "בדיקה עצמית של השד", "multi": true,
+          "options": [{"name": "הכל תקין", "icon": "✅"}, {"name": "גודש", "icon": "🎈"}, {"name": "גוש", "icon": "🔵"}, {"name": "גומה", "icon": "⚪"}, {"name": "אדמומיות", "icon": "🔴"}, {"name": "סדקים בפטמות", "icon": "⚡"}, {"name": "כאב", "icon": "😣"}, {"name": "הפרשה מהפטמה", "icon": "💧"}] },
+        { "id": "intercourse", "name": "יחסי מין",
+          "options": [{"name": "מוגן", "icon": "🛡️"}, {"name": "לא מוגן", "icon": "❤️"}] }
+      ],
+      "measures": [{"id": "weight", "name": "משקל", "unit": "ק״ג"}, {"id": "temp", "name": "חום", "unit": "°C"}]
+    }
   ],
   "exercises": [
     {"id": "pullups", "name": "מתח", "type": "reps", "allowWeight": true, "start": 8},

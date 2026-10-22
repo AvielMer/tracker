@@ -12,9 +12,12 @@ function csvCell(v) {
 export function toCSV(entries) {
   // One column per custom number field (m_weight, m_temp, ...), so
   // spreadsheets get plain numbers instead of a JSON blob.
-  const base = FIELDS.filter((f) => f !== 'measures');
+  // Pick-list answers the same way: a_flow, a_symptoms (several answers
+  // in one cell, separated by "; ").
+  const base = FIELDS.filter((f) => f !== 'measures' && f !== 'answers');
   const mKeys = [...new Set(entries.flatMap((e) => Object.keys(e.measures || {})))].sort();
-  const lines = [[...base, ...mKeys.map((k) => `m_${k}`)].join(',')];
+  const aKeys = [...new Set(entries.flatMap((e) => Object.keys(e.answers || {})))].sort();
+  const lines = [[...base, ...mKeys.map((k) => `m_${k}`), ...aKeys.map((k) => `a_${k}`)].join(',')];
   // Blood pressure stores weight (etc.) once per series, on reading 1; in
   // the CSV every reading of the series gets it, so each row is complete.
   const seriesM = new Map();
@@ -24,7 +27,9 @@ export function toCSV(entries) {
   }
   for (const e of entries) {
     const m = e.measures || (e.bp_sys != null ? seriesM.get(e.session_id || e.id) : null) || {};
-    lines.push([...base.map((f) => csvCell(e[f])), ...mKeys.map((k) => csvCell(m[k]))].join(','));
+    const a = e.answers || {};
+    lines.push([...base.map((f) => csvCell(e[f])), ...mKeys.map((k) => csvCell(m[k])),
+      ...aKeys.map((k) => csvCell(a[k] == null ? null : [].concat(a[k]).join('; ')))].join(','));
   }
   // BOM so Excel/Sheets on the phone read non-English notes correctly.
   return '﻿' + lines.join('\r\n') + '\r\n';

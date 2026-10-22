@@ -101,12 +101,15 @@ id, ts (ISO 8601 with timezone), date, time, kind ("event", "set",
 "session_start", "session_end", "event_start", "event_end"), item_id, item_name, nth_today,
 session_id, set_no, reps, seconds, weight, work_sec, rest_sec, intensity,
 duration_min, choice, amount, unit, count, bp_sys, bp_dia, pulse, measures,
-mood, note
+answers, mood, note
 (work_sec / rest_sec on training sets: how long the set took, and the rest
 before it — from the end of the previous set to "Start set".)
 ("measures" = { measure_id: number } for a button's own number fields;
 CSV turns it into one column per id, named m_<id>.)
 ("mood" = the answer to "How do you feel?", 1 = awful … 5 = great.)
+("answers" = { list_id: "answer" | ["answer", …] } for a button's
+pick-lists — the answers' names, so the log reads on its own; CSV turns
+it into one column per list, named a_<id>, several answers joined "; ".)
 
 ## Configurable event buttons (added after step 1)
 Each event's "ask" list picks what the quick sheet asks after a tap,
@@ -117,8 +120,12 @@ one to the list), "amount" (one-tap values from
 "count" (how many at once, 1-10; the button's daily total adds these
 up), "bp" (blood pressure + pulse, see below), "measures" (the
 button's own number fields from "measures": [{"id": "weight", "name":
-"Weight", "unit": "kg"}]; ids never change once created), "note". If only one
-question is asked, one tap on the answer saves.
+"Weight", "unit": "kg"}]; ids never change once created), "lists" (the
+button's own pick-lists, see "Pick-lists" in the project notes), "note".
+If only one question is asked, one tap on the answer saves (for "lists":
+only a single one-answer list).
+"goal": how many a day (1-1000, e.g. 8 glasses of water): the tile shows
+"3/8" and a bar, ✓ once reached.
 Blood pressure ("ask": ["bp"], combinable only with "measures" and
 "note"; measures are asked once, with reading 1, and shown/exported for
 every reading of the series; tapping again within 30 min offers — ticked by
@@ -291,7 +298,8 @@ Example:
     (config.js resetToDefault) is gone.
   - Default configs: no "example_private" any more; every starting button
     has a colour; order: how_i_feel, how_was_my_day, headache, panic,
-    medicine, blood_pressure, water_bottle, coffee.
+    medicine, blood_pressure, water_bottle, coffee, drink_water, period,
+    period_diary.
   - Settings = a menu; each part is its own page at #settings/<page>
     (buttons, training, reminders, language, data, ai, file; app.js
     currentRoute()). Header: ‹ back (history.back() after moving in the
@@ -342,6 +350,35 @@ Example:
   same — the dataviz validator passes them on white too (all ≥3:1).
   The bright flower spray sits in the header's corner (mirrored for RTL),
   a faint one low on the page background, so neither lies under text.
+- Pick-lists and the period diary (asked for, with screenshots of My
+  Calendar's "Today" page, as "add activities like those that include and
+  look similar"): `lists.js`. Config "lists": [{"id", "name", "options",
+  "multi"?}] on an event (ask "lists"); an option is "Name" or {"name",
+  "icon"} (a short emoji, shown in a round badge on the pill). Validated
+  in config.js: 1-20 lists, different ids, 1-40 options, no answer twice
+  in a list (case-insensitive). Stored as record "answers" (names, not
+  ids; renaming an option only affects new answers). A stored answer
+  that's no longer an option still shows in the Log editor, so it's never
+  lost silently; listDefs() also shows answers of a list since removed.
+  - A button that asks lists gets a diary-like sheet (events.js
+    openAskSheet): ✕ / title + "logged hh:mm · Undo" / ✓ at the top, a
+    strip of the last 7 days (picking an earlier day moves the entry
+    there, same time of day, nth_today counted within that day, entries
+    re-sorted), then a card per list (pills), then measures and note.
+  - Button editor: a list = name + answers as text ("🩸 Light, 🩸🩸
+    Heavy": a first word that starts with a symbol is the icon,
+    parseOptions) + "Several answers at once"; ids are kept, new ones via
+    makeId. "Daily goal (optional)" under More options.
+  - Stats: one bar list per list (HTML, SERIES[0] bars): how often each
+    answer was picked in the period; one-answer lists keep their order,
+    multi lists most frequent first. A button with lists is in "Events",
+    not "Readings", even with measures.
+  - Ready-made (default configs en/he/ru, after coffee): drink_water (goal
+    8), period (span — start/finish), period_diary (lists flow, symptoms,
+    feelings, energy, mucus, ovulation_test, pregnancy_test, breast_exam,
+    intercourse; measures weight + temp; note). Not pre-picked; offered in
+    the welcome and under "Add a button" → Ready-made.
+  - The AI prompt (ai.js) documents "lists" and "goal".
 - About screen (`about.js`, route #about, not a tab — the header ⓘ on the
   main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli

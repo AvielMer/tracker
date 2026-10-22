@@ -54,6 +54,17 @@ button** at the end of the Events screen, and change anything in Settings.
   example weight), and a note. Start/finish buttons cover things that last
   (a bottle of water, a project). There's Undo, and accidental double taps
   are ignored.
+- **Your own lists to tap:** a button can ask its own lists of answers,
+  each with a small emoji if you like (for example "🩸 Light, 🩸🩸 Heavy"),
+  one answer or several at once.
+- **Period and cycle:** a Period button (tap when it starts, tap again when
+  it ends) and a **Period diary** in the style of period apps: tap what
+  fits today (flow, symptoms, feelings, energy, cervical mucus, ovulation
+  and pregnancy tests, breast self-exam, intercourse) and add weight,
+  temperature and a note. A strip of the last 7 days lets you fill in a
+  day you missed.
+- **Daily goals:** for example 8 glasses of water: the button shows 3/8
+  and a bar that fills up.
 - **Training:** pick a routine or a free session.
   - ▶ Start set and ✓ Done time each set and your rest, with a beep when
     the rest is over.
@@ -72,7 +83,8 @@ button** at the end of the Events screen, and change anything in Settings.
   time or numbers, or to delete it.
 - **Stats:** charts of what you logged, for 7 days up to a year: blood
   pressure (upper/lower and pulse), weight and your own numbers, mood, how
-  often each button was used, and your training. Each button gets the
+  often each button was used, which answers you picked most, and your
+  training. Each button gets the
   charts that fit what it records; tap a chart to read its numbers, or
   switch a card to a table.
 - **Export:** CSV for a spreadsheet (or for an AI to look for patterns),
@@ -169,6 +181,10 @@ David Adom **101**.
   מקום. כדאי לגבות מדי פעם: הגדרות ← גיבוי וייצוא ← גיבוי מלא (JSON).
 - **שפה:** עברית, אנגלית ורוסית. לכל שפה אחרת: הגדרות ← שינויים בעזרת AI.
 - **ערכת נושא:** כהה, או "בנות" — בהירה וורודה עם צבעי מים ופרחים: הגדרות ← ערכת נושא.
+- **מחזור ומים:** כפתור "מחזור" (התחלה וסיום), "יומן מחזור" בסגנון אפליקציות
+  המחזור (דימום, תסמינים, רגשות, אנרגיה, הפרשות, בדיקות ביוץ והיריון ועוד,
+  בהקשה) ו"שתיית מים" עם יעד יומי (3/8). מוסיפים אותם ב"הוספת כפתור" ← מוכנים.
+  לכל כפתור אפשר גם להוסיף רשימות תשובות משלך.
 - **שינוי כפתורים בעזרת AI:** הגדרות ← שינויים בעזרת AI ← העתק את הפרומפט,
   הדבק אותו ב-Claude או ב-ChatGPT וכתוב מה אתה רוצה. אחר כך הדבק את התשובה
   בחזרה באפליקציה.
@@ -195,6 +211,11 @@ David Adom **101**.
   Изменить с помощью ИИ.
 - **Тема:** тёмная или «Девичья» — светлая и розовая, с акварелью и
   цветами: Настройки → Тема.
+- **Цикл и вода:** кнопка «Месячные» (начало и конец), «Дневник цикла» как
+  в приложениях для цикла (обильность, симптомы, чувства, энергия, слизь,
+  тесты на овуляцию и беременность и другое — одним нажатием) и «Стаканы
+  воды» с целью на день (3/8). Добавить: «Новая кнопка» → «Готовые». В любую
+  кнопку можно добавить свои списки ответов.
 - **Важно:** приложение не даёт медицинских советов. Если вы в опасности
   или думаете навредить себе, позвоните прямо сейчас. В Израиле: ЭРАН,
   эмоциональная первая помощь, 1201 (круглосуточно), Маген Давид Адом 101.

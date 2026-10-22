@@ -20,7 +20,9 @@ const KEY_GOOD = 'config_last_good'; // last version that validated
 // stored in the record's "measures" object as { id: number }.
 // "mood" asks "How do you feel?" with five faces, stored as 1 (awful) to
 // 5 (great) in the record's "mood" field.
-export const ASK_FIELDS = ['mood', 'intensity', 'duration_min', 'choice', 'amount', 'count', 'bp', 'measures', 'note'];
+// "lists" asks the button's own pick-lists (lists.js), stored in the
+// record's "answers" object.
+export const ASK_FIELDS = ['mood', 'intensity', 'duration_min', 'choice', 'lists', 'amount', 'count', 'bp', 'measures', 'note'];
 // Reminder days, indexed like Date.getDay().
 export const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const EXERCISE_TYPES = ['reps', 'seconds'];
@@ -97,6 +99,26 @@ export function validateConfig(obj) {
           || a.values.some((v) => typeof v !== 'number' || !(v > 0))) {
         errors.push(`${at}: "amount" must look like { "unit": "mg", "values": [200, 400] }`);
       }
+    }
+    // "lists": several pick-lists, each { id, name, options, multi? }; an
+    // option is a name or { name, icon } (a short emoji). See lists.js.
+    if ('lists' in ev || ask.includes('lists')) {
+      const okOpt = (o) => (typeof o === 'string' && o.trim())
+        || (o && typeof o === 'object' && typeof o.name === 'string' && o.name.trim()
+          && (!('icon' in o) || (typeof o.icon === 'string' && o.icon.length <= 16)));
+      const ids = new Set();
+      const okList = (l) => l && typeof l === 'object' && typeof l.id === 'string' && l.id
+        && typeof l.name === 'string' && l.name.trim() && ids.size < ids.add(l.id).size
+        && Array.isArray(l.options) && l.options.length && l.options.length <= 40 && l.options.every(okOpt)
+        && new Set(l.options.map((o) => (typeof o === 'string' ? o : o.name).trim().toLowerCase())).size === l.options.length
+        && (!('multi' in l) || typeof l.multi === 'boolean');
+      if (!Array.isArray(ev.lists) || !ev.lists.length || ev.lists.length > 20 || !ev.lists.every(okList)) {
+        errors.push(`${at}: "lists" must look like [{ "id": "flow", "name": "Flow", "options": ["Light", { "name": "Heavy", "icon": "🩸" }] }] — different ids, no answer twice in a list; "multi": true allows several answers`);
+      }
+    }
+    // "goal": how many a day, e.g. 8 glasses of water (shown as 3/8).
+    if ('goal' in ev && !(Number.isInteger(ev.goal) && ev.goal >= 1 && ev.goal <= 1000)) {
+      errors.push(`${at}: "goal" must be a whole number from 1 to 1000`);
     }
     if ('color' in ev && !(typeof ev.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(ev.color))) {
       errors.push(`${at}: "color" must look like "#e5534b"`);
