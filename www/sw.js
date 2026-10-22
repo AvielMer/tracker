@@ -6,7 +6,7 @@
 // NOT in the list on purpose: fun/pack.js, the cute animations — the app
 // downloads them only when asked and keeps them itself (js/funpack.js).
 
-const VERSION = 'v25';
+const VERSION = 'v26';
 const CACHE = `tracker-${VERSION}`;
 
 const SHELL = [
@@ -22,10 +22,12 @@ const SHELL = [
   './js/ai.js',
   './js/alerts.js',
   './js/app.js',
+  './js/bloom.js',
   './js/charts.js',
   './js/config.js',
   './js/cycle.js',
   './js/cycleCalc.js',
+  './js/cycleSettings.js',
   './js/eventEditor.js',
   './js/exercisePicker.js',
   './js/events.js',

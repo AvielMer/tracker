@@ -23,12 +23,9 @@ import { remindText, remindTimes } from './reminders.js';
 import { restartWelcome } from './welcome.js';
 import { getTheme, setTheme, THEMES } from './theme.js';
 import {
-  hasCycle, MAIN_TABS, setTabs, TAB_INFO, visibleTabs,
+  cycleShown, cycleUnlocked, MAIN_TABS, ownedIds, setTabs, TAB_INFO, visibleTabs,
 } from './tabs.js';
-import { cycleSettings, DEFAULTS as CYCLE_DEFAULTS } from './cycleCalc.js';
-import {
-  downloadFun, funInfo, funPrefs, loadFun, removeFun, setFunPrefs, sizeText,
-} from './funpack.js';
+import { bloomDone, playBloom } from './bloom.js';
 import { icon } from './icons.js';
 
 // The pages, in menu order. title: translation key; tint: the icon's colour.
@@ -36,7 +33,6 @@ const PAGES = {
   buttons: { title: 'Buttons', icon: 'grid', tint: '#4f9cf9', render: pageButtons },
   training: { title: 'Exercises & routines', icon: 'dumbbell', tint: '#e8833a', render: pageTraining },
   reminders: { title: 'Reminders', icon: 'bell', tint: '#d4a72c', render: pageReminders },
-  cycle: { title: 'Cycle', icon: 'drop', tint: '#e0559a', render: pageCycle },
   look: { title: 'Theme', icon: 'palette', tint: '#e0559a', render: pageLook },
   tabs: { title: 'Tabs', icon: 'grid', tint: '#4f9cf9', render: pageTabs },
   language: { title: 'Language & dates', icon: 'globe', tint: '#2bb5a0', render: pageLanguage },
@@ -73,21 +69,24 @@ function on(el, act, fn, evt = 'click') {
 
 // Every change goes through saveConfig(), which validates first, so the
 // in-app editors can never produce a config that breaks the app.
+// Returns true once saved.
 async function change(ctx, mutate, okMsg) {
   const { state } = ctx;
-  if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+  if (state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return false;
   const cfg = JSON.parse(JSON.stringify(state.config));
-  if (mutate(cfg) === false) return;
+  if (mutate(cfg) === false) return false;
   const res = await saveConfig(cfg);
-  if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
+  if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return false; }
   await ctx.reloadConfig();
   if (okMsg) ctx.toast(okMsg);
+  return true;
 }
 
 // --- the menu ----------------------------------------------------------------
 function renderMenu(el, ctx) {
   const { state } = ctx;
-  const nRemind = [...state.config.events, ...state.config.routines]
+  const off = cycleShown(state.config) ? new Set() : ownedIds(state.config);
+  const nRemind = [...state.config.events.filter((e) => !off.has(e.id)), ...state.config.routines]
     .filter((x) => !x.hidden && x.remind).reduce((n, x) => n + x.remind.length, 0);
   const row = (key, sub, warn = false) => {
     const p = PAGES[key];
@@ -98,7 +97,6 @@ function renderMenu(el, ctx) {
     <div class="card list">
       ${row('buttons', t('Add, change, hide or reorder your buttons'))}
       ${row('training', t('For the Training tab'))}
-      ${tabs.includes('cycle') || hasCycle(state.config) ? row('cycle', t('For the Cycle tab')) : ''}
       ${row('reminders', nRemind ? t('{n} reminders', { n: nRemind }) : t('When to remind you, for each button or routine'))}
     </div>
     <div class="card list">
@@ -176,17 +174,154 @@ function wireLists(el, ctx, rerender) {
 }
 
 // --- Buttons ---------------------------------------------------------------------
+// Swipe a button sideways to take it off the list — asked for as "you can
+// swipe left or right to get the button out of your button list" (someone
+// had added buttons they didn't want and couldn't get rid of them). Never
+// used = removed; used = hidden, so its entries keep their name and charts.
+// Hidden buttons wait folded under "Hidden (n)". The Cycle tab's own buttons
+// aren't here: they belong to the tab (Cycle tab → Cycle settings).
+let showHidden = false;
+
 function pageButtons(el, ctx) {
-  const { events } = ctx.state.config;
+  const { state } = ctx;
+  const owned = ownedIds(state.config);
+  const all = state.config.events.map((ev, i) => ({ ev, i })).filter(({ ev }) => !owned.has(ev.id));
+  const shown = all.filter(({ ev }) => !ev.hidden);
+  const hidden = all.filter(({ ev }) => ev.hidden);
+  const used = (ev) => state.entries.some((e) => e.item_id === ev.id);
+  const re = reordering === 'events';
+  const row = ({ ev, i }, k, list) => {
+    // What a swipe does: never used → remove; used and showing → hide.
+    const swipe = re ? null : !used(ev) ? 'remove' : ev.hidden ? null : 'hide';
+    const what = swipe === 'remove' ? `${icon('trash')}<span>${esc(t('Remove'))}</span>` : `${icon('eyeOff')}<span>${esc(t('Hide'))}</span>`;
+    const tags = [...(ev.private ? [t('private')] : []), ...(ev.hidden ? [t('hidden')] : [])].map((tg) => ` <span class="tag">${esc(tg)}</span>`).join('');
+    return `<div class="lrow sw${ev.hidden ? ' dim' : ''}" data-ev-i="${i}" data-k="${k}"${swipe ? ` data-swipe="${swipe}"` : ''}>
+      ${swipe ? `<span class="swipe-bg ${swipe}" aria-hidden="true"><span>${what}</span><span>${what}</span></span>` : ''}
+      <div class="lrow-slide">
+        <button class="lrow-main" data-act="edit"><span class="dot" style="--c:${ev.color || 'var(--line)'}"></span>
+          ${rowText(esc(eventLabel(ev)) + tags, esc(describeButton(ev)))}</button>
+        ${re ? `<button class="ibtn ghost" data-act="up" ${k === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
+          <button class="ibtn ghost" data-act="down" ${k === list.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>`
+    : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!!ev.hidden}" aria-label="${esc(ev.hidden ? t('Show') : t('Hide'))}">${icon(ev.hidden ? 'eyeOff' : 'eye')}</button>`}
+      </div>
+    </div>`;
+  };
   el.innerHTML = `
     <p class="page-hint">${esc(t('BUTTONS_HINT'))}</p>
     <button class="btn primary wide" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
-    ${listHead(t('Your buttons'), 'events', events.length)}
-    ${itemList('events', events, (ev) => ({
-    dot: ev.color || '', name: eventLabel(ev), tags: ev.private ? [t('private')] : [], sub: describeButton(ev),
-  }), t('No buttons yet'))}`;
-  wireLists(el, ctx, () => pageButtons(el, ctx));
+    ${listHead(t('Your buttons'), 'events', shown.length)}
+    ${shown.length ? `<div class="card list" data-list-shown>${shown.map((x, k) => row(x, k, shown)).join('')}</div>`
+    : `<div class="card pad muted">${esc(t('No buttons yet'))}</div>`}
+    ${shown.length && !re ? `<p class="small muted swipe-hint">${esc(t('SWIPE_HINT'))}</p>` : ''}
+    ${hidden.length && !re ? `<button class="text-btn hid-toggle" data-act="hidden" aria-expanded="${showHidden}">${icon(showHidden ? 'up' : 'down')}<span>${esc(t('Hidden ({n})', { n: hidden.length }))}</span></button>
+      ${showHidden ? `<div class="card list">${hidden.map((x, k) => row(x, k, hidden)).join('')}</div>` : ''}` : ''}
+    ${cycleUnlocked() && state.config.events.some((e) => owned.has(e.id)) ? `<p class="small muted">${esc(t('CYCLE_BUTTONS_NOTE'))}</p>` : ''}`;
+  const rerender = () => pageButtons(el, ctx);
   on(el, 'add', () => openAddButtonSheet(ctx));
+  on(el, 'hidden', () => { showHidden = !showHidden; rerender(); });
+  el.querySelector('[data-reorder]')?.addEventListener('click', () => {
+    reordering = re ? null : 'events';
+    rerender();
+  });
+  el.querySelectorAll('.lrow[data-ev-i]').forEach((row) => {
+    const i = Number(row.dataset.evI);
+    const k = Number(row.dataset.k);
+    row.addEventListener('click', (e) => {
+      const act = e.target.closest('button')?.dataset.act;
+      if (!act || row.dataset.swiped) return;
+      const ev = ctx.state.config.events[i];
+      if (!ev) return;
+      if (act === 'edit') { openEventEditor(ctx, ev); return; }
+      if (act === 'hide') { hideButton(ctx, i, !ev.hidden); return; }
+      // ↑ ↓ move among the buttons on the list (hidden ones keep their place).
+      const j = act === 'up' ? shown[k - 1]?.i : shown[k + 1]?.i;
+      if (j == null) return;
+      change(ctx, (cfg) => { [cfg.events[i], cfg.events[j]] = [cfg.events[j], cfg.events[i]]; return true; });
+    });
+  });
+  wireSwipe(el, (row) => {
+    const i = Number(row.dataset.evI);
+    if (row.dataset.swipe === 'remove') removeButton(ctx, i);
+    else hideButton(ctx, i, true);
+  });
+}
+
+async function hideButton(ctx, i, hide) {
+  const ev = ctx.state.config.events[i];
+  const ok = await change(ctx, (cfg) => {
+    if (hide) cfg.events[i].hidden = true; else delete cfg.events[i].hidden;
+    return true;
+  });
+  if (!ok) return;
+  ctx.toast(t(hide ? 'Hidden — its history stays in the log' : 'Shown again'), hide ? {
+    actionLabel: t('Undo'),
+    onAction: () => change(ctx, (cfg) => { const x = cfg.events.find((e) => e.id === ev.id); if (x) delete x.hidden; return !!x; }),
+  } : {});
+}
+
+// Only for a button with nothing in the log (checked by the caller).
+async function removeButton(ctx, i) {
+  const ev = JSON.parse(JSON.stringify(ctx.state.config.events[i]));
+  const ok = await change(ctx, (cfg) => { cfg.events.splice(i, 1); return true; });
+  if (!ok) return;
+  ctx.toast(t('Removed "{name}"', { name: eventLabel(ev) }), {
+    actionLabel: t('Undo'),
+    onAction: () => change(ctx, (cfg) => {
+      if (cfg.events.some((e) => e.id === ev.id)) return false;
+      cfg.events.splice(Math.min(i, cfg.events.length), 0, ev);
+      return true;
+    }),
+  });
+}
+
+// Rows with data-swipe slide with the finger; let go past a third of the
+// width and onSwipe(row) runs. A mostly-vertical move scrolls the page as
+// usual, and a swipe never counts as a tap on the row.
+function wireSwipe(el, onSwipe) {
+  el.querySelectorAll('.lrow[data-swipe]').forEach((row) => {
+    let x0 = 0;
+    let y0 = 0;
+    let dx = 0;
+    let id = null;
+    let drag = false;
+    const reset = () => { row.classList.remove('swiping', 'far'); row.style.removeProperty('--dx'); };
+    row.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      x0 = e.clientX; y0 = e.clientY; dx = 0; drag = false; id = e.pointerId;
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      const mx = e.clientX - x0;
+      const my = e.clientY - y0;
+      if (!drag) {
+        if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) { id = null; return; }
+        if (Math.abs(mx) < 12 || Math.abs(mx) < Math.abs(my) * 1.5) return;
+        drag = true;
+        row.classList.add('swiping');
+        try { row.setPointerCapture(id); } catch { /* fine */ }
+      }
+      dx = mx;
+      row.style.setProperty('--dx', `${dx}px`);
+      row.classList.toggle('far', Math.abs(dx) > row.offsetWidth / 3);
+    });
+    const end = (e) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      if (!drag) return;
+      drag = false;
+      // The click that follows a swipe must not open the editor.
+      row.dataset.swiped = '1';
+      setTimeout(() => { delete row.dataset.swiped; }, 350);
+      if (e.type === 'pointerup' && Math.abs(dx) > row.offsetWidth / 3) {
+        row.classList.remove('swiping');
+        row.classList.add('gone');
+        row.style.setProperty('--dx', `${Math.sign(dx) * row.offsetWidth}px`);
+        setTimeout(() => onSwipe(row), 200);
+      } else reset();
+    };
+    row.addEventListener('pointerup', end);
+    row.addEventListener('pointercancel', end);
+  });
 }
 
 // --- Exercises & routines ----------------------------------------------------------
@@ -240,7 +375,11 @@ function openWithReminders(ctx, type, item, addRow) {
 }
 
 function pageReminders(el, ctx) {
-  const { events, routines } = ctx.state.config;
+  const { config } = ctx.state;
+  const { routines } = config;
+  // The Cycle tab's own buttons only while that tab is on (self-contained).
+  const off = cycleShown(config) ? new Set() : ownedIds(config);
+  const events = config.events.filter((e) => !off.has(e.id));
   const items = [
     ...events.filter((e) => e.remind).map((it) => ({ type: 'events', it })),
     ...routines.filter((r) => r.remind).map((it) => ({ type: 'routines', it })),
@@ -297,7 +436,12 @@ function pageLook(el, ctx) {
         <span class="theme-desc">${esc(t(desc))}</span>
       </button>`).join('')}</div>`;
   el.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', async () => {
-    await setTheme(b.dataset.themePick);
+    const id = b.dataset.themePick;
+    if (id === 'girl' && getTheme() !== 'girl' && !(await bloomDone())) {
+      await playBloom(ctx);
+      return;
+    }
+    await setTheme(id);
     ctx.refresh();
   }));
 }
@@ -307,7 +451,8 @@ function pageLook(el, ctx) {
 // where the app opens. Settings can't be hidden.
 function pageTabs(el, ctx) {
   const vis = visibleTabs(ctx.state.config);
-  const rows = [...vis, ...MAIN_TABS.filter((k) => !vis.includes(k))];
+  // The Cycle tab is offered only once the Girl theme unlocked it (tabs.js).
+  const rows = [...vis, ...MAIN_TABS.filter((k) => !vis.includes(k) && (k !== 'cycle' || cycleUnlocked()))];
   const re = reordering === 'tabs';
   el.innerHTML = `
     <p class="page-hint">${esc(t('TABS_HINT'))}</p>
@@ -345,102 +490,6 @@ function pageTabs(el, ctx) {
     await setTabs(list);
     ctx.refresh();
     if (act === 'hide') ctx.toast(t(i >= 0 ? 'Tab hidden' : 'Tab shown'));
-  }));
-}
-
-// --- Cycle -----------------------------------------------------------------------
-// The Cycle tab's settings (config "cycle"): which button marks the period
-// days, the diary button, the usual lengths (until the log has its own)
-// and whether fertile and PMS days are shown. Each control saves at once.
-function pageCycle(el, ctx) {
-  const { config } = ctx.state;
-  const cs = cycleSettings(config);
-  const spans = config.events.filter((e) => e.span);
-  const opt = (e, cur) => `<option value="${esc(e.id)}"${e.id === cur ? ' selected' : ''}>${esc(eventLabel(e))}</option>`;
-  el.innerHTML = `
-    <p class="page-hint">${esc(t('CYCLE_SETTINGS_HINT'))}</p>
-    <div class="card pad cy-set">
-      <label class="label-block">${esc(t('Period button'))}<select class="input" data-c="period">
-        ${spans.some((e) => e.id === cs.period) ? '' : `<option value="" selected>${esc(t('— choose —'))}</option>`}
-        ${spans.map((e) => opt(e, cs.period)).join('')}</select></label>
-      <p class="small muted">${esc(t('PERIOD_BUTTON_HINT'))}</p>
-      <label class="label-block">${esc(t('Diary button'))}<select class="input" data-c="diary">
-        <option value="">${esc(t('None'))}</option>
-        ${config.events.filter((e) => !e.span).map((e) => opt(e, cs.diary)).join('')}</select></label>
-      <label class="label-block">${esc(t('Usual cycle length (days)'))}<input class="input" data-c="length" inputmode="numeric" value="${cs.length}"></label>
-      <label class="label-block">${esc(t('Usual period length (days)'))}<input class="input" data-c="periodLength" inputmode="numeric" value="${cs.periodLength}"></label>
-      <p class="small muted">${esc(t('USUAL_LENGTH_HINT'))}</p>
-      <label class="check"><input type="checkbox" data-c="fertile" ${cs.fertile ? 'checked' : ''}> ${esc(t('Show fertile days and ovulation'))}</label>
-      <label class="check"><input type="checkbox" data-c="pms" ${cs.pms ? 'checked' : ''}> ${esc(t('Show PMS days'))}</label>
-    </div>
-    <a class="btn wide" href="#cycle">${icon('drop')}<span>${esc(t('Open the Cycle tab'))}</span></a>
-    <div data-fun-sec></div>`;
-  funSection(el.querySelector('[data-fun-sec]'), ctx);
-  const LIMITS = { length: [20, 45], periodLength: [1, 12] };
-  el.querySelectorAll('[data-c]').forEach((inp) => inp.addEventListener('change', () => {
-    const k = inp.dataset.c;
-    let v;
-    if (inp.type === 'checkbox') v = inp.checked;
-    else if (LIMITS[k]) {
-      v = Number(inp.value.trim());
-      const [lo, hi] = LIMITS[k];
-      if (!(Number.isInteger(v) && v >= lo && v <= hi)) {
-        ctx.toast(t('Type a whole number from {lo} to {hi}', { lo, hi }));
-        inp.value = cs[k];
-        return;
-      }
-    } else v = inp.value || null;
-    change(ctx, (cfg) => {
-      cfg.cycle = { ...(cfg.cycle || {}) };
-      // A default value needn't be written into the setup file.
-      if (v === null || v === CYCLE_DEFAULTS[k]) delete cfg.cycle[k]; else cfg.cycle[k] = v;
-      return true;
-    }, t('Saved'));
-  }));
-}
-
-// The cute animations for the Cycle tab (funpack.js): download or remove
-// them, and pick the animal buddy.
-const ANIMAL_NAME = { bunny: 'Bunny', kitty: 'Kitty', panda: 'Panda', fox: 'Fox', bear: 'Bear' };
-
-async function funSection(box, ctx) {
-  const info = await funInfo();
-  const fun = info.installed ? await loadFun() : null;
-  const { animal } = await funPrefs();
-  const getBtn = (label) => `<button class="btn primary wide" data-fun="get">${icon('download')}<span>${esc(label)}</span></button>`;
-  box.innerHTML = `<h2 class="day">${esc(t('Cute animations'))}</h2>
-    <div class="card pad fun-sec">
-      <p class="small muted">${esc(t('FUN_DESC'))}</p>
-      ${!info.installed ? getBtn(t('Download')) : `
-        ${fun ? `<div class="label">${esc(t('Your buddy'))}</div>
-          <div class="fun-pick">${fun.ANIMALS.map((a) => `<button class="fun-pick-b${a === animal ? ' on' : ''}" data-animal="${esc(a)}" aria-pressed="${a === animal}">
-            ${fun.buddySvg(a, 'hello')}<span>${esc(t(ANIMAL_NAME[a] || a))}</span></button>`).join('')}</div>`
-    : `<p class="warn small">${esc(t('FUN_BROKEN'))}</p>`}
-        <p class="small muted">${esc(t('On this phone · {size}', { size: sizeText(info.bytes) }))}</p>
-        ${info.outdated || !fun ? getBtn(t('Update the animations')) : ''}
-        <button class="btn wide danger" data-fun="remove">${esc(t('Remove the animations'))}</button>`}
-    </div>`;
-  box.querySelector('[data-fun="get"]')?.addEventListener('click', async (e) => {
-    const b = e.currentTarget;
-    b.disabled = true;
-    b.querySelector('span').textContent = t('Downloading…');
-    try {
-      await downloadFun();
-      ctx.toast(t('Animations downloaded ✨'));
-    } catch (err) {
-      ctx.toast(t('FUN_FAIL'), { error: true });
-      console.warn('Download failed:', err);
-    }
-    funSection(box, ctx);
-  });
-  box.querySelector('[data-fun="remove"]')?.addEventListener('click', async () => {
-    await removeFun();
-    ctx.toast(t('Animations removed'));
-    funSection(box, ctx);
-  });
-  box.querySelectorAll('[data-animal]').forEach((b) => b.addEventListener('click', async () => {
-    await setFunPrefs({ animal: b.dataset.animal });
-    funSection(box, ctx);
   }));
 }
 

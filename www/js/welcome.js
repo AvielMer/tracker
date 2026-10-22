@@ -16,6 +16,9 @@ import {
 } from './config.js';
 import { describeButton } from './eventEditor.js';
 import { translateBuiltInNames } from './library.js';
+import { getTheme, setTheme, THEMES } from './theme.js';
+import { bloomDone, playBloom } from './bloom.js';
+import { ownedIds } from './tabs.js';
 import { icon } from './icons.js';
 import { esc } from './util.js';
 import {
@@ -89,10 +92,21 @@ function renderHello(el, ctx) {
       <li><span class="wl-ico">${icon('lock')}</span><span><b>${esc(t('Private'))}</b>${esc(t('WELCOME_PRIVATE'))}</span></li>
     </ul>
     <div class="wl-lang" role="group" aria-label="${esc(t('Language'))}">${languages().map(([code, name]) => `<button class="pill${code === getLang() ? ' on' : ''}" data-lang="${esc(code)}" aria-pressed="${code === getLang()}">${esc(name)}</button>`).join('')}</div>
+    <div class="wl-lang wl-theme" role="group" aria-label="${esc(t('Theme'))}">${THEMES.map(([id, name]) => `<button class="pill${id === getTheme() ? ' on' : ''}" data-theme-pick="${id}" aria-pressed="${id === getTheme()}">${id === 'girl' ? '🌸' : '🌙'} ${esc(t(name))}</button>`).join('')}</div>
     <div class="wl-bar"><button class="btn primary big wide" data-next>${esc(t('Get started'))}</button></div>
   </div>`;
   el.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', async () => {
     await setLang(b.dataset.lang);
+    ctx.refresh();
+  }));
+  // The Girl theme the first time: the flowers, and the Cycle tab offered.
+  el.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', async () => {
+    const id = b.dataset.themePick;
+    if (id === 'girl' && getTheme() !== 'girl' && !(await bloomDone())) {
+      await playBloom(ctx, { inWelcome: true });
+      return;
+    }
+    await setTheme(id);
     ctx.refresh();
   }));
   el.querySelector('[data-next]').addEventListener('click', () => go(ctx, 2));
@@ -174,7 +188,9 @@ function renderTips(el, ctx) {
 // language the app started in).
 // Start over also puts the starting exercises and routines back. Private
 // buttons are always kept: the log has entries under their real names,
-// and the screen must keep showing only their short labels.
+// and the screen must keep showing only their short labels. So are the
+// Cycle tab's own buttons (tabs.js ownedIds): they aren't offered here —
+// they belong to that tab, not to the Events screen.
 async function finish(ctx) {
   const { state } = ctx;
   const cfg = JSON.parse(JSON.stringify(state.config));
@@ -184,7 +200,10 @@ async function finish(ctx) {
     cfg.exercises = def.config.exercises;
     cfg.routines = def.config.routines;
   }
-  const mine = new Map(state.config.events.filter((e) => e.private).map((e) => [e.id, e]));
+  // (On a first run the config is still the starting one, whose Period
+  // buttons are not the user's.)
+  const owned = restarting ? ownedIds(state.config) : new Set();
+  const mine = new Map(state.config.events.filter((e) => e.private || owned.has(e.id)).map((e) => [e.id, e]));
   cfg.events = (options || []).filter((o) => chosen.has(o.id)).map((o) => {
     const it = JSON.parse(JSON.stringify(mine.get(o.id) || o));
     delete it.hidden;

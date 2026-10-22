@@ -6,11 +6,22 @@
 // "workout in progress" banner goes to Training).
 // kv "ui_tabs": the visible tabs in order. Missing = automatic: the usual
 // tabs, plus Cycle once the setup has a period button.
+//
+// The Cycle tab is unlocked by the Girl theme — asked for as "the period
+// cycle feature only available if a user used the girl theme first" (and
+// "self contained": a man who added a period button by mistake couldn't get
+// rid of it). Until then there is no Cycle tab and no period button is
+// offered anywhere. kv "cycle_unlocked": true once the Girl theme was picked
+// (bloom.js). People who already use the Cycle tab (entries of its buttons,
+// or the Girl theme on) keep it.
+// The Cycle tab's own buttons (config "cycle" period and diary) live only in
+// the tab: never on the Events screen or in Settings → Buttons.
 
 import * as storage from './storage.js';
 import { cycleSettings } from './cycleCalc.js';
 
 const KEY = 'ui_tabs';
+const LOCK = 'cycle_unlocked';
 // [title (translation key), icon (icons.js), colour of its tile in Settings]
 export const TAB_INFO = {
   events: ['Events', 'grid', '#4f9cf9'],
@@ -23,6 +34,7 @@ export const TAB_INFO = {
 export const MAIN_TABS = ['events', 'cycle', 'training', 'log', 'stats'];
 
 let saved = null; // the user's own choice, or null = automatic
+let unlocked = false;
 
 export async function initTabs() {
   try {
@@ -33,6 +45,35 @@ export async function initTabs() {
   }
 }
 
+// After the config and the log are loaded (app.js start).
+export async function initCycleLock(state, theme) {
+  let v = null;
+  try { v = await storage.getValue(LOCK); } catch { /* not yet */ }
+  if (v !== true) {
+    const ids = ownedIds(state.config);
+    v = theme === 'girl' || state.entries.some((e) => ids.has(e.item_id));
+    // Only "yes" is kept: "no" is worked out again next time (e.g. after a
+    // backup with period entries was imported).
+    if (v) await storage.setValue(LOCK, true).catch(() => {});
+  }
+  unlocked = !!v;
+}
+
+export const cycleUnlocked = () => unlocked;
+
+export async function unlockCycle() {
+  unlocked = true;
+  await storage.setValue(LOCK, true);
+}
+
+// The ids of the Cycle tab's own buttons (config "cycle").
+export function ownedIds(config) {
+  const c = cycleSettings(config);
+  return new Set([c.period, c.diary].filter(Boolean));
+}
+
+export const cycleShown = (config) => visibleTabs(config).includes('cycle');
+
 // The setup has a period button for the Cycle tab (config "cycle").
 export function hasCycle(config) {
   const id = cycleSettings(config).period;
@@ -40,8 +81,15 @@ export function hasCycle(config) {
 }
 
 export function visibleTabs(config) {
-  if (saved) return saved;
-  return MAIN_TABS.filter((k) => k !== 'cycle' || hasCycle(config));
+  const list = saved || MAIN_TABS.filter((k) => k !== 'cycle' || hasCycle(config));
+  return unlocked ? list : list.filter((k) => k !== 'cycle');
+}
+
+// Shows or hides one tab (the Cycle tab's "Turn off", the bloom's "Show me").
+export async function showTab(config, key, on) {
+  const list = visibleTabs(config).filter((k) => k !== key);
+  if (on) list.splice(Math.min(1, list.length), 0, key);
+  await setTabs(list);
 }
 
 export async function setTabs(list) {

@@ -252,7 +252,8 @@ Example:
   "reminders_dismissed"). The screen refreshes every minute while open.
   STEP 5 (APK): schedule the same "remind" list as real notifications
   with @capacitor/local-notifications (repeating weekly per day), tapping
-  one opens ?log=<id> / the training screen.
+  one opens ?log=<id> / the training screen. Skip the Cycle tab's own
+  buttons while that tab is off (see "Self-contained Cycle tab").
 - Step 4, stats part done (asked for as "charts of readings, like weight
   and blood pressure"): Stats tab (`stats.js`, charts in `charts.js`, plain
   SVG, no library). Period row 7 d / 30 d / 3 m / 1 y (kv "stats_period");
@@ -281,9 +282,11 @@ Example:
   chaotic and more inviting — people who opened the app didn't get that the
   buttons are examples, and the settings could be more intuitive"):
   - Welcome (`welcome.js`), shown full screen with no header or tabs:
-    1) hello + language, 2) "What do you want to keep track of?" — the
-    starting buttons (config.js starterButtons() = default_config.<lang>
-    events, private ones never offered) with what each asks
+    1) hello + language + theme (🌙 Dark / 🌸 Girl pills; Girl the first
+    time plays the bloom, see "Self-contained Cycle tab"), 2) "What do you
+    want to keep track of?" — the starting buttons (config.js
+    starterButtons() = default_config.<lang> events; private ones and the
+    Cycle tab's own buttons never offered) with what each asks
     (eventEditor.js describeButton), nothing pre-picked, 3) how it works
     (+ install tip unless installed). Only the picked buttons are saved;
     built-in names follow the language picked in step 1
@@ -294,7 +297,8 @@ Example:
     "Cancel — keep my setup" on step 1; nothing changes until the last
     step, which also puts back the starting exercises and routines. Private
     buttons are ALWAYS kept (their real names are in the log; without the
-    button the screen would show them). The old "Reset config to default"
+    button the screen would show them), and so are the Cycle tab's own
+    buttons (they belong to that tab). The old "Reset config to default"
     (config.js resetToDefault) is gone.
   - Default configs: no "example_private" any more; every starting button
     has a colour; order: how_i_feel, how_was_my_day, headache, panic,
@@ -306,6 +310,15 @@ Example:
     app, else #settings), the page title (settingsPageTitle), smaller
     title on such pages, ⓘ hidden there. List rows (.lrow): tap = edit,
     eye = hide/show (toast says so), "Reorder" swaps the eyes for ↑ ↓.
+    Settings → Buttons (asked for as "swipe left or right to get a button
+    off your button list"): swipe a row sideways (settings.js wireSwipe,
+    pointer events, touch-action pan-y; a mostly vertical move scrolls, a
+    swipe never counts as a tap; let go past a third of the width) = a
+    button never used is REMOVED, one with entries is HIDDEN (its charts
+    and names stay); both with Undo. The row (.lrow.sw) slides its inner
+    .lrow-slide over a strip (.swipe-bg, --swipe-remove / --swipe-hide).
+    Hidden buttons fold into "Hidden (n)" under the list; ↑ ↓ move among
+    the shown ones.
   - "Add a button" sheet (eventEditor.js openAddButtonSheet, from the
     Events "+" tile, the empty Events card and Settings → Buttons): "Make
     your own button" + Ready-made (starting buttons not there yet by id
@@ -376,18 +389,22 @@ Example:
   - Ready-made (default configs en/he/ru, after coffee): drink_water (goal
     8), period (span — start/finish), period_diary (lists flow, symptoms,
     feelings, energy, mucus, ovulation_test, pregnancy_test, breast_exam,
-    intercourse; measures weight + temp; note). Not pre-picked; offered in
-    the welcome and under "Add a button" → Ready-made.
+    intercourse; measures weight + temp; note). drink_water is offered in
+    the welcome and under "Add a button" → Ready-made; period and
+    period_diary are the Cycle tab's own buttons (default config "cycle")
+    and are only added from that tab's setup card.
   - The AI prompt (ai.js) documents "lists" and "goal".
 - Tabs (asked for as "the period should be a separate tab that you can just
   open, and the training tab can be removed, or the events tab too"):
   `tabs.js`. kv "ui_tabs" = the visible main tabs in order (events, cycle,
   training, log, stats); missing = automatic (Cycle only once config
-  "cycle"."period" is a start/finish button). Settings is always last. The
+  "cycle"."period" is a start/finish button). Cycle also needs the unlock
+  (see "Self-contained Cycle tab"). Settings is always last. The
   first tab is where the app opens (app.js currentRoute falls back to it);
   a hidden tab still opens by link. Settings → Tabs (#settings/tabs): eye =
-  show/hide (at least one stays), Reorder = ↑ ↓. With Events hidden, its due
-  reminder cards show on the Cycle tab (events.js wireReminders).
+  show/hide (at least one stays), Reorder = ↑ ↓. Due reminder cards of the
+  Cycle tab's own buttons show on the Cycle tab, not on Events; with Events
+  hidden, the Cycle tab shows all of them (events.js wireReminders).
 - Cycle tab (asked for as "projections to allow planning like going out,
   trying for a baby or safe sex, and the days that might be tricky — when
   fertile, more flirty"): `cycle.js` (screen) + `cycleCalc.js` (pure, no
@@ -397,9 +414,9 @@ Example:
     1–12 (default 5), "fertile" / "pms" (show them, default true)}.
     Validated; the ids are NOT cross-checked (removing a button must not
     break the setup — the tab then asks again). Default configs:
-    {"period": "period", "diary": "period_diary"}. Settings → Cycle
-    (#settings/cycle) edits it; default values aren't written. Not in the
-    AI prompt (mergeAnswer keeps it as it was).
+    {"period": "period", "diary": "period_diary"}. Cycle settings
+    (#cycle/settings, cycleSettings.js) edits it; default values aren't
+    written. Not in the AI prompt (mergeAnswer keeps it as it was).
   - Engine: periods = the period button's event_start/event_end. Cycle =
     mean of the last 6 gaps between starts that are 18–50 days (else the
     usual length); their min/max widen the fertile window. Period length =
@@ -482,8 +499,48 @@ Example:
     refresh), tap bounce. Only transform/opacity animations;
     prefers-reduced-motion = nothing moves. A broken pack never breaks the
     tab (loadFun → null, mountFun in try/catch).
-  - Cycle tab: "Make it cute ✨" card (Download / Not now). Settings →
-    Cycle → Cute animations: Download, buddy picker, Update, Remove.
+  - Cycle tab: "Make it cute ✨" card (Download / Not now). Cycle settings
+    → Cute animations: Download, buddy picker, Update, Remove.
+- Self-contained Cycle tab (asked for as "a male user who opens the diary
+  or period button by accident can't get rid of them; the cycle's settings
+  should be contained in the tab, the cycle feature only available after
+  using the girl theme, and the first switch to it an animation of flowers
+  that turns the dark screen into beautiful colours"):
+  - Lock (tabs.js): no Cycle tab, no Cycle row in Settings → Tabs, and no
+    period button offered anywhere until kv "cycle_unlocked" is true. Set
+    by the first switch to the Girl theme (bloom.js); on start
+    (initCycleLock, after the log loads) also by the Girl theme being on
+    or by entries of the tab's buttons — people who already used the tab
+    keep it. Only "yes" is stored. Nothing else is locked: a hidden tab's
+    entries stay in the Log and exports.
+  - Owned buttons = the ids in config "cycle" (period, diary; tabs.js
+    ownedIds). They are NOT on the Events screen, in Settings → Buttons (a
+    note says where they went), in Ready-made/the welcome (starterButtons
+    drops the default config's cycle ids) or among Events' reminder cards;
+    Stats and Settings → Reminders show them only while the Cycle tab is
+    on. They're edited in Cycle settings → "This tab's buttons". The setup
+    card only suggests the ready-made Period button (by its default id) or
+    adds the ready-made pair — never another start/finish button, because
+    the tab takes over the button it uses (Cycle settings can still pick
+    one).
+  - Cycle settings is a page of the tab: route #cycle/settings (app.js
+    SCREENS.cycle.pages; back → #cycle; the minute refresh skips sub
+    pages), linked at the bottom of the tab and of its setup card; there is
+    no Cycle page in the Settings menu any more. It holds the lengths,
+    fertile/PMS toggles, the tab's buttons, the period/diary pickers, Cute
+    animations and "Turn off the Cycle tab": hides the tab (tabs.js
+    showTab) and removes its never-used buttons; used ones stay, out of
+    sight (config "cycle" is kept); Undo puts everything back.
+  - Bloom (bloom.js playBloom, once: kv "girl_bloom" 'done'): on the first
+    switch to Girl (Settings → Theme, or the welcome's theme pills) a
+    .bloom overlay = a hole (.bloom-hole, box-shadow 200vmax of
+    --bloom-from = the dark background) grows from the middle and shows
+    the app underneath, already in the Girl theme; 16 flowers open as the
+    colour reaches them (delay by distance from the centre), petals fall,
+    then a card: "Show me the Cycle tab" (the welcome says "Turn on the
+    Cycle tab" and stays put) or "Later". A tap skips to the end; reduced
+    motion = no movement. The unlock happens when it opens, whatever is
+    answered.
 - About screen (`about.js`, route #about, not a tab — the header ⓘ on the
   main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli
