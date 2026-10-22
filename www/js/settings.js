@@ -21,6 +21,7 @@ import {
 import { openSetupAI, openTranslateAI } from './ai.js';
 import { remindText, remindTimes } from './reminders.js';
 import { restartWelcome } from './welcome.js';
+import { getTheme, setTheme, THEMES } from './theme.js';
 import { icon } from './icons.js';
 
 // The pages, in menu order. title: translation key; tint: the icon's colour.
@@ -28,6 +29,7 @@ const PAGES = {
   buttons: { title: 'Buttons', icon: 'grid', tint: '#4f9cf9', render: pageButtons },
   training: { title: 'Exercises & routines', icon: 'dumbbell', tint: '#e8833a', render: pageTraining },
   reminders: { title: 'Reminders', icon: 'bell', tint: '#d4a72c', render: pageReminders },
+  look: { title: 'Theme', icon: 'palette', tint: '#e0559a', render: pageLook },
   language: { title: 'Language & dates', icon: 'globe', tint: '#2bb5a0', render: pageLanguage },
   data: { title: 'Backup & export', icon: 'download', tint: '#46b450', render: pageData },
   ai: { title: 'Change with AI', icon: 'sparkle', tint: '#b06ad9', render: pageAI },
@@ -89,6 +91,7 @@ function renderMenu(el, ctx) {
       ${row('reminders', nRemind ? t('{n} reminders', { n: nRemind }) : t('When to remind you, for each button or routine'))}
     </div>
     <div class="card list">
+      ${row('look', t(THEMES.find(([id]) => id === getTheme())[1]))}
       ${row('language', `${langName()} · ${numericDate(localDate())}`)}
       ${row('data', t('{n} entries on this phone', { n: state.entries.length }))}
       ${row('ai', t('Describe changes in your own words'))}
@@ -265,6 +268,26 @@ function pageReminders(el, ctx) {
       openWithReminders(ctx, x.type, x.it, true);
     }));
   });
+}
+
+// --- Theme ---------------------------------------------------------------------------
+// Each choice shows a small picture of the theme (drawn in CSS: .tprev-*).
+function pageLook(el, ctx) {
+  const colors = ['#2bb5a0', '#7b6cf6', '#e8833a', '#e0559a'];
+  el.innerHTML = `
+    <p class="page-hint">${esc(t('THEME_HINT'))}</p>
+    <div class="themes">${THEMES.map(([id, name, desc]) => `
+      <button class="theme-card${id === getTheme() ? ' on' : ''}" data-theme-pick="${id}" aria-pressed="${id === getTheme()}">
+        <span class="tprev tprev-${id}" aria-hidden="true"><span class="tp-bar"></span>
+          <span class="tp-grid">${colors.map((c) => `<i style="--c:${c}"></i>`).join('')}</span><span class="tp-nav"></span></span>
+        <span class="pick-box">${icon('check')}</span>
+        <span class="theme-name">${esc(t(name))}</span>
+        <span class="theme-desc">${esc(t(desc))}</span>
+      </button>`).join('')}</div>`;
+  el.querySelectorAll('[data-theme-pick]').forEach((b) => b.addEventListener('click', async () => {
+    await setTheme(b.dataset.themePick);
+    ctx.refresh();
+  }));
 }
 
 // --- Language & dates ------------------------------------------------------------

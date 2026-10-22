@@ -15,6 +15,8 @@
 //   listEntries()             all records, oldest first
 //   getValue(key) / setValue(key, value)   small key/value store
 //                             (config text, last good config, open session)
+//   readHint(key) / writeHint(key, value)  a copy of a small UI setting that
+//                             can be read at once, before the first paint
 //   requestPersistence() / isPersisted()
 
 const DB_NAME = 'tracker';
@@ -143,6 +145,19 @@ export function setValue(key, value) {
 
 // Browsers may wipe site data when the phone is low on space unless the
 // site has "persistent" storage. Ask for it so the log isn't evicted.
+// WHY hints: the kv store above answers only asynchronously, so a setting
+// that changes the whole look (the theme) would show the default colours
+// for a moment on every start. A copy in localStorage can be read at once.
+// It is only a copy: the kv value stays the real one, and a missing or
+// blocked localStorage just means that moment of default colours.
+export function readHint(key) {
+  try { return localStorage.getItem(`tracker.${key}`); } catch { return null; }
+}
+
+export function writeHint(key, value) {
+  try { localStorage.setItem(`tracker.${key}`, value); } catch { /* blocked: fine */ }
+}
+
 export async function requestPersistence() {
   try {
     if (navigator.storage && navigator.storage.persist) {

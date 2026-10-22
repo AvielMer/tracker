@@ -10,12 +10,16 @@ import { renderStats } from './stats.js';
 import { renderSettings, settingsPageTitle } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { initWelcome, renderWelcome } from './welcome.js';
+import { applyThemeHint, initTheme } from './theme.js';
 import { icon } from './icons.js';
 import { $, esc } from './util.js';
 import {
   initLang, longDate, setLanguagePack, t,
 } from './i18n.js';
 import { loadDismissed } from './reminders.js';
+
+// The theme before anything is drawn (see theme.js).
+applyThemeHint();
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
@@ -207,6 +211,7 @@ async function start() {
   });
 
   await initLang();
+  await initTheme();
   try {
     state.entries = await storage.listEntries();
     state.remindersDismissed = await loadDismissed();

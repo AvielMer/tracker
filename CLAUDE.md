@@ -322,6 +322,26 @@ Example:
     (--c = colour); .seg (segmented choice); .pill; .page-hint;
     .list-head + .text-btn; .empty-card; .wl-* (welcome). Sheets have a
     grab bar and slide up; checkbox rows (.check) are 48px tall.
+- Themes (asked for as "a theme that resembles the My Calendar period app,
+  called girl theme"): `theme.js` THEMES = dark (the original) and girl
+  (light, pink, watercolour blobs + flower sprays drawn as inline SVG in
+  app.css — no images copied from that app). Settings → Theme
+  (#settings/look) shows a small CSS preview of each. kv "ui_theme"; a
+  copy goes to localStorage through storage.js readHint/writeHint and is
+  applied at the top of app.js, so the saved theme is there before the
+  first paint (no flash of dark). Girl sets [data-theme="girl"] on <html>,
+  <meta theme-color> #fff4f7 and color-scheme light. ALL chrome colours
+  are CSS variables in :root (--top-bg, --nav-bg, --toast-*, --tip-bg,
+  --scrim, --shadow, --warn-bg, --session-*, --work-bg, --ready-bg,
+  --on-accent, --on-ok, --swatch-ring, --tile-count*, --ch-grid,
+  --ch-base…) — never hardcode a colour in a rule, add a variable and give
+  it a value in both themes. Girl colours were contrast-checked: plum text
+  #3a2130 14.6:1, muted #805a70 ≥5.1:1 on white/pink, white on the rose
+  accent #cc356e 4.9:1, ok #1b7f52 5.0:1. Charts read grid/baseline/ring
+  from those variables (charts.js ink()); the series colours stay the
+  same — the dataviz validator passes them on white too (all ≥3:1).
+  The bright flower spray sits in the header's corner (mirrored for RTL),
+  a faint one low on the page background, so neither lies under text.
 - About screen (`about.js`, route #about, not a tab — the header ⓘ on the
   main screens and the last row of the Settings menu open it): what the app is, privacy,
   backup, install, how to use, language, "not medical advice" + Israeli
