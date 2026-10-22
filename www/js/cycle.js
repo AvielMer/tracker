@@ -94,7 +94,7 @@ export async function renderCycle(el, ctx) {
   const m = buildCycle(state.entries, periodEv.id, cs, today);
   const fun = await loadFun();
   const offer = !fun && !(await offerDismissed());
-  el.innerHTML = `${rem}${offer ? offerHtml() : ''}${fun ? '<div class="fun-stage" data-stage></div>' : ''}${heroHtml(m, cs, diaryEv, today, !!fun)}
+  el.innerHTML = `${rem}${offer ? offerHtml() : ''}${fun ? '<div class="fun-stage" data-stage></div>' : ''}${heroHtml(m, cs, diaryEv, today, !!fun, buddyMood(m, cs, today))}
     ${calendarHtml(m, cs, state, periodEv.id, today)}
     ${comingHtml(m, today)}
     ${statsHtml(m, cs)}
@@ -208,6 +208,9 @@ function shownPhase(m, info, cs, d) {
   return ph;
 }
 
+// A section title with a small coloured icon in front.
+const heading = (ic, color, text) => `<h2 class="day cy-h"><span class="cy-hi" style="--c:var(${color})">${icon(ic)}</span>${esc(text)}</h2>`;
+
 const tag = (cls, text) => `<span class="pill cy-tag"><i class="cy-sw ${cls}"></i>${esc(text)}</span>`;
 
 // What a day is, as small labels: period, fertile, ovulation, PMS, late,
@@ -227,7 +230,8 @@ function dayTags(m, info, cs, d) {
   return out;
 }
 
-function heroHtml(m, cs, diaryEv, today, buddy) {
+// phase: the status card takes its colour (app.css .cy-hero.ph-…).
+function heroHtml(m, cs, diaryEv, today, buddy, phase) {
   let big;
   let sub = '';
   let note = '';
@@ -257,7 +261,7 @@ function heroHtml(m, cs, diaryEv, today, buddy) {
     }
     if (m.forgotEnd) note = t('FORGOT_END_NOTE', { n: today - m.last.start + 1 });
   }
-  return `<section class="card cy-hero${buddy ? ' with-buddy' : ''}">
+  return `<section class="card cy-hero ph-${phase}${buddy ? ' with-buddy' : ''}">
     <div class="cy-big">${esc(big)}</div>
     ${sub ? `<div class="cy-sub">${esc(sub)}</div>` : ''}
     ${tags.length ? `<div class="cy-pills">${tags.join('')}</div>` : ''}
@@ -336,12 +340,12 @@ function relText(from, to, today) {
 function comingHtml(m, today) {
   const rows = comingUp(m, 6);
   if (!rows.length) return '';
-  return `<h2 class="day">${esc(t('Coming up'))}</h2>
+  return `${heading('calendar', '--cy-fertile', t('Coming up'))}
     <div class="card list cy-coming">${rows.map((r) => {
     const period = r.type === 'period';
     const extra = period ? (r.pms != null && r.pms > today ? t('PMS days may start {date}', { date: dayText(r.pms) }) : '')
       : t('Ovulation around {date}', { date: dayText(r.ovu) });
-    return `<div class="cy-row"><i class="cy-sw ${period ? 'c-exp' : 'c-fer'}"></i>
+    return `<div class="cy-row ${period ? 'cy-row-period' : 'cy-row-fertile'}"><i class="cy-sw ${period ? 'c-exp' : 'c-fer'}"></i>
       <div class="cy-row-text"><b>${esc(t(period ? 'Period' : 'Fertile days'))}</b>
         <span>${esc(rangeText(r.from, r.to))}</span>${extra ? `<small>${esc(extra)}</small>` : ''}</div>
       <span class="cy-rel">${esc(relText(r.from, r.to, today))}</span></div>`;
@@ -353,11 +357,11 @@ function statsHtml(m, cs) {
   const s = m.stats;
   const based = s.cycles ? t('Based on your last {n} cycles', { n: s.cycles }) : t('USING_USUAL', { n: cs.length });
   const reg = s.cycles < 2 ? '' : s.max - s.min <= 7 ? t('Your cycle is regular.') : t('IRREGULAR_NOTE', { min: s.min, max: s.max });
-  return `<h2 class="day">${esc(t('Your cycle'))}</h2>
+  return `${heading('drop', '--cy-period', t('Your cycle'))}
     <div class="card pad">
       <div class="cy-stats">
-        <div class="cy-stat"><b>${esc(t('{n} days', { n: s.avg }))}</b><span>${esc(t('Cycle length'))}${s.max > s.min ? ` · ${s.min}–${s.max}` : ''}</span></div>
-        <div class="cy-stat"><b>${esc(t('{n} days', { n: s.plen }))}</b><span>${esc(t('Period length'))}</span></div>
+        <div class="cy-stat" style="--c:var(--cy-calm)"><b>${esc(t('{n} days', { n: s.avg }))}</b><span>${esc(t('Cycle length'))}${s.max > s.min ? ` · ${s.min}–${s.max}` : ''}</span></div>
+        <div class="cy-stat" style="--c:var(--cy-period)"><b>${esc(t('{n} days', { n: s.plen }))}</b><span>${esc(t('Period length'))}</span></div>
       </div>
       <p class="small muted">${esc(based)}${reg ? ` ${esc(reg)}` : ''}</p>
     </div>`;
@@ -391,19 +395,19 @@ function itemsByDay(state, periodId) {
 function patternsHtml(m, cs, state, periodId) {
   if (!m) return '';
   const p = patterns(m, itemsByDay(state, periodId));
-  const phases = [['pms', 'Before your period'], ['period', 'During your period'], ['fertile', 'On fertile days']]
+  const phases = [['pms', 'Before your period', '--cy-pms'], ['period', 'During your period', '--cy-period'], ['fertile', 'On fertile days', '--cy-fertile']]
     .filter(([k]) => (k !== 'fertile' || cs.fertile) && (k !== 'pms' || cs.pms));
   let body;
   if (!p) body = `<p class="small muted">${esc(t('PATTERNS_EMPTY'))}</p>`;
   else {
     // Plain counts ("4 of 5 times") read easier than rates, and don't
     // sound dramatic while there is little data.
-    const blocks = phases.filter(([k]) => p[k].length).map(([k, title]) => `<div class="cy-pat"><div class="label">${esc(t(title))}</div>
+    const blocks = phases.filter(([k]) => p[k].length).map(([k, title, color]) => `<div class="cy-pat" style="--c:var(${color})"><div class="label">${esc(t(title))}</div>
       <div class="cy-pat-list">${p[k].map((r) => `<span class="cy-pat-item">${esc(r.label)} <small>${esc(t('{n} of {all} times', { n: r.n, all: r.all }))}</small></span>`).join('')}</div></div>`);
     body = `${blocks.join('') || `<p class="small muted">${esc(t('Nothing stands out yet — keep logging.'))}</p>`}
       <p class="small muted">${esc(t('PATTERNS_HINT'))}</p>`;
   }
-  return `<h2 class="day">${esc(t('Your patterns'))}</h2><div class="card pad">${body}</div>`;
+  return `${heading('sparkle', '--cy-pms', t('Your patterns'))}<div class="card pad">${body}</div>`;
 }
 
 // --- a day: what it is, what was logged, mark a period ---------------------------------

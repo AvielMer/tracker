@@ -41,6 +41,16 @@
   --cy-on-period: #fff;
   --cy-fertile: #3987e5;
   --cy-pms: #c98500;
+  --cy-fresh: #199e70;  /* after the period */
+  --cy-calm: #8b7cf6;   /* after ovulation */
+  --cy-mix: 30%;        /* how much of its phase colour the status card takes */
+  --cy-tint: 13%;       /* coloured rows and tiles */
+  --cy-fer-mix: 34%;    /* fertile days on the calendar */
+  --cy-exp-mix: 16%;    /* expected period days */
+  --cy-sub: #c9cdd6;    /* small text on the coloured status card (≥ 6.4:1) */
+  --cy-btn: linear-gradient(135deg, #b93d73, #a8336a); /* white text ≥ 5.2:1 */
+  --cy-glow: 22%;
+  --cy-nav: #f07aa8;    /* the Cycle tab's icon in the bar while it's open */
   --nav-h: 66px;
   color-scheme: dark;
 }
@@ -733,6 +743,16 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
   --cy-on-period: #fff;
   --cy-fertile: #2a78d6;
   --cy-pms: #c98500;
+  --cy-fresh: #1baf7a;
+  --cy-calm: #8a6ad9;
+  --cy-mix: 14%;
+  --cy-tint: 8%;
+  --cy-fer-mix: 24%;
+  --cy-exp-mix: 10%;
+  --cy-sub: var(--muted);
+  --cy-btn: linear-gradient(135deg, #d9467d, var(--accent));
+  --cy-glow: 12%;
+  --cy-nav: var(--accent);
   color-scheme: light;
 }
 /* Watercolour blobs and two flower sprays, fixed behind everything.
@@ -918,9 +938,9 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .cy-d.blank { visibility: hidden; }
 .cy-d:active { background: var(--card2); }
 .cy-d.c-per { background: var(--cy-period); color: var(--cy-on-period); font-weight: 700; }
-.cy-d.c-exp { border: 2px dashed var(--cy-period); background: color-mix(in srgb, var(--cy-period) 10%, transparent); }
-.cy-d.c-fer { background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); }
-.cy-d.c-ovu { background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); border-color: var(--cy-fertile); font-weight: 700; }
+.cy-d.c-exp { border: 2px dashed var(--cy-period); background: color-mix(in srgb, var(--cy-period) var(--cy-exp-mix), transparent); }
+.cy-d.c-fer { background: color-mix(in srgb, var(--cy-fertile) var(--cy-fer-mix), transparent); }
+.cy-d.c-ovu { background: color-mix(in srgb, var(--cy-fertile) var(--cy-fer-mix), transparent); border-color: var(--cy-fertile); font-weight: 700; }
 /* PMS: a short bar under the number; something logged: a dot above it. */
 .cy-d.c-pms::after {
   content: ''; position: absolute; bottom: 3px; left: 32%; right: 32%; height: 3px; border-radius: 2px; background: var(--cy-pms);
@@ -937,7 +957,7 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .cy-sw.c-per { background: var(--cy-period); }
 .cy-sw.c-exp { border: 2px dashed var(--cy-period); }
 .cy-sw.c-fer { background: color-mix(in srgb, var(--cy-fertile) 40%, transparent); }
-.cy-sw.c-ovu { border-color: var(--cy-fertile); background: color-mix(in srgb, var(--cy-fertile) 24%, transparent); }
+.cy-sw.c-ovu { border-color: var(--cy-fertile); background: color-mix(in srgb, var(--cy-fertile) var(--cy-fer-mix), transparent); }
 .cy-sw.c-pms { width: 14px; height: 4px; border: 0; border-radius: 2px; background: var(--cy-pms); }
 .cy-sw.c-has { width: 6px; height: 6px; border: 0; background: var(--muted); }
 .cy-tag .cy-sw:not([class*="c-"]) { display: none; }
@@ -947,13 +967,17 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .cy-row-text { flex: 1; min-width: 0; }
 .cy-row-text span { display: block; color: var(--text); }
 .cy-row-text small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
-.cy-rel { color: var(--muted); font-size: 14px; white-space: nowrap; }
-.cy-stats { display: flex; gap: 28px; margin-bottom: 6px; }
+.cy-rel {
+  padding: 3px 10px; border-radius: 12px; white-space: nowrap; font-size: 14px; font-weight: 600;
+  color: var(--text); background: color-mix(in srgb, var(--c) 20%, transparent);
+}
+.cy-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
 .cy-stat b { display: block; font-size: 22px; }
 .cy-stat span { color: var(--muted); font-size: 13px; }
-.cy-pat + .cy-pat { margin-top: 12px; }
+.cy-pat { padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--c) var(--cy-tint), transparent); }
+.cy-pat + .cy-pat { margin-top: 10px; }
 .cy-pat-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.cy-pat-item { padding: 6px 12px; border-radius: 14px; background: var(--card2); font-weight: 600; font-size: 14px; }
+.cy-pat-item { padding: 6px 12px; border-radius: 14px; background: color-mix(in srgb, var(--c) 16%, var(--card)); font-weight: 600; font-size: 14px; }
 .cy-pat-item small { color: var(--muted); font-weight: 500; }
 .cy-settings { margin-top: 18px; }
 .cy-disclaimer { margin: 12px 6px 0; line-height: 1.5; }
@@ -967,7 +991,7 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 .fun-offer { padding: 16px; text-align: center; }
 .fun-offer-pics { font-size: 26px; letter-spacing: 2px; }
 .fun-offer b { display: block; font-size: 18px; margin-top: 4px; }
-.fun-offer p { margin: 6px 0 12px; color: var(--muted); line-height: 1.45; }
+.fun-offer p { margin: 6px 0 12px; color: var(--cy-sub); line-height: 1.45; }
 .fun-offer .btn-row { justify-content: center; }
 .fun-sec .btn { margin-top: 10px; }
 .fun-pick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 6px 0 8px; }
@@ -978,3 +1002,73 @@ body.welcoming .top, body.welcoming .nav, body.welcoming .banner { display: none
 }
 .fun-pick-b svg { width: 100%; max-width: 62px; height: auto; aspect-ratio: 120 / 124; overflow: visible; }
 .fun-pick-b.on { border-color: var(--accent); background: var(--accent-soft); }
+
+/* --- Colour on the Cycle tab — asked for as "even in dark mode the period
+   tab should be colorful". The status card takes the colour of the phase,
+   the sections get coloured icons and tints, and in the dark theme the tab
+   has a night sky (soft glows, twinkling stars, a moon). Text on every tint
+   was contrast-checked: body text ≥ 8.5:1, small grey text ≥ 4.6:1 (dark:
+   --cy-sub on the status card). --- */
+.cy-hero {
+  --ph: var(--cy-period);
+  /* from the phase's colour into a soft violet, like a sunset */
+  background: linear-gradient(150deg, color-mix(in srgb, var(--ph) var(--cy-mix), var(--card)),
+    color-mix(in srgb, var(--cy-calm) var(--cy-tint), var(--card)) 90%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ph) var(--cy-glow), transparent);
+}
+.cy-hero.ph-follicular { --ph: var(--cy-fresh); }
+.cy-hero.ph-fertile, .cy-hero.ph-ovulation { --ph: var(--cy-fertile); }
+.cy-hero.ph-luteal, .cy-hero.ph-late { --ph: var(--cy-calm); }
+.cy-hero.ph-pms { --ph: var(--cy-pms); }
+.cy-hero .cy-sub { color: var(--cy-sub); }
+.cy-hero .cy-pills .pill { background: color-mix(in srgb, var(--text) 9%, transparent); }
+.cy-actions .btn.primary { background: var(--cy-btn); color: var(--cy-on-period); }
+.cy-actions .btn:not(.primary) { background: color-mix(in srgb, var(--cy-period) 16%, var(--card)); }
+.cy-h { display: flex; align-items: center; justify-content: flex-start; gap: 10px; }
+.cy-hi {
+  flex: none; width: 28px; height: 28px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--c);
+}
+.cy-hi .ic { width: 17px; height: 17px; }
+.cy-row-period { --c: var(--cy-period); }
+.cy-row-fertile { --c: var(--cy-fertile); }
+.cy-coming .cy-row { background: color-mix(in srgb, var(--c) var(--cy-tint), transparent); }
+.cy-stat { padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--c) var(--cy-tint), transparent); }
+.cy-cal { background: linear-gradient(180deg, color-mix(in srgb, var(--cy-calm) var(--cy-tint), var(--card)), var(--card) 42%); }
+.fun-offer .btn.primary, .cy-day-acts .btn.primary { background: var(--cy-btn); color: var(--cy-on-period); }
+body[data-screen="cycle"] .nav a.on .ico { background: color-mix(in srgb, var(--cy-period) 22%, transparent); color: var(--cy-nav); }
+.cy-settings { background: color-mix(in srgb, var(--cy-calm) var(--cy-tint), var(--card2)); }
+/* The small print gets its own soft background, so no star twinkles behind it. */
+.cy-disclaimer { padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--card) 70%, transparent); }
+.fun-offer {
+  background: linear-gradient(140deg, color-mix(in srgb, var(--cy-period) var(--cy-mix), var(--card)),
+    color-mix(in srgb, var(--cy-calm) var(--cy-tint), var(--card)));
+}
+/* The night sky (dark theme only — the Girl theme has its flowers). A fixed
+   layer behind everything, like the Girl theme's, so it doesn't scroll away;
+   the second layer of stars twinkles (not with reduced motion). */
+:root:not([data-theme]) body[data-screen="cycle"] { background: transparent; }
+:root:not([data-theme]) body[data-screen="cycle"]::before,
+:root:not([data-theme]) body[data-screen="cycle"]::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+}
+:root:not([data-theme]) body[data-screen="cycle"]::before {
+  background:
+    url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"%3E%3Ccircle cx="86" cy="42" r="1.2" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="22" cy="214" r="1.4" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="97" cy="153" r="0.6" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="58" cy="13" r="0.6" fill="%23fff" opacity="0.6"/%3E%3Ccircle cx="111" cy="21" r="0.8" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="145" cy="112" r="0.6" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="35" cy="61" r="1.4" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="151" cy="153" r="1.2" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="60" cy="15" r="1.4" fill="%23fff" opacity="0.4"/%3E%3Ccircle cx="78" cy="111" r="0.8" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="34" cy="150" r="1" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="212" cy="178" r="0.8" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="152" cy="150" r="0.8" fill="%23fff" opacity="0.5"/%3E%3Ccircle cx="28" cy="144" r="0.6" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="19" cy="162" r="0.8" fill="%23fff" opacity="0.6"/%3E%3Ccircle cx="178" cy="140" r="1.2" fill="%23fff" opacity="0.5"/%3E%3Ccircle cx="123" cy="153" r="1.2" fill="%23fff" opacity="0.5"/%3E%3Ccircle cx="80" cy="67" r="0.8" fill="%23fff" opacity="0.4"/%3E%3Ccircle cx="24" cy="151" r="1" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="130" cy="228" r="1" fill="%23fff" opacity="0.6"/%3E%3Ccircle cx="77" cy="159" r="0.6" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="135" cy="111" r="0.8" fill="%23fff" opacity="0.5"/%3E%3Ccircle cx="42" cy="129" r="1.2" fill="%23fff" opacity="0.3"/%3E%3Ccircle cx="175" cy="23" r="1.4" fill="%23fff" opacity="0.75"/%3E%3Ccircle cx="206" cy="228" r="1" fill="%23fff" opacity="0.5"/%3E%3Ccircle cx="181" cy="93" r="1.4" fill="%23fff" opacity="0.6"/%3E%3C/svg%3E') 0 0 / 240px 240px,
+    radial-gradient(75% 42% at 0% 0%, rgba(194, 69, 122, .30), transparent 70%),
+    radial-gradient(60% 38% at 100% 14%, rgba(139, 124, 246, .26), transparent 70%),
+    radial-gradient(70% 40% at 10% 100%, rgba(57, 135, 229, .18), transparent 70%),
+    radial-gradient(55% 32% at 100% 88%, rgba(201, 133, 0, .12), transparent 70%),
+    var(--bg);
+}
+:root:not([data-theme]) body[data-screen="cycle"]::after {
+  background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"%3E%3Cpath d="M40 47Q40 52 45 52Q40 52 40 57Q40 52 35 52Q40 52 40 47Z" fill="%23ffc4dd" opacity="0.8"/%3E%3Cpath d="M176 26Q176 30 180 30Q176 30 176 34Q176 30 172 30Q176 30 176 26Z" fill="%23ffe7a3" opacity="0.8"/%3E%3Cpath d="M132 145.5Q132 150 136.5 150Q132 150 132 154.5Q132 150 127.5 150Q132 150 132 145.5Z" fill="%23ffffff" opacity="0.7"/%3E%3Cpath d="M212 192.5Q212 196 215.5 196Q212 196 212 199.5Q212 196 208.5 196Q212 196 212 192.5Z" fill="%23c8bfff" opacity="0.8"/%3E%3Cpath d="M70 207Q70 210 73 210Q70 210 70 213Q70 210 67 210Q70 210 70 207Z" fill="%23ffe7a3" opacity="0.7"/%3E%3Ccircle cx="98" cy="96" r="1.6" fill="%23fff"/%3E%3Ccircle cx="214" cy="104" r="1.4" fill="%23fff"/%3E%3Ccircle cx="20" cy="140" r="1.3" fill="%23fff"/%3E%3C/svg%3E') 120px 70px / 240px 240px;
+  animation: cy-twinkle 7s ease-in-out infinite;
+}
+@keyframes cy-twinkle { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { body[data-screen="cycle"]::after { animation: none !important; } }
+/* The moon sits in the header, beside the ⓘ (mirrored for right-to-left). */
+:root:not([data-theme]) body[data-screen="cycle"] .top {
+  background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"%3E%3Cdefs%3E%3CradialGradient id="g"%3E%3Cstop offset="0" stop-color="%23ffe7a3" stop-opacity=".42"/%3E%3Cstop offset="1" stop-color="%23ffe7a3" stop-opacity="0"/%3E%3C/radialGradient%3E%3Cmask id="m"%3E%3Crect width="120" height="80" fill="%23fff"/%3E%3Ccircle cx="75" cy="30" r="15" fill="%23000"/%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx="66" cy="38" r="36" fill="url(%23g)"/%3E%3Ccircle cx="66" cy="38" r="18" fill="%23ffe7a3" mask="url(%23m)"/%3E%3Cpath d="M26 17Q26 22 31 22Q26 22 26 27Q26 22 21 22Q26 22 26 17Z" fill="%23ffc4dd" opacity="0.9"/%3E%3Cpath d="M104 54Q104 58 108 58Q104 58 104 62Q104 58 100 58Q104 58 104 54Z" fill="%23ffe7a3" opacity="0.85"/%3E%3Ccircle cx="100" cy="18" r="1.6" fill="%23fff" opacity=".9"/%3E%3Ccircle cx="18" cy="56" r="1.3" fill="%23fff" opacity=".8"/%3E%3Ccircle cx="44" cy="70" r="1.1" fill="%23fff" opacity=".7"/%3E%3C/svg%3E') no-repeat right 56px top 0 / 96px auto, var(--top-bg);
+}
+:root[dir="rtl"]:not([data-theme]) body[data-screen="cycle"] .top { background-position: left 56px top 0, 0 0; }
