@@ -12,18 +12,20 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <header class="top"><h1 id="title">Events</h1><a id="about-btn" class="top-btn" href="#about" aria-label="About this app">ⓘ</a></header>
+  <header class="top">
+    <a id="back-btn" class="top-btn" href="#settings" hidden></a>
+    <div class="top-titles">
+      <div id="eyebrow" class="eyebrow" hidden></div>
+      <h1 id="title">Tracker</h1>
+    </div>
+    <a id="about-btn" class="top-btn" href="#about" aria-label="About this app"></a>
+  </header>
   <div id="banner" class="banner" hidden></div>
   <div id="session-banner" class="banner session" hidden></div>
   <main id="screen"></main>
 
-  <nav class="nav">
-    <a href="#events"><span class="ico">●</span><span class="lbl">Events</span></a>
-    <a href="#training"><span class="ico">▲</span><span class="lbl">Training</span></a>
-    <a href="#log"><span class="ico">≡</span><span class="lbl">Log</span></a>
-    <a href="#stats"><span class="ico">▦</span><span class="lbl">Stats</span></a>
-    <a href="#settings"><span class="ico">⚙</span><span class="lbl">Settings</span></a>
-  </nav>
+  <!-- Tabs are filled in by app.js (icons + labels in the chosen language). -->
+  <nav class="nav"></nav>
 
   <div id="toast" class="toast" role="status"></div>
   <div id="sheet" class="sheet" hidden><div class="sheet-body"></div></div>

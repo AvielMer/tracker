@@ -1,14 +1,13 @@
 {
   "events": [
-    {"id": "example_private", "name": "דוגמה לפריט פרטי", "color": "#8b949e"},
-    {"id": "headache", "name": "כאב ראש", "ask": ["intensity"]},
+    { "id": "how_i_feel", "name": "מצב רוח", "color": "#2bb5a0", "ask": ["mood", "note"] },
+    { "id": "how_was_my_day", "name": "איך היה היום", "color": "#7b6cf6", "ask": ["mood", "note"], "remind": [{ "time": "21:00" }] },
+    {"id": "headache", "name": "כאב ראש", "color": "#e8833a", "ask": ["intensity"]},
     {"id": "panic", "name": "התקף חרדה", "color": "#e5534b", "ask": ["intensity", "duration_min"]},
     {"id": "medicine", "name": "תרופה", "color": "#46b450", "ask": ["choice", "amount"], "choices": ["אקמול", "נורופן"], "amount": {"unit": "מ״ג", "values": [200, 400, 500, 1000]}},
     {"id": "blood_pressure", "name": "לחץ דם", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "משקל", "unit": "ק״ג"}]},
     {"id": "water_bottle", "name": "בקבוק מים", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "ל׳", "values": [0.5, 1, 1.5, 2]}},
-    {"id": "coffee", "name": "קפה", "ask": ["count"]},
-    { "id": "how_i_feel", "name": "מצב רוח", "color": "#2bb5a0", "ask": ["mood", "note"] },
-    { "id": "how_was_my_day", "name": "איך היה היום", "color": "#7b6cf6", "ask": ["mood", "note"], "remind": [{ "time": "21:00" }] }
+    {"id": "coffee", "name": "קפה", "color": "#d4a72c", "ask": ["count"]}
   ],
   "exercises": [
     {"id": "pullups", "name": "מתח", "type": "reps", "allowWeight": true, "start": 8},

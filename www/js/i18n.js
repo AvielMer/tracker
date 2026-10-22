@@ -1,6 +1,6 @@
 // UI language: English, Hebrew (right-to-left), Russian — plus one more
 // language that anyone can add without touching the code: an AI translates
-// the app's texts (Settings → Language → Add a language with AI, see ai.js)
+// the app's texts (Settings → Language & dates → Add a language with AI, see ai.js)
 // and the translation is kept in the config as "language" (config.js).
 //
 // t('English text {var}', { var }) returns the text in the current
@@ -192,6 +192,16 @@ export function fmtDay(date, withYear) {
   }
 }
 
+// Today's date written out, above the Events title ("Wednesday 21 October",
+// "יום רביעי, 21 באוקטובר").
+export function longDate(date = new Date()) {
+  try {
+    return new Intl.DateTimeFormat(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+  } catch {
+    return '';
+  }
+}
+
 // en only where the English needs a plural; he/ru use "word: n" forms so no
 // plural rules are needed.
 const DICT = {
@@ -254,7 +264,6 @@ const DICT = {
   },
 
   // --- events screen ---
-  'No events yet. Add some in Settings.': { he: 'אין עדיין אירועים. הוסף בהגדרות.', ru: 'Событий пока нет. Добавьте их в Настройках.' },
   'last {time}': { he: 'אחרון {time}', ru: 'последнее {time}' },
   'Recent': { he: 'אחרונים', ru: 'Недавние' },
   'all →': { he: 'הכל ←', ru: 'все →' },
@@ -319,7 +328,6 @@ const DICT = {
   'Restored': { he: 'שוחזר', ru: 'Восстановлено' },
 
   // --- settings ---
-  'Your data': { he: 'הנתונים שלך', ru: 'Ваши данные' },
   'Entries saved on this phone: {n} (events: {e}).': { en: (v) => `${v.n} entries saved on this phone (${v.e} events).`, he: 'רשומות שמורות בטלפון: {n} (אירועים: {e}).', ru: 'Записей на этом телефоне: {n} (событий: {e}).' },
   'PROTECTED_YES': { en: '✓ Protected storage: the browser won\'t delete your data to free space.', he: '✓ אחסון מוגן: הדפדפן לא ימחק את הנתונים כדי לפנות מקום.', ru: '✓ Защищённое хранилище: браузер не удалит данные ради места.' },
   'PROTECTED_NO': { en: '⚠ Storage not protected yet. Install the app to the home screen, then tap "Protect".', he: '⚠ האחסון עוד לא מוגן. התקן את האפליקציה במסך הבית ואז לחץ "הגן".', ru: '⚠ Хранилище ещё не защищено. Установите приложение на главный экран и нажмите «Защитить».' },
@@ -331,22 +339,18 @@ const DICT = {
   'private': { he: 'פרטי', ru: 'личное' },
   'hidden': { he: 'מוסתר', ru: 'скрыто' },
   '+ Add a button': { he: '+ הוסף כפתור', ru: '+ Добавить кнопку' },
-  'EDIT_BUTTON_HINT': { en: '✎ changes a button\'s name, color and what it asks after a tap (type, amount, how many, duration…).', he: '✎ משנה את שם הכפתור, הצבע ומה הוא שואל אחרי לחיצה (סוג, כמות, כמה, משך…).', ru: '✎ меняет название кнопки, цвет и вопросы после нажатия (тип, количество, сколько, длительность…).' },
   'Exercises': { he: 'תרגילים', ru: 'Упражнения' },
   'seconds': { he: 'שניות', ru: 'секунды' },
   'reps': { he: 'חזרות', ru: 'повт.' },
   '+ Add an exercise': { he: '+ הוסף תרגיל', ru: '+ Добавить упражнение' },
   'Routines': { he: 'שגרות', ru: 'Программы' },
   'exercises: {n}': { en: (v) => `${v.n} exercises`, he: 'תרגילים: {n}', ru: 'упражнений: {n}' },
-  '+ New routine': { he: '+ שגרה חדשה', ru: '+ Новая программа' },
   'Add missing preset exercises & routines': { he: 'הוסף תרגילים ושגרות מוכנים שחסרים', ru: 'Добавить недостающие готовые упражнения и программы' },
-  'Config file': { he: 'קובץ הגדרות', ru: 'Файл конфигурации' },
   '⚠ Config has problems — using the last good version.': { he: '⚠ יש בעיות בהגדרות — משתמש בגרסה התקינה האחרונה.', ru: '⚠ В конфигурации ошибки — используется последняя рабочая версия.' },
   '✓ Config OK.': { he: '✓ ההגדרות תקינות.', ru: '✓ Конфигурация в порядке.' },
   'Events: {a} · Exercises: {b} · Routines: {c}': { he: 'אירועים: {a} · תרגילים: {b} · שגרות: {c}', ru: 'События: {a} · Упражнения: {b} · Программы: {c}' },
   'Export config': { he: 'ייצוא הגדרות', ru: 'Экспорт конфигурации' },
   'Import config': { he: 'ייבוא הגדרות', ru: 'Импорт конфигурации' },
-  'Reset config to default': { he: 'איפוס הגדרות לברירת מחדל', ru: 'Сбросить конфигурацию' },
   'Storage protected': { he: 'האחסון מוגן', ru: 'Хранилище защищено' },
   'Browser said no — install the app to the home screen first': { he: 'הדפדפן סירב — התקן קודם את האפליקציה במסך הבית', ru: 'Браузер отказал — сначала установите приложение на главный экран' },
   'Imported new entries: {n}': { en: (v) => `Imported ${v.n} new entries`, he: 'יובאו רשומות חדשות: {n}', ru: 'Импортировано новых записей: {n}' },
@@ -360,9 +364,6 @@ const DICT = {
   'You already have all presets': { he: 'כל הפריטים המוכנים כבר קיימים', ru: 'Все готовые элементы уже есть' },
   'Config imported': { he: 'ההגדרות יובאו', ru: 'Конфигурация импортирована' },
   'Config NOT imported: {msg}': { he: 'ההגדרות לא יובאו: {msg}', ru: 'Конфигурация НЕ импортирована: {msg}' },
-  'RESET_CONFIRM': { en: 'Replace your config with the default one? Your log entries are NOT affected, but buttons you added will disappear (export the config first to keep them).', he: 'להחליף את ההגדרות בברירת המחדל? הרשומות ביומן לא ייפגעו, אבל כפתורים שהוספת ייעלמו (ייצא קודם את ההגדרות כדי לשמור אותם).', ru: 'Заменить конфигурацию стандартной? Записи журнала НЕ затронуты, но добавленные кнопки исчезнут (сначала экспортируйте конфигурацию).' },
-  'Config reset': { he: 'ההגדרות אופסו', ru: 'Конфигурация сброшена' },
-  'Reset failed: {msg}': { he: 'האיפוס נכשל: {msg}', ru: 'Сброс не удался: {msg}' },
   'None yet.': { he: 'אין עדיין.', ru: 'Пока нет.' },
 
   // --- event button editor ---
@@ -403,7 +404,6 @@ const DICT = {
   'Quick numbers, e.g. 200, 400, 500': { he: 'מספרים מהירים, למשל 200, 400, 500', ru: 'Быстрые значения, например 200, 400, 500' },
   'AMOUNT_HINT': { en: 'These become one-tap buttons. "Other…" lets you type any number.', he: 'אלה יהפכו לכפתורים בלחיצה אחת. "אחר…" מאפשר להקליד כל מספר.', ru: 'Это кнопки в одно касание. «Другое…» — ввести любое число.' },
   'ONE_QUESTION_HINT': { en: 'If you pick just one question, a single tap on the answer saves it.', he: 'אם בוחרים שאלה אחת בלבד, לחיצה אחת על התשובה שומרת.', ru: 'Если выбран один вопрос, одно нажатие на ответ сохраняет.' },
-  'Blood pressure can only be combined with Note': { he: 'לחץ דם משתלב רק עם הערה', ru: 'Давление сочетается только с заметкой' },
   'Type at least one type, e.g. Paracetamol': { he: 'הקלד לפחות סוג אחד, למשל אקמול', ru: 'Введите хотя бы один тип, например Парацетамол' },
   'Type a unit for the amount, e.g. mg': { he: 'הקלד יחידה לכמות, למשל מ״ג', ru: 'Введите единицу, например мг' },
   'Amount numbers must look like: 200, 400': { he: 'מספרי הכמות צריכים להיראות כך: 200, 400', ru: 'Значения должны выглядеть так: 200, 400' },
@@ -438,7 +438,6 @@ const DICT = {
   'Removed set {n} ({v})': { he: 'סט {n} הוסר ({v})', ru: 'Подход {n} удалён ({v})' },
   'Add an exercise': { he: 'הוספת תרגיל', ru: 'Добавить упражнение' },
   '(in session)': { he: '(באימון)', ru: '(в тренировке)' },
-  'No exercises yet. Add some in Settings.': { he: 'אין עדיין תרגילים. הוסף בהגדרות.', ru: 'Упражнений пока нет. Добавьте их в Настройках.' },
   'Sets': { he: 'סטים', ru: 'Подходы' },
   'Total': { he: 'סה״כ', ru: 'Всего' },
   'sec': { he: 'שנ׳', ru: 'с' },
@@ -568,13 +567,13 @@ const DICT = {
   'SHARE_TEXT': { en: 'Tracker — a free, private app to keep track of how you are doing (events, training). Your data stays on your phone.', he: 'Tracker — אפליקציה חינמית ופרטית למעקב אחרי איך שאתה מרגיש (אירועים, אימונים). המידע נשאר בטלפון שלך.', ru: 'Tracker — бесплатное приложение, чтобы следить за самочувствием (события, тренировки). Данные остаются на вашем телефоне.' },
   'ABOUT_WHAT': { en: 'A free app to keep track of how you are doing. One tap logs an event — a headache, a panic attack, a medicine, your blood pressure, anything you choose — with the date and time. It also logs your training, with timers. Later you can look back, see patterns, and show them to a doctor or to someone you trust.', he: 'אפליקציה חינמית למעקב אחרי איך שאתה מרגיש. הקשה אחת רושמת אירוע — כאב ראש, התקף חרדה, תרופה, לחץ דם, כל דבר שתבחר — עם התאריך והשעה. היא רושמת גם אימונים, עם טיימרים. אחר כך אפשר להסתכל אחורה, לראות דפוסים ולהראות אותם לרופא או למישהו שאתה סומך עליו.', ru: 'Бесплатное приложение, чтобы следить за своим самочувствием. Одно нажатие записывает событие — головную боль, паническую атаку, лекарство, давление, что угодно — с датой и временем. Оно записывает и тренировки, с таймерами. Потом можно посмотреть назад, увидеть закономерности и показать их врачу или человеку, которому вы доверяете.' },
   'ABOUT_PRIVACY': { en: 'Everything you log stays on this phone. There is no account, no ads, and nothing is sent anywhere. A button can be private: the screen shows only a short label (e.g. "X"), and the real name appears only in the log and in exports.', he: 'כל מה שאתה רושם נשאר בטלפון הזה. אין חשבון, אין פרסומות, ושום דבר לא נשלח לשום מקום. כפתור יכול להיות פרטי: על המסך מופיעה רק תווית קצרה (למשל "X"), והשם האמיתי מופיע רק ביומן ובקבצי הייצוא.', ru: 'Всё, что вы записываете, остаётся на этом телефоне. Нет аккаунта, нет рекламы, ничего никуда не отправляется. Кнопка может быть личной: на экране видна только короткая метка (например, «X»), а настоящее название — только в журнале и при экспорте.' },
-  'ABOUT_BACKUP': { en: 'Make a backup now and then: Settings → Full backup (JSON). If the browser data is cleared or the phone is lost, the data is gone. A backup can be restored on any phone.', he: 'כדאי לגבות מדי פעם: הגדרות ← גיבוי מלא (JSON). אם נתוני הדפדפן נמחקים או שהטלפון אובד, המידע אובד. אפשר לשחזר גיבוי בכל טלפון.', ru: 'Время от времени делайте резервную копию: Настройки → Полная копия (JSON). Если данные браузера удалятся или телефон потеряется, записи пропадут. Копию можно восстановить на любом телефоне.' },
+  'ABOUT_BACKUP': { en: 'Make a backup now and then: Settings → Backup & export → Full backup (JSON). If the browser data is cleared or the phone is lost, the data is gone. A backup can be restored on any phone.', he: 'כדאי לגבות מדי פעם: הגדרות ← גיבוי וייצוא ← גיבוי מלא (JSON). אם נתוני הדפדפן נמחקים או שהטלפון אובד, המידע אובד. אפשר לשחזר גיבוי בכל טלפון.', ru: 'Время от времени делайте резервную копию: Настройки → Копия и экспорт → Полная копия (JSON). Если данные браузера удалятся или телефон потеряется, записи пропадут. Копию можно восстановить на любом телефоне.' },
   'ABOUT_INSTALL': { en: 'Open the link in Chrome and tap ⋮ (the menu) → "Add to Home screen" or "Install app". It then opens like a normal app and works without internet. Long-press its icon for quick shortcuts.', he: 'פתח את הקישור ב-Chrome והקש ⋮ (התפריט) ← "הוספה למסך הבית" או "התקנת אפליקציה". מעכשיו היא נפתחת כמו אפליקציה רגילה ועובדת גם בלי אינטרנט. לחיצה ארוכה על הסמל פותחת קיצורי דרך.', ru: 'Откройте ссылку в Chrome и нажмите ⋮ (меню) → «Добавить на главный экран» или «Установить приложение». Тогда оно открывается как обычное приложение и работает без интернета. Долгое нажатие на значок открывает быстрые действия.' },
   'ABOUT_EVENTS': { en: 'a tap on a button logs it with the time. The questions after it (how you feel, how strong, how long…) are optional, and Undo is right there. A button or a routine can remind you, e.g. every evening at 21:00: in this web version the reminder shows at the top of the Events screen when you open the app.', he: 'הקשה על כפתור רושמת אותו עם השעה. השאלות שאחריה (מה שלומך, כמה חזק, כמה זמן…) לא חובה, וכפתור ביטול זמין מיד. כפתור או שגרה יכולים להזכיר לך, למשל כל ערב ב-21:00: בגרסת הרשת התזכורת מופיעה בראש מסך האירועים כשפותחים את האפליקציה.', ru: 'нажатие на кнопку записывает событие со временем. Вопросы после него (самочувствие, насколько сильно, как долго…) необязательны, а «Отменить» всегда под рукой. Кнопка или программа может напоминать, например каждый вечер в 21:00: в веб-версии напоминание появляется вверху экрана событий, когда вы открываете приложение.' },
   'ABOUT_TRAINING': { en: 'pick a routine or a free session. ▶ Start set and ✓ Done time each set and your rest; a circuit runs several exercises in a row with a beep at every switch.', he: 'בחר שגרה או אימון חופשי. ▶ התחל סט ו-✓ סיימתי מודדים כל סט ואת המנוחה; סבב מריץ כמה תרגילים ברצף עם צפצוף בכל החלפה.', ru: 'выберите программу или свободную тренировку. ▶ Начать подход и ✓ Готово засекают каждый подход и отдых; круг идёт без остановки с сигналом при каждой смене.' },
   'ABOUT_LOG': { en: 'everything you logged, newest first. Tap an entry to fix its time or numbers, or to delete it.', he: 'כל מה שרשמת, החדש ביותר למעלה. הקשה על רשומה מאפשרת לתקן שעה או מספרים, או למחוק.', ru: 'всё, что вы записали, новое сверху. Нажмите на запись, чтобы исправить время или числа или удалить её.' },
   'ABOUT_SETTINGS': { en: 'your buttons, exercises and routines, the language, and exports: CSV for a spreadsheet (or for an AI to look for patterns) and a full backup.', he: 'הכפתורים, התרגילים והשגרות שלך, השפה, וייצוא: CSV לגיליון אלקטרוני (או ל-AI שיחפש דפוסים) וגיבוי מלא.', ru: 'ваши кнопки, упражнения и программы, язык и экспорт: CSV для таблицы (или для ИИ, чтобы найти закономерности) и полная копия.' },
-  'ABOUT_LANGUAGE': { en: 'The app speaks English, Hebrew and Russian. For any other language: Settings → Add a language with AI. An AI chat (Claude, ChatGPT, Gemini…) translates the whole app in a few minutes, and the translation can be shared with others as a file.', he: 'האפליקציה מדברת אנגלית, עברית ורוסית. לכל שפה אחרת: הגדרות ← הוספת שפה בעזרת AI. צ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) מתרגם את כל האפליקציה בכמה דקות, ואפשר לשתף את התרגום עם אחרים כקובץ.', ru: 'Приложение говорит на английском, иврите и русском. Для любого другого языка: Настройки → Добавить язык с помощью ИИ. ИИ-чат (Claude, ChatGPT, Gemini…) переведёт всё приложение за несколько минут, а перевод можно передать другим файлом.' },
+  'ABOUT_LANGUAGE': { en: 'The app speaks English, Hebrew and Russian. For any other language: Settings → Language & dates → Add a language with AI. An AI chat (Claude, ChatGPT, Gemini…) translates the whole app in a few minutes, and the translation can be shared with others as a file.', he: 'האפליקציה מדברת אנגלית, עברית ורוסית. לכל שפה אחרת: הגדרות ← שפה ותאריכים ← הוספת שפה בעזרת AI. צ׳אט AI (\u2068Claude, ChatGPT, Gemini…\u2069) מתרגם את כל האפליקציה בכמה דקות, ואפשר לשתף את התרגום עם אחרים כקובץ.', ru: 'Приложение говорит на английском, иврите и русском. Для любого другого языка: Настройки → Язык и даты → Добавить язык с помощью ИИ. ИИ-чат (Claude, ChatGPT, Gemini…) переведёт всё приложение за несколько минут, а перевод можно передать другим файлом.' },
   'ABOUT_MEDICAL': { en: 'This app does not give medical advice and does not replace a doctor or a mental-health professional. If you are in danger, or thinking about hurting yourself, call your local emergency number or someone you trust right now. In Israel: ERAN emotional first aid 1201 (24/7), Magen David Adom 101.', he: 'האפליקציה לא נותנת ייעוץ רפואי ולא מחליפה רופא או איש מקצוע בתחום בריאות הנפש. אם אתה בסכנה או חושב לפגוע בעצמך, התקשר עכשיו למספר החירום או למישהו שאתה סומך עליו. בישראל: ער״ן — עזרה ראשונה נפשית 1201 (24/7), מד״א 101.', ru: 'Приложение не даёт медицинских советов и не заменяет врача или специалиста по психическому здоровью. Если вы в опасности или думаете навредить себе, прямо сейчас позвоните в экстренную службу или человеку, которому доверяете. В Израиле: ЭРАН, эмоциональная первая помощь 1201 (круглосуточно), Маген Давид Адом 101.' },
   'ABOUT_SOURCE': { en: 'The app is free, and its code is public on GitHub, so anyone can check exactly what it does.', he: 'האפליקציה חינמית, והקוד שלה פומבי ב-GitHub, כך שכל אחד יכול לבדוק בדיוק מה היא עושה.', ru: 'Приложение бесплатное, а его код открыт для просмотра на GitHub, так что любой может проверить, что именно оно делает.' },
 
@@ -632,9 +631,6 @@ const DICT = {
   'ASK_mood': { en: 'How do you feel — 😫 😟 😐 🙂 😄 (one tap)', he: 'מה שלומך — 😫 😟 😐 🙂 😄 (הקשה אחת)', ru: 'Самочувствие — 😫 😟 😐 🙂 😄 (одно нажатие)' },
   'How do you feel? (1–5)': { he: 'מה שלומך? (1–5)', ru: 'Самочувствие (1–5)' },
   'Mood goes from 1 to 5': { he: 'מצב הרוח הוא מ-1 עד 5', ru: 'Самочувствие — от 1 до 5' },
-  'How I feel': { he: 'מצב רוח', ru: 'Самочувствие' },
-  'How was my day': { he: 'איך היה היום', ru: 'Как прошёл день' },
-  'MOOD_HINT': { en: 'Keep track of how you feel with one tap on a face. “How was my day” reminds you every evening at 21:00 (change it with ✎).', he: 'עקוב אחרי מצב הרוח בהקשה אחת על פרצוף. "איך היה היום" מזכיר כל ערב ב-21:00 (אפשר לשנות עם ✎).', ru: 'Отмечайте самочувствие одним нажатием на смайлик. «Как прошёл день» напоминает каждый вечер в 21:00 (можно изменить через ✎).' },
 
   // --- reminders (reminders.js) ---
   'Reminders': { he: 'תזכורות', ru: 'Напоминания' },
@@ -674,4 +670,95 @@ const DICT = {
   'Nothing logged in this period.': { he: 'לא נרשם כלום בתקופה הזו.', ru: 'За этот период ничего не записано.' },
   'Dates': { he: 'תאריכים', ru: 'Даты' },
   'ABOUT_STATS': { en: 'charts of what you logged: blood pressure, weight, mood, how often each button was used, and your training, for anything from 7 days to a year. Tap a chart to read its numbers.', he: 'גרפים של מה שרשמת: לחץ דם, משקל, מצב רוח, כמה פעמים השתמשת בכל כפתור, והאימונים, מ-7 ימים ועד שנה. הקשה על גרף מראה את המספרים.', ru: 'графики того, что вы записали: давление, вес, самочувствие, как часто нажималась каждая кнопка, и тренировки — от 7 дней до года. Нажмите на график, чтобы увидеть числа.' },
+
+  // --- welcome screen, Settings menu and pages, "Add a button" (redesign) ---
+  'Welcome to Tracker': { he: 'ברוכים הבאים ל-Tracker', ru: 'Добро пожаловать в Tracker' },
+  'WELCOME_LEAD': { en: 'Keep track of how you are doing — one tap at a time.', he: 'מעקב פשוט אחרי איך שאתה מרגיש — בהקשה אחת.', ru: 'Следите за своим самочувствием — одним нажатием.' },
+  'One tap logs it': { he: 'הקשה אחת — ונרשם', ru: 'Одно нажатие — и записано' },
+  'WELCOME_TAP': { en: 'A headache, your mood, a medicine — anything you choose, with the date and time.', he: 'כאב ראש, מצב רוח, תרופה — כל מה שתבחר, עם התאריך והשעה.', ru: 'Головная боль, настроение, лекарство — что угодно, с датой и временем.' },
+  'WELCOME_TRAIN': { en: 'Sets, reps and rest timers for your workouts.', he: 'סטים, חזרות וטיימר מנוחה לאימונים שלך.', ru: 'Подходы, повторения и таймер отдыха для ваших тренировок.' },
+  'Private': { he: 'פרטי', ru: 'Приватно' },
+  'WELCOME_PRIVATE': { en: 'Everything stays on your phone. No account, no ads.', he: 'הכל נשאר בטלפון שלך. בלי חשבון ובלי פרסומות.', ru: 'Всё остаётся на вашем телефоне. Без аккаунта и рекламы.' },
+  'Get started': { he: 'בואו נתחיל', ru: 'Начать' },
+  'What do you want to keep track of?': { he: 'אחרי מה תרצה לעקוב?', ru: 'Что вы хотите отслеживать?' },
+  'WELCOME_PICK_HINT': { en: 'Pick a few to start with — each one becomes a button. You can add, change or remove buttons any time.', he: 'בחר כמה כדי להתחיל — כל אחד יהפוך לכפתור. אפשר להוסיף, לשנות או להסיר כפתורים בכל זמן.', ru: 'Выберите несколько для начала — каждый станет кнопкой. Кнопки можно добавлять, менять и удалять в любой момент.' },
+  'No internet — you can add your own buttons in a moment.': { he: 'אין אינטרנט — עוד רגע תוכל להוסיף כפתורים משלך.', ru: 'Нет интернета — свои кнопки можно будет добавить через минуту.' },
+  'WELCOME_OWN_HINT': { en: 'You can also make your own buttons, including private ones that show only a short label on the screen.', he: 'אפשר גם ליצור כפתורים משלך, כולל כפתורים פרטיים שעל המסך מופיעה בהם רק תווית קצרה.', ru: 'Можно создавать и свои кнопки, в том числе личные — на экране у них видна только короткая метка.' },
+  'Continue with {n} buttons': {
+    en: (v) => (v.n === 1 ? 'Continue with 1 button' : `Continue with ${v.n} buttons`),
+    he: (v) => (v.n === 1 ? 'המשך עם כפתור אחד' : `המשך עם ${v.n} כפתורים`),
+    ru: (v) => (v.n % 10 === 1 && v.n % 100 !== 11 ? `Продолжить с ${v.n} кнопкой` : `Продолжить с ${v.n} кнопками`),
+  },
+  "Skip — I'll add my own": { he: 'דלג — אוסיף בעצמי', ru: 'Пропустить — добавлю свои' },
+  "You're all set": { he: 'הכל מוכן', ru: 'Всё готово' },
+  'Tap a button': { he: 'הקש על כפתור', ru: 'Нажмите кнопку' },
+  'TIP_TAP': { en: 'It is saved right away, with the time. A short question may follow — answer it or skip it.', he: 'זה נשמר מיד, עם השעה. אולי תופיע שאלה קצרה — אפשר לענות או לדלג.', ru: 'Запись сохраняется сразу, со временем. Может появиться короткий вопрос — ответьте или пропустите.' },
+  'Made a mistake?': { he: 'טעית?', ru: 'Ошиблись?' },
+  'TIP_UNDO': { en: 'Tap Undo, or ✕ next to it under Recent. Any entry can be fixed later in the Log.', he: 'הקש "ביטול", או ✕ לידה תחת "אחרונים". כל רשומה אפשר לתקן אחר כך ביומן.', ru: 'Нажмите «Отменить» или ✕ рядом с записью в разделе «Недавние». Любую запись можно потом исправить в журнале.' },
+  'Make it yours': { he: 'להתאים לעצמך', ru: 'Настройте под себя' },
+  'TIP_SETTINGS': { en: 'Add buttons with +, and change anything in Settings.', he: 'הוסף כפתורים עם +, ושנה כל דבר בהגדרות.', ru: 'Добавляйте кнопки через +, а всё остальное меняйте в настройках.' },
+  'Install it': { he: 'התקנה', ru: 'Установите' },
+  'TIP_INSTALL': { en: 'In Chrome: ⋮ → "Add to Home screen". Then it opens like a normal app and works without internet.', he: 'ב-Chrome: ⋮ ← "הוספה למסך הבית". אז היא נפתחת כמו אפליקציה רגילה ועובדת בלי אינטרנט.', ru: 'В Chrome: ⋮ → «Добавить на главный экран». Тогда оно открывается как обычное приложение и работает без интернета.' },
+  'Start using Tracker': { he: 'להתחיל להשתמש', ru: 'Начать пользоваться' },
+  'No buttons yet': { he: 'עדיין אין כפתורים', ru: 'Кнопок пока нет' },
+  'EMPTY_EVENTS': { en: 'Buttons are the things you want to keep track of — a headache, your mood, a medicine. Add your own, or pick ready-made ones.', he: 'כפתורים הם הדברים שתרצה לעקוב אחריהם — כאב ראש, מצב רוח, תרופה. הוסף כפתור משלך, או בחר מהמוכנים.', ru: 'Кнопки — это то, что вы хотите отслеживать: головная боль, настроение, лекарство. Добавьте свою или выберите готовую.' },
+  'Make your own button': { he: 'יצירת כפתור משלך', ru: 'Создать свою кнопку' },
+  'Ready-made': { he: 'מוכנים', ru: 'Готовые' },
+  'More options': { he: 'אפשרויות נוספות', ru: 'Дополнительно' },
+  'Remove this button': { he: 'הסר את הכפתור', ru: 'Удалить кнопку' },
+  'Remove "{name}"? It was never used, so nothing is lost.': { he: 'להסיר את "{name}"? לא השתמשו בו אף פעם, כך ששום דבר לא יאבד.', ru: 'Удалить «{name}»? Ею ни разу не пользовались, так что ничего не потеряется.' },
+  'Asks: {what}': { he: 'שואל: {what}', ru: 'Спрашивает: {what}' },
+  'Just one tap': { he: 'רק הקשה אחת', ru: 'Просто одно нажатие' },
+  'Start / finish': { he: 'התחלה / סיום', ru: 'Начало / конец' },
+  'how you feel': { he: 'מה שלומך', ru: 'самочувствие' },
+  'how strong': { he: 'כמה חזק', ru: 'насколько сильно' },
+  'how long': { he: 'כמה זמן', ru: 'как долго' },
+  'which one': { he: 'איזה', ru: 'что именно' },
+  'how much': { he: 'כמות', ru: 'сколько' },
+  'how many': { he: 'כמה', ru: 'сколько штук' },
+  'blood pressure and pulse': { he: 'לחץ דם ודופק', ru: 'давление и пульс' },
+  'a note': { he: 'הערה', ru: 'заметку' },
+  'Tap a routine to start a workout.': { he: 'הקש על שגרה כדי להתחיל אימון.', ru: 'Нажмите на программу, чтобы начать тренировку.' },
+  'Buttons': { he: 'כפתורים', ru: 'Кнопки' },
+  'Exercises & routines': { he: 'תרגילים ושגרות', ru: 'Упражнения и программы' },
+  'Language & dates': { he: 'שפה ותאריכים', ru: 'Язык и даты' },
+  'Backup & export': { he: 'גיבוי וייצוא', ru: 'Копия и экспорт' },
+  'Setup file': { he: 'קובץ ההגדרות', ru: 'Файл настроек' },
+  'Add, change, hide or reorder your buttons': { he: 'הוספה, שינוי, הסתרה וסידור של הכפתורים', ru: 'Добавить, изменить, скрыть или переставить кнопки' },
+  'For the Training tab': { he: 'ללשונית האימון', ru: 'Для вкладки «Тренировка»' },
+  '{n} reminders': { en: (v) => `${v.n} reminder${v.n === 1 ? '' : 's'}`, he: 'תזכורות: {n}', ru: 'напоминаний: {n}' },
+  'When to remind you, for each button or routine': { he: 'מתי להזכיר לך — לכל כפתור או שגרה', ru: 'Когда напоминать — для каждой кнопки или программы' },
+  '{n} entries on this phone': { en: (v) => `${v.n} entr${v.n === 1 ? 'y' : 'ies'} on this phone`, he: 'רשומות בטלפון: {n}', ru: 'записей на телефоне: {n}' },
+  'Describe changes in your own words': { he: 'לתאר שינויים במילים שלך', ru: 'Опишите изменения своими словами' },
+  '⚠ Has problems': { he: '⚠ יש בעיות', ru: '⚠ Есть ошибки' },
+  'For advanced users': { he: 'למשתמשים מתקדמים', ru: 'Для опытных пользователей' },
+  'How to use it, privacy, help lines': { he: 'איך משתמשים, פרטיות, קווי סיוע', ru: 'Как пользоваться, приватность, телефоны помощи' },
+  'Reorder': { he: 'שינוי סדר', ru: 'Порядок' },
+  'Hidden from the Events screen': { he: 'הוסתר ממסך האירועים', ru: 'Скрыто с экрана событий' },
+  'Hidden': { he: 'הוסתר', ru: 'Скрыто' },
+  'Shown again': { he: 'מוצג שוב', ru: 'Снова показано' },
+  'BUTTONS_HINT': { en: 'These are the buttons on your Events screen. Tap one to change its name, colour or questions. The eye hides a button without losing its history.', he: 'אלה הכפתורים במסך האירועים. הקש על כפתור כדי לשנות את השם, הצבע או השאלות. העין מסתירה כפתור בלי לאבד את ההיסטוריה שלו.', ru: 'Это кнопки на экране событий. Нажмите на кнопку, чтобы изменить название, цвет или вопросы. Глаз скрывает кнопку, не теряя её историю.' },
+  'Your buttons': { he: 'הכפתורים שלך', ru: 'Ваши кнопки' },
+  'TRAINING_SETTINGS_HINT': { en: 'Your routines and exercises for the Training tab. Tap one to change it.', he: 'השגרות והתרגילים שלך ללשונית האימון. הקש על אחד כדי לשנות אותו.', ru: 'Ваши программы и упражнения для вкладки «Тренировка». Нажмите, чтобы изменить.' },
+  'From the library': { he: 'מהספרייה', ru: 'Из библиотеки' },
+  'New exercise': { he: 'תרגיל חדש', ru: 'Новое упражнение' },
+  'New circuit (several exercises in a row)': { he: 'סבב חדש (כמה תרגילים ברצף)', ru: 'Новый круг (несколько упражнений подряд)' },
+  'REMINDERS_HINT': { en: 'A reminder belongs to a button or a routine. Tap one to change its times.', he: 'תזכורת שייכת לכפתור או לשגרה. הקש על אחת כדי לשנות את השעות.', ru: 'Напоминание привязано к кнопке или программе. Нажмите, чтобы изменить время.' },
+  'No reminders yet': { he: 'עדיין אין תזכורות', ru: 'Напоминаний пока нет' },
+  'Add a reminder': { he: 'הוספת תזכורת', ru: 'Добавить напоминание' },
+  'Remind me about…': { he: 'להזכיר לי על…', ru: 'Напомнить о…' },
+  'every day': { he: 'כל יום', ru: 'каждый день' },
+  'Names of the starting items': { he: 'שמות הפריטים המובנים', ru: 'Названия встроенных пунктов' },
+  'BACKUP_DESC': { en: 'Everything — your log and your setup. Keep it somewhere safe, e.g. in Drive, or email it to yourself.', he: 'הכל — היומן וההגדרות. שמור אותו במקום בטוח, למשל ב-Drive, או שלח לעצמך במייל.', ru: 'Всё — журнал и настройки. Храните в надёжном месте, например в Drive, или отправьте себе на почту.' },
+  'CSV_DESC': { en: 'A table for a spreadsheet, or for an AI to look for patterns.', he: 'טבלה לגיליון אלקטרוני, או ל-AI שיחפש דפוסים.', ru: 'Таблица для Excel или для ИИ, чтобы искать закономерности.' },
+  'RESTORE_DESC': { en: 'Adds the entries from a backup file. Nothing that is already here is lost.', he: 'מוסיף את הרשומות מקובץ גיבוי. שום דבר שכבר נמצא כאן לא הולך לאיבוד.', ru: 'Добавляет записи из файла копии. Ничего из того, что уже есть, не теряется.' },
+  'BACKUP_TIP': { en: 'Make a backup now and then. If the browser data is cleared or the phone is lost, everything in the app is gone — a backup can be restored on any phone.', he: 'כדאי לגבות מדי פעם. אם נתוני הדפדפן נמחקים או שהטלפון אובד, כל מה שבאפליקציה נעלם — גיבוי אפשר לשחזר בכל טלפון.', ru: 'Время от времени делайте копию. Если данные браузера удалятся или телефон потеряется, всё в приложении пропадёт — копию можно восстановить на любом телефоне.' },
+  'AI_SETUP_SHORT': { en: 'e.g. "add a button for nightmares that asks how strong"', he: 'למשל "הוסף כפתור לסיוטים שישאל כמה חזק"', ru: 'например, «добавь кнопку для кошмаров с вопросом о силе»' },
+  'Any language, in a few minutes': { he: 'כל שפה, בכמה דקות', ru: 'Любой язык за несколько минут' },
+  'FILE_HINT': { en: 'All your buttons, exercises and routines are kept in one setup file (JSON). You can save it, change it in any text editor or with an AI, and load it back. A broken file never breaks the app.', he: 'כל הכפתורים, התרגילים והשגרות שמורים בקובץ הגדרות אחד (JSON). אפשר לשמור אותו, לשנות בכל עורך טקסט או בעזרת AI, ולטעון בחזרה. קובץ פגום אף פעם לא שובר את האפליקציה.', ru: 'Все кнопки, упражнения и программы хранятся в одном файле настроек (JSON). Его можно сохранить, изменить в любом текстовом редакторе или с ИИ и загрузить обратно. Испорченный файл никогда не ломает приложение.' },
+  'CFG_EXPORT_DESC': { en: 'tracker_config.json — to keep, to share, or to change in a text editor.', he: 'tracker_config.json — לשמירה, לשיתוף או לשינוי בעורך טקסט.', ru: 'tracker_config.json — чтобы сохранить, поделиться или изменить в текстовом редакторе.' },
+  'CFG_IMPORT_DESC': { en: 'Replaces your buttons, exercises and routines — only if the file is OK. Your log is not touched.', he: 'מחליף את הכפתורים, התרגילים והשגרות — רק אם הקובץ תקין. היומן לא משתנה.', ru: 'Заменяет кнопки, упражнения и программы — только если файл в порядке. Журнал не меняется.' },
+  'Start over — choose your buttons again': { he: 'להתחיל מחדש — לבחור כפתורים שוב', ru: 'Начать заново — снова выбрать кнопки' },
+  'START_OVER_CONFIRM': { en: 'Start over? You will choose your buttons again, and the exercises and routines go back to the starting ones. Your log is NOT affected and private buttons are kept, but other buttons, exercises and routines you added or changed will be gone (save the setup file first to keep them).', he: 'להתחיל מחדש? תבחר שוב את הכפתורים, והתרגילים והשגרות יחזרו להיות אלה של ההתחלה. היומן לא ייפגע וכפתורים פרטיים נשמרים, אבל כפתורים, תרגילים ושגרות אחרים שהוספת או שינית ייעלמו (שמור קודם את קובץ ההגדרות כדי לשמור אותם).', ru: 'Начать заново? Вы снова выберете кнопки, а упражнения и программы вернутся к стартовым. Журнал НЕ затронут, личные кнопки сохранятся, но другие добавленные или изменённые кнопки, упражнения и программы пропадут (сначала сохраните файл настроек).' },
+  'Cancel — keep my setup': { he: 'ביטול — להשאיר את ההגדרות שלי', ru: 'Отмена — оставить мои настройки' },
 };

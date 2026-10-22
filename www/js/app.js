@@ -7,10 +7,14 @@ import { renderEvents, logEvent } from './events.js';
 import { renderLog } from './log.js';
 import { renderAbout } from './about.js';
 import { renderStats } from './stats.js';
-import { renderSettings } from './settings.js';
+import { renderSettings, settingsPageTitle } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
+import { initWelcome, renderWelcome } from './welcome.js';
+import { icon } from './icons.js';
 import { $, esc } from './util.js';
-import { initLang, setLanguagePack, t } from './i18n.js';
+import {
+  initLang, longDate, setLanguagePack, t,
+} from './i18n.js';
 import { loadDismissed } from './reminders.js';
 
 const SCREENS = {
@@ -22,6 +26,8 @@ const SCREENS = {
   // Not a tab: opened from the ⓘ in the header and from Settings.
   about: { title: 'About', render: renderAbout, tab: 'settings' },
 };
+// The tabs at the bottom, with their icons (icons.js).
+const TABS = [['events', 'grid'], ['training', 'dumbbell'], ['log', 'list'], ['stats', 'chart'], ['settings', 'sliders']];
 
 const state = {
   config: { events: [], exercises: [], routines: [] },
@@ -29,29 +35,53 @@ const state = {
   entries: [],
   session: null, // open training session, if any (see training.js)
   remindersDismissed: new Set(), // reminders put off with "not now" today (reminders.js)
+  welcome: false, // the first-run welcome is showing (welcome.js)
 };
 
 const ctx = { state, toast, openSheet, closeSheet, refresh, reloadConfig, reloadAll };
 
-function currentScreen() {
-  const name = location.hash.slice(1);
-  return SCREENS[name] ? name : 'events';
+// "#settings/buttons" → { name: 'settings', sub: 'buttons' }: a Settings
+// page has its own address, so the phone's Back button returns to the menu.
+function currentRoute() {
+  const [name, sub = ''] = location.hash.slice(1).split('/');
+  return SCREENS[name] ? { name, sub } : { name: 'events', sub: '' };
 }
 
+// True once the user moved between screens: then ‹ (back) returns to where
+// they came from (e.g. Training → its settings → back to Training).
+let movedInApp = false;
+
 function refresh() {
-  const name = currentScreen();
+  document.body.classList.toggle('welcoming', state.welcome);
+  if (state.welcome) {
+    renderScreen(renderWelcome);
+    return;
+  }
+  const { name, sub } = currentRoute();
   document.querySelectorAll('.nav a').forEach((a) => {
-    const key = a.getAttribute('href').slice(1);
+    const key = a.dataset.tab;
     a.classList.toggle('on', key === (SCREENS[name].tab || name));
     a.querySelector('.lbl').textContent = t(SCREENS[key].title);
   });
-  $('#title').textContent = t(SCREENS[name].title);
+  // Header: a Settings page or About gets ‹ back and its own title; the
+  // Events screen shows today's date above its title.
+  const pageTitle = name === 'settings' ? settingsPageTitle(sub) : null;
+  $('#title').textContent = t(pageTitle || SCREENS[name].title);
+  const back = $('#back-btn');
+  back.hidden = !(pageTitle || name === 'about');
+  $('.top').classList.toggle('sub', !back.hidden);
+  back.setAttribute('aria-label', t('Back'));
+  const eyebrow = $('#eyebrow');
+  eyebrow.hidden = name !== 'events';
+  eyebrow.textContent = name === 'events' ? longDate() : '';
   $('#about-btn').setAttribute('aria-label', t('About this app'));
-  $('#about-btn').classList.toggle('on', name === 'about');
+  // On a page with ‹ the title needs the room (About is in the Settings menu).
+  $('#about-btn').hidden = !back.hidden;
+
   const banner = $('#banner');
   if (state.configErrors.length) {
     banner.hidden = false;
-    banner.innerHTML = `${esc(t('⚠ Config problem — using last good version.'))} <a href="#settings">${t('Details')}</a>`;
+    banner.innerHTML = `${esc(t('⚠ Config problem — using last good version.'))} <a href="#settings/file">${t('Details')}</a>`;
   } else {
     banner.hidden = true;
   }
@@ -60,27 +90,34 @@ function refresh() {
   const sb = $('#session-banner');
   if (state.session && name !== 'training') {
     sb.hidden = false;
-    sb.innerHTML = `<a href="#training">${esc(t('▶ {name} in progress — continue', { name: state.session.item_name }))}</a>`;
+    sb.innerHTML = `<a href="#training">${icon('play')}<span>${esc(t('▶ {name} in progress — continue', { name: state.session.item_name }).replace(/^▶\s*/, ''))}</span></a>`;
   } else {
     sb.hidden = true;
   }
-  // A bug in one screen must not take down the whole app.
+  renderScreen(SCREENS[name].render, sub);
+}
+
+// A bug in one screen must not take down the whole app.
+function renderScreen(render, sub) {
   const fail = (e) => {
     $('#screen').innerHTML = `<div class="empty warn">${esc(t('Something went wrong on this screen:'))}<br>${esc(e.message)}</div>`;
     console.error(e);
   };
   try {
-    Promise.resolve(SCREENS[name].render($('#screen'), ctx)).catch(fail);
+    Promise.resolve(render($('#screen'), ctx, sub)).catch(fail);
   } catch (e) {
     fail(e);
   }
 }
 
-async function reloadConfig() {
-  const res = await loadConfig();
+function applyConfig(res) {
   state.config = res.config;
   state.configErrors = res.errors;
   setLanguagePack(res.config.language || null);
+}
+
+async function reloadConfig() {
+  applyConfig(await loadConfig());
   refresh();
 }
 
@@ -152,16 +189,38 @@ function registerServiceWorker() {
 }
 
 async function start() {
+  $('.nav').innerHTML = TABS.map(([key, ic]) => `<a href="#${key}" data-tab="${key}"><span class="ico">${icon(ic)}</span><span class="lbl"></span></a>`).join('');
+  $('#back-btn').innerHTML = icon('back', 'flip');
+  $('#about-btn').innerHTML = icon('info');
+  $('#back-btn').addEventListener('click', (e) => {
+    if (movedInApp && history.length > 1) {
+      e.preventDefault();
+      history.back();
+    }
+  });
   $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
-  window.addEventListener('hashchange', () => { closeSheet(); refresh(); });
+  window.addEventListener('hashchange', () => {
+    movedInApp = true;
+    closeSheet();
+    window.scrollTo(0, 0);
+    refresh();
+  });
 
   await initLang();
   try {
-    await reloadAll();
+    state.entries = await storage.listEntries();
+    state.remindersDismissed = await loadDismissed();
+    await loadOpenSession(state);
+    const res = await loadConfig();
+    applyConfig(res);
+    // Decided before the first screen is drawn, so a new user never sees a
+    // flash of buttons that aren't theirs.
+    state.welcome = await initWelcome(state, res.firstRun).catch(() => false);
   } catch (e) {
     $('#screen').innerHTML = `<div class="empty warn">${esc(t('Could not open storage: {msg}', { msg: e.message }))}<br>${esc(t('Try closing and reopening the app.'))}</div>`;
     return;
   }
+  refresh();
   await handleShortcut();
   storage.requestPersistence();
   registerServiceWorker();
@@ -170,10 +229,10 @@ async function start() {
   // midnight, and re-read the config (in the APK it's a file that may have
   // been edited in another app meanwhile).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && $('#sheet').hidden) reloadConfig();
+    if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome) reloadConfig();
   });
   setInterval(() => {
-    if (document.visibilityState === 'visible' && $('#sheet').hidden && currentScreen() === 'events') refresh();
+    if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome && currentRoute().name === 'events') refresh();
   }, 60000);
 }
 

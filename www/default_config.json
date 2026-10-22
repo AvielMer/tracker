@@ -1,7 +1,8 @@
 {
   "events": [
-    { "id": "example_private", "name": "Example private item", "color": "#8b949e" },
-    { "id": "headache", "name": "Headache", "ask": ["intensity"] },
+    { "id": "how_i_feel", "name": "How I feel", "color": "#2bb5a0", "ask": ["mood", "note"] },
+    { "id": "how_was_my_day", "name": "How was my day", "color": "#7b6cf6", "ask": ["mood", "note"], "remind": [{ "time": "21:00" }] },
+    { "id": "headache", "name": "Headache", "color": "#e8833a", "ask": ["intensity"] },
     { "id": "panic", "name": "Panic attack", "color": "#e5534b", "ask": ["intensity", "duration_min"] },
     {
       "id": "medicine", "name": "Medicine", "color": "#46b450", "ask": ["choice", "amount"],
@@ -10,9 +11,7 @@
     },
     { "id": "blood_pressure", "name": "Blood pressure", "color": "#e0559a", "ask": ["bp", "measures"], "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}] },
     {"id": "water_bottle", "name": "Water bottle", "color": "#4f9cf9", "span": true, "ask": ["amount"], "amount": {"unit": "L", "values": [0.5, 1, 1.5, 2]}},
-    { "id": "coffee", "name": "Coffee", "ask": ["count"] },
-    { "id": "how_i_feel", "name": "How I feel", "color": "#2bb5a0", "ask": ["mood", "note"] },
-    { "id": "how_was_my_day", "name": "How was my day", "color": "#7b6cf6", "ask": ["mood", "note"], "remind": [{ "time": "21:00" }] }
+    { "id": "coffee", "name": "Coffee", "color": "#d4a72c", "ask": ["count"] }
   ],
   "exercises": [
     { "id": "pullups", "name": "Pull-ups", "type": "reps", "allowWeight": true, "start": 8 },
