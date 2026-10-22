@@ -15,7 +15,7 @@
 import * as storage from './storage.js';
 
 // The pack this version of the app was made with (pack.js VERSION): an
-// older copy keeps working, and Settings → Cycle offers the update.
+// older copy keeps working, and Cycle settings offers the update.
 export const PACK_VERSION = 1;
 // How the app talks to the pack (pack.js API). A copy with another API is
 // not used — Settings asks to download it again.

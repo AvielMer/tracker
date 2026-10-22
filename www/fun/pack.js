@@ -5,7 +5,7 @@
 // the app stays clean".
 //
 // This file is NOT part of the app: the service worker doesn't keep it,
-// and the app downloads it only when asked (Settings → Cycle, or the card
+// and the app downloads it only when asked (Cycle settings, or the card
 // on the Cycle tab). The app keeps the downloaded copy on the phone and
 // loads it from there (js/funpack.js). So this file must stay self-contained:
 // no imports. It only draws — every text it shows comes from the app,

@@ -55,12 +55,14 @@ function currentSlot(remind, now) {
 // Reminders due now: [{ type: 'event' | 'routine', item, time, key }].
 // Done = the button was logged (or the routine started) since an hour
 // before the reminder. "Not now" hides a reminder until its next time.
-export function dueReminders(state, now = new Date()) {
+// keep(type, item): which ones this screen shows (the Cycle tab's buttons
+// remind on the Cycle tab, the others on Events).
+export function dueReminders(state, now = new Date(), keep = () => true) {
   const out = [];
   const date = localDate(now);
   const check = (type, item, kinds) => {
     const slot = currentSlot(item.remind, now);
-    if (!slot) return;
+    if (!slot || !keep(type, item)) return;
     const key = `${type}:${item.id}:${date}:${slot.time}`;
     if (state.remindersDismissed?.has(key)) return;
     const from = slot.at - EARLY_MS;
@@ -72,8 +74,8 @@ export function dueReminders(state, now = new Date()) {
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }
 
-export function remindersHtml(state) {
-  const due = dueReminders(state);
+export function remindersHtml(state, keep) {
+  const due = dueReminders(state, new Date(), keep);
   if (!due.length) return '';
   return `<div class="reminders">${due.map((r) => `<div class="reminder" data-key="${esc(r.key)}" data-type="${r.type}" data-id="${esc(r.item.id)}">
     <span class="rem-ico">${icon('bell')}</span>

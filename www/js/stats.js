@@ -18,6 +18,7 @@ import { eventLabel } from './config.js';
 import { columnChart, SERIES, timeChart } from './charts.js';
 import { MOODS } from './events.js';
 import { optIcon, optName } from './lists.js';
+import { cycleShown, ownedIds } from './tabs.js';
 import { esc } from './util.js';
 import { dateLocale, getLang, t } from './i18n.js';
 
@@ -346,7 +347,9 @@ export async function renderStats(el, ctx) {
     return out;
   };
 
-  const eventCards = state.config.events.map(cardsFor).filter(Boolean);
+  // The Cycle tab's buttons count only while that tab is on (tabs.js).
+  const owned = cycleShown(state.config) ? new Set() : ownedIds(state.config);
+  const eventCards = state.config.events.filter((e) => !owned.has(e.id)).map(cardsFor).filter(Boolean);
   const sections = [
     [t('Readings'), eventCards.filter((c) => c.reading)],
     [t('Events'), eventCards.filter((c) => !c.reading)],

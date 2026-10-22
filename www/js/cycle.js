@@ -6,8 +6,8 @@
 // The numbers come from cycleCalc.js, from the log only. This file draws
 // them: a status card, a month calendar (tap a day: what it is, what was
 // logged, mark a period's start or end), what's coming up, the averages,
-// and the user's own patterns per phase. Settings → Cycle holds the
-// settings (config "cycle").
+// and the user's own patterns per phase. Cycle settings (#cycle/settings,
+// cycleSettings.js) holds the settings (config "cycle").
 // With the cute animations downloaded (funpack.js), an animal buddy peeks
 // over the status card, changes with the phase, talks (its lines are
 // translated here) and reacts to taps; the calendar gets stickers.
@@ -23,7 +23,8 @@ import { details, openDetails, screenLabel } from './log.js';
 import { makeRecord } from './record.js';
 import { remindersHtml } from './reminders.js';
 import { optIcon, optName } from './lists.js';
-import { visibleTabs } from './tabs.js';
+import { ownedIds, visibleTabs } from './tabs.js';
+import { renderCycleSettings } from './cycleSettings.js';
 import { icon } from './icons.js';
 import {
   esc, friendlyDay, hhmm, isoWithTz, localDate, localTime,
@@ -79,12 +80,16 @@ const atTime = (d, h, m) => {
   return x;
 };
 
-export async function renderCycle(el, ctx) {
+export async function renderCycle(el, ctx, sub) {
+  if (sub === 'settings') { renderCycleSettings(el, ctx); return; }
   const { state } = ctx;
   const cs = cycleSettings(state.config);
   const periodEv = state.config.events.find((e) => e.id === cs.period && e.span);
-  // Events hidden (Settings → Tabs): its reminder cards show here instead.
-  const rem = visibleTabs(state.config).includes('events') ? '' : remindersHtml(state);
+  // Reminders of this tab's own buttons show here — all of them when the
+  // Events tab is hidden (Settings → Tabs).
+  const owned = ownedIds(state.config);
+  const rem = remindersHtml(state, visibleTabs(state.config).includes('events')
+    ? (type, it) => type === 'event' && owned.has(it.id) : () => true);
   if (!periodEv) {
     await renderSetup(el, ctx, rem);
     return;
@@ -99,7 +104,7 @@ export async function renderCycle(el, ctx) {
     ${comingHtml(m, today)}
     ${statsHtml(m, cs)}
     ${patternsHtml(m, cs, state, periodEv.id)}
-    <a class="btn wide cy-settings" href="#settings/cycle">${icon('sliders')}<span>${esc(t('Cycle settings'))}</span></a>
+    <a class="btn wide cy-settings" href="#cycle/settings">${icon('sliders')}<span>${esc(t('Cycle settings'))}</span></a>
     <p class="small muted cy-disclaimer">${esc(t('CYCLE_DISCLAIMER'))}</p>`;
   wireReminders(el, ctx);
   if (fun) await mountFun(el, fun, m, cs, today, periodCount(state, periodEv.id));
@@ -198,7 +203,7 @@ function wireOffer(el, ctx) {
 // --- status card -------------------------------------------------------------------
 
 // The phase shown for a day: fertile and PMS days only when they're shown
-// at all (Settings → Cycle); "late" while the period is late.
+// at all (Cycle settings); "late" while the period is late.
 function shownPhase(m, info, cs, d) {
   if (!info) return null;
   if (m.late && d >= m.expected && d <= m.today) return 'late';
@@ -620,16 +625,16 @@ async function renderSetup(el, ctx, rem) {
     if (res.ok) def = res.config;
   } catch { /* offline */ }
   const ids = def?.cycle || {};
-  const spans = config.events.filter((e) => e.span);
-  const suggested = spans.find((e) => e.id === ids.period) || (spans.length === 1 ? spans[0] : null);
+  // Only the ready-made Period button is suggested (a setup from before
+  // the "cycle" setting). The tab takes over the button it uses — it
+  // leaves the Events screen — so another start/finish button (Water
+  // bottle…) is never offered here; Cycle settings can still pick one.
+  const suggested = config.events.find((e) => e.id === ids.period && e.span) || null;
   const diary = config.events.find((e) => e.id === ids.diary && !e.span) || null;
   let body;
   if (suggested) {
     body = `<p>${esc(t('Use your "{name}" button for the Cycle tab?', { name: eventLabel(suggested) }))}</p>
       <button class="btn primary" data-use="${esc(suggested.id)}">${esc(t('Yes, use it'))}</button>`;
-  } else if (spans.length) {
-    body = `<p>${esc(t('Which button marks your period?'))}</p>
-      <div class="cy-pick">${spans.map((e) => `<button class="btn" data-use="${esc(e.id)}">${esc(eventLabel(e))}</button>`).join('')}</div>`;
   } else {
     body = `<p>${esc(t('CYCLE_ADD_HINT'))}</p>
       <button class="btn primary" data-add ${def && ids.period ? '' : 'disabled'}>${icon('plus')}<span>${esc(t('Add the Period buttons'))}</span></button>`;
@@ -640,6 +645,7 @@ async function renderSetup(el, ctx, rem) {
     <p>${esc(t('CYCLE_INTRO'))}</p>
     ${body}
   </div>
+  <a class="btn wide cy-settings" href="#cycle/settings">${icon('sliders')}<span>${esc(t('Cycle settings'))}</span></a>
   <p class="small muted cy-disclaimer">${esc(t('CYCLE_DISCLAIMER'))}</p>`;
   wireReminders(el, ctx);
   const save = async (mutate) => {

@@ -303,10 +303,12 @@ export async function getConfigText() {
 // The starting buttons shipped with the app, in the app's language: the
 // welcome screen and "Add a button" offer them as ready-made buttons.
 // Private ones are left out (a private button only makes sense with your
-// own name in it).
+// own name in it), and so are the Cycle tab's own buttons (the default
+// config's "cycle"): they come with the Cycle tab, which adds them itself.
 export async function starterButtons() {
   const def = JSON.parse(await fetchDefaultText());
-  return (def.events || []).filter((e) => e && !e.private);
+  const cycle = new Set([def.cycle?.period, def.cycle?.diary].filter(Boolean));
+  return (def.events || []).filter((e) => e && !e.private && !cycle.has(e.id));
 }
 
 // What to show ON SCREEN for an event. Private items show only their

@@ -7,6 +7,7 @@ import { makeRecord } from './record.js';
 import { dismissReminder, remindersHtml } from './reminders.js';
 import { startRoutine } from './training.js';
 import { openAddButtonSheet } from './eventEditor.js';
+import { ownedIds } from './tabs.js';
 import { listsHtml, wireLists } from './lists.js';
 import { icon } from './icons.js';
 import {
@@ -62,7 +63,9 @@ export function openSpan(state, evId) {
 
 export function renderEvents(el, ctx) {
   const { state } = ctx;
-  const events = state.config.events.filter((e) => !e.hidden);
+  // The Cycle tab's own buttons live in that tab (tabs.js ownedIds).
+  const owned = ownedIds(state.config);
+  const events = state.config.events.filter((e) => !e.hidden && !owned.has(e.id));
   const today = todayEvents(state);
   // No buttons (e.g. none picked on the welcome screen): say what buttons
   // are and offer to add one, instead of an empty screen.
@@ -72,7 +75,7 @@ export function renderEvents(el, ctx) {
     <p>${esc(t('EMPTY_EVENTS'))}</p>
     <button class="btn primary" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
   </div>`;
-  el.innerHTML = `${remindersHtml(state)}${events.length ? `<div class="ev-grid">${events.map((ev) => {
+  el.innerHTML = `${remindersHtml(state, (type, it) => type !== 'event' || !owned.has(it.id))}${events.length ? `<div class="ev-grid">${events.map((ev) => {
     const mine = today.filter((e) => e.item_id === ev.id);
     const last = mine[mine.length - 1];
     // "How many" answers count as that many (2 pills logged once = 2).
@@ -103,7 +106,7 @@ export function renderEvents(el, ctx) {
   el.querySelector('[data-act="add"]').addEventListener('click', () => openAddButtonSheet(ctx));
   wireReminders(el, ctx);
 
-  el.insertAdjacentHTML('beforeend', recentHtml(state));
+  el.insertAdjacentHTML('beforeend', recentHtml(state, owned));
   el.querySelectorAll('.recent-row').forEach((row) => {
     const entry = () => state.entries.find((x) => x.id === row.dataset.id);
     row.querySelector('.recent-main').addEventListener('click', () => { const e = entry(); if (e) openDetails(ctx, e); });
@@ -147,12 +150,13 @@ export function wireReminders(el, ctx) {
 }
 
 // The last few events, so a wrong tap can be cancelled (✕) or fixed (tap
-// the row) right here, without going to the Log.
+// the row) right here, without going to the Log. Not the Cycle tab's own
+// buttons (owned): those are seen in that tab.
 const RECENT = 5;
 
-function recentHtml(state) {
-  const recent = state.entries.filter((e) => e.kind === 'event' || e.kind === 'event_start' || e.kind === 'event_end')
-    .slice(-RECENT).reverse();
+function recentHtml(state, owned) {
+  const recent = state.entries.filter((e) => (e.kind === 'event' || e.kind === 'event_start' || e.kind === 'event_end')
+    && !owned.has(e.item_id)).slice(-RECENT).reverse();
   if (!recent.length) return '';
   const today = localDate();
   const rows = recent.map((e) => {

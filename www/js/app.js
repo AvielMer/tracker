@@ -11,8 +11,10 @@ import { renderSettings, settingsPageTitle } from './settings.js';
 import { loadOpenSession, renderTraining } from './training.js';
 import { renderCycle } from './cycle.js';
 import { initWelcome, renderWelcome } from './welcome.js';
-import { applyThemeHint, initTheme } from './theme.js';
-import { initTabs, TAB_INFO, visibleTabs } from './tabs.js';
+import { applyThemeHint, getTheme, initTheme } from './theme.js';
+import {
+  initCycleLock, initTabs, TAB_INFO, visibleTabs,
+} from './tabs.js';
 import { icon } from './icons.js';
 import { $, esc } from './util.js';
 import {
@@ -25,7 +27,8 @@ applyThemeHint();
 
 const SCREENS = {
   events: { title: 'Events', render: renderEvents },
-  cycle: { title: 'Cycle', render: renderCycle },
+  // #cycle/settings: the Cycle tab's own settings page (cycleSettings.js).
+  cycle: { title: 'Cycle', render: renderCycle, pages: { settings: 'Cycle settings' } },
   training: { title: 'Training', render: renderTraining },
   log: { title: 'Log', render: renderLog },
   stats: { title: 'Stats', render: renderStats },
@@ -87,14 +90,15 @@ function refresh() {
   });
   // Header: a Settings page or About gets ‹ back and its own title; the
   // Events and Cycle screens show today's date above their title.
-  const pageTitle = name === 'settings' ? settingsPageTitle(sub) : null;
+  const pageTitle = name === 'settings' ? settingsPageTitle(sub) : SCREENS[name].pages?.[sub] || null;
   $('#title').textContent = t(pageTitle || SCREENS[name].title);
   const back = $('#back-btn');
   back.hidden = !(pageTitle || name === 'about');
+  back.setAttribute('href', name === 'cycle' ? '#cycle' : '#settings');
   $('.top').classList.toggle('sub', !back.hidden);
   back.setAttribute('aria-label', t('Back'));
   const eyebrow = $('#eyebrow');
-  const dated = name === 'events' || name === 'cycle';
+  const dated = (name === 'events' || name === 'cycle') && !pageTitle;
   eyebrow.hidden = !dated;
   eyebrow.textContent = dated ? longDate() : '';
   $('#about-btn').setAttribute('aria-label', t('About this app'));
@@ -237,6 +241,7 @@ async function start() {
     await loadOpenSession(state);
     const res = await loadConfig();
     applyConfig(res);
+    await initCycleLock(state, getTheme());
     // Decided before the first screen is drawn, so a new user never sees a
     // flash of buttons that aren't theirs.
     state.welcome = await initWelcome(state, res.firstRun).catch(() => false);
@@ -256,8 +261,10 @@ async function start() {
     if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome) reloadConfig();
   });
   setInterval(() => {
+    // Not on a settings page of a tab: its inputs would lose what's typed.
+    const r = currentRoute();
     if (document.visibilityState === 'visible' && $('#sheet').hidden && !state.welcome
-      && ['events', 'cycle'].includes(currentRoute().name)) refresh();
+      && ['events', 'cycle'].includes(r.name) && !r.sub) refresh();
   }, 60000);
 }
 
