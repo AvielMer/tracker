@@ -10,6 +10,9 @@ import { t } from './i18n.js';
 import {
   measuresHtml, MOODS, readMeasures, seriesKey,
 } from './events.js';
+import {
+  answersText, listDefs, listsHtml, wireLists,
+} from './lists.js';
 
 const PAGE = 200;
 let shown = PAGE;
@@ -67,6 +70,8 @@ export function details(e, state) {
     if (v != null) parts.push(`${m.name} ${v}${m.unit ? ' ' + m.unit : ''}`);
   }
   if (e.choice) parts.push(e.choice);
+  const answers = answersText(state?.config.events.find((x) => x.id === e.item_id), e.answers);
+  if (answers) parts.push(answers);
   if (e.amount != null) parts.push(`${e.amount} ${e.unit || ''}`.trim());
   if (e.count != null && e.count !== 1) parts.push(`×${e.count}`);
   if (e.kind === 'set' && e.set_no) parts.push(t('set {n}', { n: e.set_no }));
@@ -152,6 +157,7 @@ export function openDetails(ctx, e) {
     && !(e.kind === 'event_end' && k === 'duration_min'));
   const inherited = seriesMeasures(state.entries, e);
   const mDefs = ask.has('measures') || e.measures || inherited ? measureDefs(state, e, e.measures || inherited) : [];
+  const lDefs = ask.has('lists') || e.answers ? listDefs(item, e.answers) : [];
   const otherSeries = bpSeriesNear(state, e);
   const unit = e.unit || item?.amount?.unit || '';
   const info = [
@@ -172,6 +178,7 @@ export function openDetails(ctx, e) {
           ${k === 'choice' && item?.choices ? 'list="choice-list"' : ''}></label>`).join('')}
     </div>
     ${mDefs.length ? measuresHtml(mDefs, e.measures || {}, inherited || {}) : ''}
+    ${lDefs.length ? `<div class="edit-lists">${listsHtml(lDefs, e.answers || {})}</div>` : ''}
     ${inherited ? `<p class="small muted">${esc(t('Gray numbers come from the first reading of this series.'))}</p>` : ''}
     ${otherSeries.length ? `<label class="label-block">${t('Series')}<select class="input" data-e-series>
       <option value="">${esc(t('Keep as its own series'))}</option>
@@ -187,6 +194,7 @@ export function openDetails(ctx, e) {
 
   const val = (k) => root.querySelector(`[data-e="${k}"]`).value.trim();
   wirePickerFields(root.querySelector('.edit-grid'));
+  const readLists = lDefs.length ? wireLists(root, lDefs, e.answers || {}) : () => e.answers ?? null;
 
   root.querySelector('[data-act="close"]').addEventListener('click', () => ctx.closeSheet());
 
@@ -209,6 +217,8 @@ export function openDetails(ctx, e) {
       if (r.error) { ctx.toast(r.error); return; }
       if (JSON.stringify(r.measures) !== JSON.stringify(e.measures ?? null)) patch.measures = r.measures;
     }
+    const answers = readLists();
+    if (JSON.stringify(answers) !== JSON.stringify(e.answers ?? null)) patch.answers = answers;
     const note = val('note') || null;
     if (note !== e.note) patch.note = note;
 

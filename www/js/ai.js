@@ -36,7 +36,7 @@ HOW TO ANSWER
 
 RULES
 - Never change an existing "id": my history is linked to it. A new item needs a new unique id made of lowercase latin letters, digits and _ (e.g. "night_sweats"), even when its name is in another language.
-- To rename or translate, change only names: "name", "displayLabel", "choices", "unit", a measure's "name", a circuit part's "name".
+- To rename or translate, change only names: "name", "displayLabel", "choices", "unit", a measure's "name", a list's "name" and its answers, a circuit part's "name".
 - To take an item off the screen, prefer "hidden": true (its history stays).
 - My private buttons are left out of this file on purpose. The app keeps them as they are.
 
@@ -50,8 +50,13 @@ events = the one-tap buttons:
     "intensity" (1-10), "duration_min" (minutes), "choice" (needs "choices": ["Paracetamol", "Ibuprofen"]),
     "amount" (needs "amount": {"unit": "mg", "values": [200, 400]}), "count" (how many at once),
     "bp" (blood pressure + pulse; can only be combined with "measures" and "note"),
-    "measures" (own number fields; needs "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}]), "note".
+    "measures" (own number fields; needs "measures": [{"id": "weight", "name": "Weight", "unit": "kg"}]),
+    "lists" (own lists of answers to tap, each answer can have a small emoji icon; needs
+      "lists": [{"id": "flow", "name": "Flow", "options": [{"name": "Light", "icon": "🩸"}, "Heavy"]},
+                {"id": "symptoms", "name": "Symptoms", "multi": true, "options": ["Cramps", "Acne"]}]
+      — "multi": true = several answers at once; list ids never change, like item ids), "note".
   "span": true makes a start/finish button (e.g. a bottle opened today and finished tomorrow); not with "bp".
+  "goal": how many a day, e.g. 8 for glasses of water (the button shows 3/8).
   Optional: "color": "#rrggbb", "hidden": true, "private": true with "displayLabel": "X" (the screen then shows only X).
   "remind": reminders, e.g. [{"time": "21:00"}] every day, or [{"time": "08:30", "days": ["mon", "wed", "fri"]}]
     (days: sun mon tue wed thu fri sat; 24-hour times).

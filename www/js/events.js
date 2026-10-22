@@ -7,11 +7,12 @@ import { makeRecord } from './record.js';
 import { dismissReminder, remindersHtml } from './reminders.js';
 import { startRoutine } from './training.js';
 import { openAddButtonSheet } from './eventEditor.js';
+import { listsHtml, wireLists } from './lists.js';
 import { icon } from './icons.js';
 import {
-  esc, fmtDuration, friendlyDay, hhmm, localDate,
+  esc, fmtDuration, friendlyDay, hhmm, isoWithTz, localDate, localTime,
 } from './util.js';
-import { t } from './i18n.js';
+import { dateLocale, t } from './i18n.js';
 
 // Taps on the same button closer together than this are treated as an
 // accidental double tap. WHY 3 s: long enough to catch a shaky double
@@ -84,11 +85,17 @@ export function renderEvents(el, ctx) {
     let sub = last ? esc(t('last {time}', { time: hhmm(last.time) })) + (last.mood ? ` ${moodFace(last.mood)}` : '') : '&nbsp;';
     if (run) sub = `▶ ${esc(t('running {d}', { d: fmtDuration((Date.now() - Date.parse(run.ts)) / 60000) }))}`;
     else if (ev.span) sub = esc(t('tap to start'));
-    // The count shows from the first time today; a row of zeros was just noise.
+    // The count shows from the first time today; a row of zeros was just
+    // noise. A button with a daily goal (e.g. 8 glasses of water) always
+    // shows how far along it is: "3/8" and a bar.
+    const goal = ev.goal;
+    const count = goal ? `<span class="ev-count goal${total >= goal ? ' done' : ''}">${total}/${goal}</span>`
+      : total ? `<span class="ev-count">${total}</span>` : '';
     return `<button class="${cls}${run ? ' running' : ''}"${style} data-id="${esc(ev.id)}">
-      ${total ? `<span class="ev-count">${total}</span>` : ''}
+      ${count}
       <span class="ev-name">${esc(eventLabel(ev))}</span>
       <span class="ev-last">${sub}</span>
+      ${goal ? `<span class="ev-goal" aria-hidden="true"><i style="width:${Math.min(100, Math.round((total / goal) * 100))}%"></i></span>` : ''}
     </button>`;
   }).join('')}
     <button class="ev ev-add" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
@@ -235,6 +242,8 @@ function askSection(ev, field) {
       return [t('Duration (minutes)'), chips('duration_min', DURATION_CHIPS, { other: true })];
     case 'choice':
       return [t('Type'), chips('choice', ev.choices || [], { wide: true, other: true })];
+    case 'lists':
+      return [null, listsHtml(ev.lists || [])];
     case 'amount':
       return [t('Amount ({unit})', { unit: ev.amount.unit }), chips('amount', ev.amount.values, { other: true })];
     case 'count':
@@ -272,36 +281,89 @@ export function readMeasures(root, measures) {
   return { measures: Object.keys(out).length ? out : null };
 }
 
+// The last 7 days, for the day strip of a diary-like sheet.
+function dayStripHtml(selected) {
+  const fWd = new Intl.DateTimeFormat(dateLocale(), { weekday: 'short' });
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  return `<div class="daystrip" role="group" aria-label="${esc(t('Which day?'))}">${days.map((d) => {
+    const iso = localDate(d);
+    return `<button class="day-pick${iso === selected ? ' on' : ''}" data-day="${iso}" aria-pressed="${iso === selected}">
+      <small>${esc(fWd.format(d))}</small><b>${d.getDate()}</b></button>`;
+  }).join('')}</div>`;
+}
+
 // Optional details after logging. The entry is ALREADY saved; this sheet
 // only adds details, so closing/skipping it never loses the event.
+// A button with pick-lists gets a diary-like sheet (as asked for: "like the
+// My Calendar app"): ✕ and ✓ at the top, a strip of the last 7 days (the
+// entry can be put on an earlier day), then a card per list.
 function openAskSheet(ctx, ev, rec) {
   const label = eventLabel(ev);
   const ask = ev.ask.filter((f) => ASK_FIELDS.includes(f));
+  const lists = ask.includes('lists') ? (ev.lists || []) : [];
+  const diary = lists.length > 0;
   // A single tap-to-pick question saves on the first tap: fastest path.
-  const instant = ask.length === 1 && !['note', 'measures'].includes(ask[0]);
+  const instant = ask.length === 1 && !['note', 'measures'].includes(ask[0])
+    && (ask[0] !== 'lists' || (lists.length === 1 && !lists[0].multi));
   const values = {};
+  let day = rec.date;
 
   const sections = ask.map((f) => askSection(ev, f)).filter(Boolean);
-  const root = ctx.openSheet(`
+  const body = sections.map(([title, html]) => `<div class="field">${title ? `<div class="label">${esc(title)}</div>` : ''}${html}</div>`).join('');
+  const root = ctx.openSheet(diary ? `
+    <div class="diary-head">
+      <button class="ibtn ghost" data-act="skip" aria-label="${esc(t('Close'))}">${icon('close')}</button>
+      <div class="diary-title"><b>${esc(label)}</b>
+        <span class="muted small">${esc(t('logged {time}', { time: hhmm(rec.time) }))} · <button class="text-btn" data-act="undo">${t('Undo')}</button></span></div>
+      ${instant ? '<span class="diary-gap"></span>' : `<button class="ibtn save-check" data-act="save" aria-label="${esc(t('Save'))}">${icon('check')}</button>`}
+    </div>
+    ${dayStripHtml(day)}
+    ${body}
+    <div class="sheet-actions">
+      <button class="btn" data-act="skip">${t('Skip')}</button>
+      ${instant ? '' : `<button class="btn primary" data-act="save">${t('Save')}</button>`}
+    </div>` : `
     <div class="sheet-head">
       <div><b>${esc(label)} #${rec.nth_today}</b><br><span class="muted">${esc(t('logged {time}', { time: hhmm(rec.time) }))}</span></div>
       <button class="btn" data-act="undo">${t('Undo')}</button>
     </div>
-    ${sections.map(([title, body]) => `<div class="field">${title ? `<div class="label">${esc(title)}</div>` : ''}${body}</div>`).join('')}
+    ${body}
     <div class="sheet-actions">
       <button class="btn" data-act="skip">${t('Skip')}</button>
       ${instant ? '' : `<button class="btn primary" data-act="save">${t('Save')}</button>`}
     </div>`);
 
+  let readLists = () => null;
   const save = async () => {
     if (ask.includes('measures')) {
       const r = readMeasures(root, ev.measures || []);
       if (r.error) { ctx.toast(r.error); return; }
       if (r.measures) values.measures = r.measures;
     }
+    const answers = readLists();
+    if (answers) values.answers = answers;
     const note = root.querySelector('[data-field="note"]');
     if (note && note.value.trim()) values.note = note.value.trim();
     if (values.amount != null) values.unit = ev.amount.unit;
+    if (day !== rec.date) {
+      // Put on an earlier day, at the same time of day; its number is
+      // counted within THAT day (as when moving it in the Log).
+      const [Y, M, D] = day.split('-').map(Number);
+      const [h, m, sec] = rec.time.split(':').map(Number);
+      const d = new Date(Y, M - 1, D, h, m, sec);
+      values.ts = isoWithTz(d);
+      values.date = localDate(d);
+      values.time = localTime(d);
+      const before = ctx.state.entries.filter((x) => x.id !== rec.id && x.item_id === rec.item_id
+        && x.date === values.date && COUNTED.has(x.kind) && Date.parse(x.ts) < d.getTime());
+      values.nth_today = occurrences(before) + 1;
+    }
     ctx.closeSheet();
     if (!Object.keys(values).length) return;
     try {
@@ -309,8 +371,12 @@ function openAskSheet(ctx, ev, rec) {
       if (updated) {
         const i = ctx.state.entries.findIndex((e) => e.id === rec.id);
         if (i >= 0) ctx.state.entries[i] = updated;
+        ctx.state.entries.sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
       }
-      ctx.toast(t('{label} #{n} saved', { label, n: rec.nth_today }));
+      const n = updated?.nth_today ?? rec.nth_today;
+      ctx.toast(day !== rec.date
+        ? t('{label} saved · {day}', { label, day: friendlyDay(day) })
+        : t('{label} #{n} saved', { label, n }));
       ctx.refresh();
     } catch (e) {
       ctx.toast(t('Details NOT saved: {msg}', { msg: e.message }), { error: true });
@@ -347,10 +413,19 @@ function openAskSheet(ctx, ev, rec) {
       pick(group, chip, field, NUMERIC.has(field) ? Number(raw) : raw);
     });
   });
+  if (lists.length) {
+    readLists = wireLists(root, lists, {}, () => { if (instant && readLists()) save(); });
+  }
+  root.querySelectorAll('[data-day]').forEach((b) => b.addEventListener('click', () => {
+    day = b.dataset.day;
+    root.querySelectorAll('[data-day]').forEach((x) => {
+      x.classList.toggle('on', x === b);
+      x.setAttribute('aria-pressed', x === b);
+    });
+  }));
   root.querySelector('[data-act="undo"]').addEventListener('click', () => undo(ctx, rec));
-  root.querySelector('[data-act="skip"]').addEventListener('click', () => ctx.closeSheet());
-  const saveBtn = root.querySelector('[data-act="save"]');
-  if (saveBtn) saveBtn.addEventListener('click', save);
+  root.querySelectorAll('[data-act="skip"]').forEach((b) => b.addEventListener('click', () => ctx.closeSheet()));
+  root.querySelectorAll('[data-act="save"]').forEach((b) => b.addEventListener('click', save));
 }
 
 // A new type typed via "Other…" is added to the button's list, so next

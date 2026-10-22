@@ -5,6 +5,7 @@ import {
   COLORS, eventLabel, makeId, saveConfig, starterButtons,
 } from './config.js';
 import { remindEditorHtml, remindTimes, wireRemindEditor } from './reminders.js';
+import { optionsToText, optName, parseOptions } from './lists.js';
 import { icon } from './icons.js';
 import { esc } from './util.js';
 import { t } from './i18n.js';
@@ -15,6 +16,7 @@ const ASK_OPTIONS = [
   ['intensity', 'Intensity (1–10)'],
   ['duration_min', 'Duration (minutes)'],
   ['choice', 'ASK_choice'],
+  ['lists', 'ASK_lists'],
   ['amount', 'ASK_amount'],
   ['count', 'ASK_count'],
   ['bp', 'ASK_bp'],
@@ -36,14 +38,33 @@ const ASK_SHORT = {
 };
 
 export function describeButton(ev) {
-  const what = (ev.ask || []).map((a) => (a === 'measures'
-    ? (ev.measures || []).map((m) => m.name).join(', ') // names you typed: as written
-    : t(ASK_SHORT[a] || a))).filter(Boolean);
+  // Names you typed (number fields, lists) are shown as written.
+  const what = (ev.ask || []).flatMap((a) => {
+    if (a === 'measures') return (ev.measures || []).map((m) => m.name);
+    if (a === 'lists') return (ev.lists || []).map((l) => l.name);
+    return [t(ASK_SHORT[a] || a)];
+  }).filter(Boolean);
+  // A diary asks a lot: name the first few and count the rest.
+  const asks = what.length > 5 ? t('{list} and {n} more', { list: what.slice(0, 4).join(', '), n: what.length - 4 }) : what.join(', ');
   const parts = [];
   if (ev.span) parts.push(t('Start / finish'));
-  parts.push(what.length ? t('Asks: {what}', { what: what.join(', ') }) : t('Just one tap'));
+  parts.push(what.length ? t('Asks: {what}', { what: asks }) : t('Just one tap'));
+  if (ev.goal) parts.push(t('Goal: {n} a day', { n: ev.goal }));
   if (ev.remind) parts.push(`⏰ ${remindTimes(ev)}`);
   return parts.join(' · ');
+}
+
+// One pick-list in the editor: its name, its answers as text ("🩸 Light,
+// 🩸🩸 Medium"; an emoji first = the answer's icon), one or several.
+function listRow(l = {}) {
+  return `<div class="ldef" data-id="${esc(l.id || '')}">
+    <div class="ldef-top">
+      <input class="input" data-ln value="${esc(l.name || '')}" placeholder="${esc(t('List name, e.g. Flow'))}">
+      <button class="ibtn" data-ldel aria-label="${esc(t('Remove'))}">${icon('close')}</button>
+    </div>
+    <textarea class="input" data-lo rows="2" placeholder="${esc(t('Answers, e.g. 🙂 Good, 😐 OK, 😟 Bad'))}">${esc(optionsToText(l.options))}</textarea>
+    <label class="check"><input type="checkbox" data-lm ${l.multi ? 'checked' : ''}> ${esc(t('Several answers at once'))}</label>
+  </div>`;
 }
 
 // "+ Add a button" (Events screen tile, Settings → Buttons): make your own,
@@ -131,12 +152,18 @@ export function openEventEditor(ctx, ev) {
       ${k === 'measures' ? `<div class="ask-cfg" data-cfg="measures" ${ask.has('measures') ? '' : 'hidden'}>
         <div data-mlist>${(cur.measures?.length ? cur.measures : [{}]).map(measureRow).join('')}</div>
         <button class="btn" data-madd>${t('+ Add a number')}</button></div>` : ''}
+      ${k === 'lists' ? `<div class="ask-cfg" data-cfg="lists" ${ask.has('lists') ? '' : 'hidden'}>
+        <div data-llist>${(cur.lists?.length ? cur.lists : [{}]).map(listRow).join('')}</div>
+        <button class="btn" data-ladd>${t('+ Add a list')}</button>
+        <div class="small muted">${esc(t('LISTS_HINT'))}</div></div>` : ''}
     `).join('')}
     <p class="small muted">${esc(t('ONE_QUESTION_HINT'))}</p>
     <div class="label sec">${t('More options')}</div>
     <label class="check"><input type="checkbox" data-f="private" ${cur.private ? 'checked' : ''}> ${t('Private — show only a short label on screen')}</label>
     <input class="input" data-f="label" value="${esc(cur.displayLabel || '')}" placeholder="${esc(t('Label shown on screen (e.g. X)'))}" ${cur.private ? '' : 'hidden'}>
     <label class="check"><input type="checkbox" data-f="span" ${cur.span ? 'checked' : ''}> ${esc(t('SPAN_OPTION'))}</label>
+    <label class="label-block">${t('Daily goal (optional)')}<input class="input" data-f="goal" inputmode="numeric" value="${esc(cur.goal ?? '')}" placeholder="${esc(t('e.g. 8'))}"></label>
+    <div class="small muted">${esc(t('GOAL_HINT'))}</div>
     ${remindEditorHtml(cur.remind)}
     <div class="sheet-actions">
       <button class="btn" data-act="cancel">${t('Cancel')}</button>
@@ -170,6 +197,12 @@ export function openEventEditor(ctx, ev) {
   root.querySelector('[data-madd]').addEventListener('click', () => {
     root.querySelector('[data-mlist]').insertAdjacentHTML('beforeend', measureRow());
   });
+  root.querySelector('[data-ladd]').addEventListener('click', () => {
+    root.querySelector('[data-llist]').insertAdjacentHTML('beforeend', listRow());
+  });
+  root.querySelector('[data-llist]').addEventListener('click', (e) => {
+    if (e.target.closest('[data-ldel]')) e.target.closest('.ldef').remove();
+  });
   root.querySelector('[data-mlist]').addEventListener('click', (e) => {
     if (e.target.closest('[data-mdel]')) e.target.closest('.mdef').remove();
   });
@@ -202,6 +235,25 @@ export function openEventEditor(ctx, ev) {
       measures.push(m);
     }
     if (chosen.includes('measures') && !measures.length) { ctx.toast(t('Type a name for at least one number, e.g. Weight')); return; }
+    // Pick-lists: a list keeps its id once created (old answers refer to it).
+    const lists = [];
+    for (const row of root.querySelectorAll('.ldef')) {
+      const lName = row.querySelector('[data-ln]').value.trim();
+      const options = parseOptions(row.querySelector('[data-lo]').value);
+      if (!lName && !options.length) continue;
+      if (!lName) { ctx.toast(t('Type a name for each list')); return; }
+      if (!options.length) { ctx.toast(t('Type at least one answer for "{name}"', { name: lName })); return; }
+      const low = options.map((o) => optName(o).toLowerCase());
+      if (new Set(low).size !== low.length) { ctx.toast(t('"{name}" has the same answer twice', { name: lName })); return; }
+      const l = { id: row.dataset.id || makeId(lists, lName), name: lName, options };
+      if (lists.some((x) => x.id === l.id)) l.id = makeId(lists, lName);
+      if (row.querySelector('[data-lm]').checked) l.multi = true;
+      lists.push(l);
+    }
+    if (chosen.includes('lists') && !lists.length) { ctx.toast(t('Add at least one list with its answers')); return; }
+    const goalRaw = f('goal').value.trim();
+    const goal = goalRaw ? Number(goalRaw) : null;
+    if (goalRaw && !(Number.isInteger(goal) && goal >= 1 && goal <= 1000)) { ctx.toast(t('The goal must be a whole number from 1 to 1000')); return; }
     if (chosen.includes('choice') && !choices.length) { ctx.toast(t('Type at least one type, e.g. Paracetamol')); return; }
     if (chosen.includes('amount')) {
       if (!unit) { ctx.toast(t('Type a unit for the amount, e.g. mg')); return; }
@@ -226,6 +278,8 @@ export function openEventEditor(ctx, ev) {
     if (chosen.length) item.ask = chosen; else delete item.ask;
     if (choices.length) item.choices = choices; else delete item.choices;
     if (measures.length) item.measures = measures; else delete item.measures;
+    if (lists.length) item.lists = lists; else delete item.lists;
+    if (goal) item.goal = goal; else delete item.goal;
     if (chosen.includes('amount')) item.amount = { unit, values };
     else if (!(unit && values.length && values.every((v) => v > 0))) delete item.amount;
     if (remind.list.length) item.remind = remind.list; else delete item.remind;
