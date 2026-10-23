@@ -309,7 +309,18 @@ Example:
     currentRoute()). Header: ‹ back (history.back() after moving in the
     app, else #settings), the page title (settingsPageTitle), smaller
     title on such pages, ⓘ hidden there. List rows (.lrow): tap = edit,
-    eye = hide/show (toast says so), "Reorder" swaps the eyes for ↑ ↓.
+    eye = hide/show (toast says so), "Reorder" swaps the eyes for grips.
+    Drag to reorder (asked for as "a grip thing so I can grip and drag it":
+    tapping ↑ again and again was slow and each step hard to see):
+    `dragSort.js` dragSort(list, onMove) on Buttons, Exercises, Routines
+    and Tabs. Hold the grip (⠿, 48px, touch-action none, pointer capture)
+    and the row follows the finger, outlined. Once it covers half of a row,
+    that row slides aside. Near the header / tab bar the page scrolls by
+    itself, and the row flashes where it lands (.just-moved, applied after
+    the page redraws). Keyboard: ↑ ↓ Home End on the grip. pointercancel =
+    no move. Buttons: settings.js moveWithin keeps hidden and Cycle-tab
+    buttons in their slots of config "events". The routine and circuit
+    editors still use ↑.
     Settings → Buttons (asked for as "swipe left or right to get a button
     off your button list"): swipe a row sideways (settings.js wireSwipe,
     pointer events, touch-action pan-y; a mostly vertical move scrolls, a
@@ -598,9 +609,13 @@ Example:
   config per language: default_config.json / .he.json / .ru.json (same
   ids). Config validation errors stay English (they name JSON keys).
   Settings → Language & dates → Layout: Automatic (Hebrew mirrors) / Left → right /
-  Right → left (kv "ui_dir"). When the layout direction differs from
-  the language's, <html> gets class "bidi-plain" so each text picks its
-  own direction (unicode-bidi: plaintext) while the layout stays put.
+  Right → left (kv "ui_dir"). The language choices (there and on the
+  welcome) and the Layout choices are always in the same left-to-right
+  order (dir="ltr" on the row, dir="auto" on each name). Found by the
+  user: after picking Hebrew the row mirrored and English had moved.
+  When the layout direction differs from the language's, <html> gets
+  class "bidi-plain" so each text picks its own direction
+  (unicode-bidi: plaintext) while the layout stays put.
 - Dates (found by the user: "in Israel it's dd/mm/yyyy", the English UI
   showed US dates and the Log editor's native date box said 10/21/2026):
   dates follow WHERE the phone is, judged by its time zone (many phones

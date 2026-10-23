@@ -78,6 +78,8 @@ function go(ctx, n) {
 }
 
 // --- 1. hello ----------------------------------------------------------------
+// The language pills are always in the same left-to-right order, so picking
+// Hebrew (right to left) doesn't move them under the finger.
 function renderHello(el, ctx) {
   el.innerHTML = `<div class="wl">
     ${restarting ? `<button class="wl-back" data-cancel>${icon('close')}<span>${esc(t('Cancel — keep my setup'))}</span></button>` : ''}
@@ -91,7 +93,7 @@ function renderHello(el, ctx) {
       <li><span class="wl-ico">${icon('dumbbell')}</span><span><b>${esc(t('Training'))}</b>${esc(t('WELCOME_TRAIN'))}</span></li>
       <li><span class="wl-ico">${icon('lock')}</span><span><b>${esc(t('Private'))}</b>${esc(t('WELCOME_PRIVATE'))}</span></li>
     </ul>
-    <div class="wl-lang" role="group" aria-label="${esc(t('Language'))}">${languages().map(([code, name]) => `<button class="pill${code === getLang() ? ' on' : ''}" data-lang="${esc(code)}" aria-pressed="${code === getLang()}">${esc(name)}</button>`).join('')}</div>
+    <div class="wl-lang" dir="ltr" role="group" aria-label="${esc(t('Language'))}">${languages().map(([code, name]) => `<button class="pill${code === getLang() ? ' on' : ''}" data-lang="${esc(code)}" aria-pressed="${code === getLang()}" dir="auto">${esc(name)}</button>`).join('')}</div>
     <div class="wl-lang wl-theme" role="group" aria-label="${esc(t('Theme'))}">${THEMES.map(([id, name]) => `<button class="pill${id === getTheme() ? ' on' : ''}" data-theme-pick="${id}" aria-pressed="${id === getTheme()}">${id === 'girl' ? '🌸' : '🌙'} ${esc(t(name))}</button>`).join('')}</div>
     <div class="wl-bar"><button class="btn primary big wide" data-next>${esc(t('Get started'))}</button></div>
   </div>`;

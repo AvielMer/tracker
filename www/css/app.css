@@ -1102,6 +1102,30 @@ body[data-screen="cycle"] .nav a.on .ico { background: color-mix(in srgb, var(--
 .swipe-bg > span { display: inline-flex; align-items: center; gap: 6px; opacity: .55; transition: opacity .15s; }
 .lrow.far .swipe-bg > span { opacity: 1; }
 .swipe-hint { margin: 6px 4px 12px; }
+
+/* --- Drag to reorder (dragSort.js): in "Reorder" mode every row has a grip.
+   The held row is outlined and follows the finger, the rows it passes slide
+   aside, and it flashes where it lands. --- */
+.grip {
+  min-width: 48px; height: 48px; cursor: grab;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+.grip .ic { width: 24px; height: 24px; }
+.reorder-hint { margin: -2px 4px 10px; }
+.sorting { user-select: none; -webkit-user-select: none; }
+.sorting > .lrow { transition: transform .16s ease; }
+.sorting > .lrow.dragging { transition: none; }
+.lrow.dragging { position: relative; z-index: 2; background: var(--card2); }
+/* On Buttons the row's inner layer (.lrow-slide) covers the row itself. */
+.lrow.dragging:not(.sw), .lrow.dragging > .lrow-slide {
+  background: var(--card2); outline: 2px solid var(--accent); outline-offset: -2px;
+}
+.lrow.dragging .grip { color: var(--accent); cursor: grabbing; }
+@keyframes just-moved { from { background-color: var(--accent-soft); } }
+.lrow.just-moved, .lrow.just-moved > .lrow-slide { animation: just-moved 1.6s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .sorting > .lrow { transition: none; }
+}
 .hid-toggle { margin: 4px 0 8px; }
 
 /* --- The first switch to the Girl theme (bloom.js): a hole in the old dark
