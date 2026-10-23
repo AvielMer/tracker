@@ -26,6 +26,7 @@ import {
   cycleShown, cycleUnlocked, MAIN_TABS, ownedIds, setTabs, TAB_INFO, visibleTabs,
 } from './tabs.js';
 import { bloomDone, playBloom } from './bloom.js';
+import { dragSort } from './dragSort.js';
 import { icon } from './icons.js';
 
 // The pages, in menu order. title: translation key; tint: the icon's colour.
@@ -46,7 +47,8 @@ export function settingsPageTitle(sub) {
   return PAGES[sub]?.title || null;
 }
 
-// Which list is in "Reorder" mode (its rows show ↑ ↓ instead of the eye).
+// Which list is in "Reorder" mode (its rows show a grip to drag instead of
+// the eye).
 let reordering = null;
 let lastPage = null;
 
@@ -112,29 +114,41 @@ function renderMenu(el, ctx) {
     </div>`;
 }
 
-// --- lists of buttons / exercises / routines ---------------------------------------
+// --- lists of exercises / routines (and the bits Buttons and Tabs share) -----------
 // Tap a row = edit it. The eye hides it (from the Events screen, or from
 // the Training lists) without losing its history. "Reorder" swaps the eyes
-// for ↑ ↓ — fewer little buttons on every row the rest of the time.
+// for grips to drag the rows by (dragSort.js) — fewer little buttons on
+// every row the rest of the time.
 function listHead(title, key, count) {
   const re = reordering === key;
   return `<div class="list-head"><h2 class="day">${esc(title)}</h2>${count > 1
-    ? `<button class="text-btn" data-reorder="${key}">${re ? esc(t('Done')) : `${icon('reorder')}<span>${esc(t('Reorder'))}</span>`}</button>` : ''}</div>`;
+    ? `<button class="text-btn" data-reorder="${key}">${re ? esc(t('Done')) : `${icon('reorder')}<span>${esc(t('Reorder'))}</span>`}</button>` : ''}</div>
+    ${re && count > 1 ? `<p class="small muted reorder-hint">${esc(t('REORDER_HINT'))}</p>` : ''}`;
+}
+
+const grip = () => `<button class="ibtn ghost grip" aria-label="${esc(t('Drag to move'))}">${icon('grip')}</button>`;
+
+// Moves the item at slots[from] to place `to` among the slots (indexes into
+// arr, in order). Items outside the slots keep their places: hidden buttons
+// and the Cycle tab's own, which aren't on the list being sorted.
+function moveWithin(arr, slots, from, to) {
+  const items = slots.map((i) => arr[i]);
+  items.splice(to, 0, items.splice(from, 1)[0]);
+  slots.forEach((i, k) => { arr[i] = items[k]; });
 }
 
 function itemList(key, items, view, emptyText) {
   if (!items.length) return `<div class="card pad muted">${esc(emptyText)}</div>`;
   const re = reordering === key;
-  return `<div class="card list">${items.map((it, i) => {
+  return `<div class="card list"${re ? ` data-drag-list="${key}"` : ''}>${items.map((it, i) => {
     const v = view(it);
     const tags = [...(v.tags || []), ...(it.hidden ? [t('hidden')] : [])].map((tg) => ` <span class="tag">${esc(tg)}</span>`).join('');
-    return `<div class="lrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}">
+    return `<div class="lrow${it.hidden ? ' dim' : ''}" data-list="${key}" data-i="${i}"${re ? ` data-drag-key="${esc(it.id)}"` : ''}>
       <button class="lrow-main" data-act="edit">
         ${v.dot !== undefined ? `<span class="dot" style="--c:${v.dot || 'var(--line)'}"></span>` : ''}
         ${rowText(esc(v.name) + tags, v.sub ? esc(v.sub) : '')}
       </button>
-      ${re ? `<button class="ibtn ghost" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
-        <button class="ibtn ghost" data-act="down" ${i === items.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>`
+      ${re ? grip()
     : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!!it.hidden}" aria-label="${esc(it.hidden ? t('Show') : t('Hide'))}">${icon(it.hidden ? 'eyeOff' : 'eye')}</button>`}
     </div>`;
   }).join('')}</div>`;
@@ -154,22 +168,27 @@ function wireLists(el, ctx, rerender) {
       const item = ctx.state.config[key][i];
       if (!item) return;
       if (act === 'edit') {
-        if (key === 'events') openEventEditor(ctx, item);
-        else if (key === 'exercises') openExerciseEditor(ctx, item);
+        if (key === 'exercises') openExerciseEditor(ctx, item);
         else openRoutineEditor(ctx, item);
         return;
       }
-      const hiding = act === 'hide' && !item.hidden;
+      if (act !== 'hide') return;
+      const hiding = !item.hidden;
       change(ctx, (cfg) => {
-        const list = cfg[key];
-        if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
-        else if (act === 'down' && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
-        else if (act === 'hide') {
-          if (list[i].hidden) delete list[i].hidden; else list[i].hidden = true;
-        } else return false;
+        const it = cfg[key][i];
+        if (it.hidden) delete it.hidden; else it.hidden = true;
         return true;
-      }, act === 'hide' ? t(hiding ? (key === 'events' ? 'Hidden from the Events screen' : 'Hidden') : 'Shown again') : null);
+      }, t(hiding ? 'Hidden' : 'Shown again'));
     });
+  });
+  el.querySelectorAll('[data-drag-list]').forEach((box) => {
+    const key = box.dataset.dragList;
+    dragSort(box, (from, to, id) => change(ctx, (cfg) => {
+      const list = cfg[key];
+      if (list[from]?.id !== id) return false; // the setup changed meanwhile
+      list.splice(to, 0, list.splice(from, 1)[0]);
+      return true;
+    }));
   });
 }
 
@@ -190,18 +209,17 @@ function pageButtons(el, ctx) {
   const hidden = all.filter(({ ev }) => ev.hidden);
   const used = (ev) => state.entries.some((e) => e.item_id === ev.id);
   const re = reordering === 'events';
-  const row = ({ ev, i }, k, list) => {
+  const row = ({ ev, i }) => {
     // What a swipe does: never used → remove; used and showing → hide.
     const swipe = re ? null : !used(ev) ? 'remove' : ev.hidden ? null : 'hide';
     const what = swipe === 'remove' ? `${icon('trash')}<span>${esc(t('Remove'))}</span>` : `${icon('eyeOff')}<span>${esc(t('Hide'))}</span>`;
     const tags = [...(ev.private ? [t('private')] : []), ...(ev.hidden ? [t('hidden')] : [])].map((tg) => ` <span class="tag">${esc(tg)}</span>`).join('');
-    return `<div class="lrow sw${ev.hidden ? ' dim' : ''}" data-ev-i="${i}" data-k="${k}"${swipe ? ` data-swipe="${swipe}"` : ''}>
+    return `<div class="lrow sw${ev.hidden ? ' dim' : ''}" data-ev-i="${i}"${swipe ? ` data-swipe="${swipe}"` : ''}${re ? ` data-drag-key="${esc(ev.id)}"` : ''}>
       ${swipe ? `<span class="swipe-bg ${swipe}" aria-hidden="true"><span>${what}</span><span>${what}</span></span>` : ''}
       <div class="lrow-slide">
         <button class="lrow-main" data-act="edit"><span class="dot" style="--c:${ev.color || 'var(--line)'}"></span>
           ${rowText(esc(eventLabel(ev)) + tags, esc(describeButton(ev)))}</button>
-        ${re ? `<button class="ibtn ghost" data-act="up" ${k === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
-          <button class="ibtn ghost" data-act="down" ${k === list.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>`
+        ${re ? grip()
     : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!!ev.hidden}" aria-label="${esc(ev.hidden ? t('Show') : t('Hide'))}">${icon(ev.hidden ? 'eyeOff' : 'eye')}</button>`}
       </div>
     </div>`;
@@ -210,11 +228,11 @@ function pageButtons(el, ctx) {
     <p class="page-hint">${esc(t('BUTTONS_HINT'))}</p>
     <button class="btn primary wide" data-act="add">${icon('plus')}<span>${esc(t('Add a button'))}</span></button>
     ${listHead(t('Your buttons'), 'events', shown.length)}
-    ${shown.length ? `<div class="card list" data-list-shown>${shown.map((x, k) => row(x, k, shown)).join('')}</div>`
+    ${shown.length ? `<div class="card list" data-list-shown${re ? ' data-drag-list="events"' : ''}>${shown.map(row).join('')}</div>`
     : `<div class="card pad muted">${esc(t('No buttons yet'))}</div>`}
     ${shown.length && !re ? `<p class="small muted swipe-hint">${esc(t('SWIPE_HINT'))}</p>` : ''}
     ${hidden.length && !re ? `<button class="text-btn hid-toggle" data-act="hidden" aria-expanded="${showHidden}">${icon(showHidden ? 'up' : 'down')}<span>${esc(t('Hidden ({n})', { n: hidden.length }))}</span></button>
-      ${showHidden ? `<div class="card list">${hidden.map((x, k) => row(x, k, hidden)).join('')}</div>` : ''}` : ''}
+      ${showHidden ? `<div class="card list">${hidden.map(row).join('')}</div>` : ''}` : ''}
     ${cycleUnlocked() && state.config.events.some((e) => owned.has(e.id)) ? `<p class="small muted">${esc(t('CYCLE_BUTTONS_NOTE'))}</p>` : ''}`;
   const rerender = () => pageButtons(el, ctx);
   on(el, 'add', () => openAddButtonSheet(ctx));
@@ -225,20 +243,22 @@ function pageButtons(el, ctx) {
   });
   el.querySelectorAll('.lrow[data-ev-i]').forEach((row) => {
     const i = Number(row.dataset.evI);
-    const k = Number(row.dataset.k);
     row.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
       if (!act || row.dataset.swiped) return;
       const ev = ctx.state.config.events[i];
       if (!ev) return;
-      if (act === 'edit') { openEventEditor(ctx, ev); return; }
-      if (act === 'hide') { hideButton(ctx, i, !ev.hidden); return; }
-      // ↑ ↓ move among the buttons on the list (hidden ones keep their place).
-      const j = act === 'up' ? shown[k - 1]?.i : shown[k + 1]?.i;
-      if (j == null) return;
-      change(ctx, (cfg) => { [cfg.events[i], cfg.events[j]] = [cfg.events[j], cfg.events[i]]; return true; });
+      if (act === 'edit') openEventEditor(ctx, ev);
+      else if (act === 'hide') hideButton(ctx, i, !ev.hidden);
     });
   });
+  // Dragged among the buttons on the list; hidden ones keep their places.
+  dragSort(el.querySelector('[data-drag-list="events"]'), (from, to, id) => change(ctx, (cfg) => {
+    const slots = shown.map((x) => x.i);
+    if (cfg.events[slots[from]]?.id !== id) return false; // the setup changed meanwhile
+    moveWithin(cfg.events, slots, from, to);
+    return true;
+  }));
   wireSwipe(el, (row) => {
     const i = Number(row.dataset.evI);
     if (row.dataset.swipe === 'remove') removeButton(ctx, i);
@@ -457,15 +477,14 @@ function pageTabs(el, ctx) {
   el.innerHTML = `
     <p class="page-hint">${esc(t('TABS_HINT'))}</p>
     ${listHead(t('Your tabs'), 'tabs', vis.length)}
-    <div class="card list">${rows.map((k) => {
+    <div class="card list"${re ? ' data-drag-list="tabs"' : ''}>${rows.map((k) => {
     const on = vis.includes(k);
     const i = vis.indexOf(k);
     const [title, ic, tint] = TAB_INFO[k];
     const sub = !on ? t('hidden') : i === 0 ? t('Opens first') : '';
-    return `<div class="lrow${on ? '' : ' dim'}" data-tab-row="${k}">
+    return `<div class="lrow${on ? '' : ' dim'}" data-tab-row="${k}"${re && on ? ` data-drag-key="${k}"` : ''}>
       <div class="lrow-main">${tile(ic, tint)}${rowText(esc(t(title)), esc(sub))}</div>
-      ${re ? (on ? `<button class="ibtn ghost" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('Move up'))}">${icon('up')}</button>
-        <button class="ibtn ghost" data-act="down" ${i === vis.length - 1 ? 'disabled' : ''} aria-label="${esc(t('Move down'))}">${icon('down')}</button>` : '')
+      ${re ? (on ? grip() : '')
     : `<button class="ibtn ghost" data-act="hide" aria-pressed="${!on}" aria-label="${esc(on ? t('Hide') : t('Show'))}">${icon(on ? 'eye' : 'eyeOff')}</button>`}
     </div>`;
   }).join('')}
@@ -476,34 +495,39 @@ function pageTabs(el, ctx) {
     pageTabs(el, ctx);
   });
   el.querySelectorAll('[data-tab-row]').forEach((row) => row.addEventListener('click', async (e) => {
-    const act = e.target.closest('button')?.dataset.act;
-    if (!act) return;
+    if (e.target.closest('button')?.dataset.act !== 'hide') return;
     const k = row.dataset.tabRow;
     const list = [...vis];
     const i = list.indexOf(k);
-    if (act === 'hide') {
-      if (i >= 0 && list.length === 1) { ctx.toast(t('Keep at least one tab')); return; }
-      if (i >= 0) list.splice(i, 1); else list.push(k);
-    } else if (act === 'up' && i > 0) [list[i - 1], list[i]] = [list[i], list[i - 1]];
-    else if (act === 'down' && i >= 0 && i < list.length - 1) [list[i + 1], list[i]] = [list[i], list[i + 1]];
-    else return;
+    if (i >= 0 && list.length === 1) { ctx.toast(t('Keep at least one tab')); return; }
+    if (i >= 0) list.splice(i, 1); else list.push(k);
     await setTabs(list);
     ctx.refresh();
-    if (act === 'hide') ctx.toast(t(i >= 0 ? 'Tab hidden' : 'Tab shown'));
+    ctx.toast(t(i >= 0 ? 'Tab hidden' : 'Tab shown'));
   }));
+  dragSort(el.querySelector('[data-drag-list="tabs"]'), async (from, to) => {
+    const list = [...vis];
+    list.splice(to, 0, list.splice(from, 1)[0]);
+    await setTabs(list);
+    ctx.refresh();
+  });
 }
 
 // --- Language & dates ------------------------------------------------------------
+// The language and layout choices stay in the same places whatever the
+// direction — found by the user: after switching to Hebrew the row mirrored,
+// so English wasn't where it had been. A `fixed` row is always left to
+// right, and each name is still written in its own direction.
 function pageLanguage(el, ctx) {
-  const seg = (items, cur, attr) => `<div class="seg">${items.map(([v, lbl]) => `<button class="${v === cur ? 'on' : ''}" data-${attr}="${esc(v)}" aria-pressed="${v === cur}">${esc(lbl)}</button>`).join('')}</div>`;
+  const seg = (items, cur, attr, fixed = false) => `<div class="seg"${fixed ? ' dir="ltr"' : ''}>${items.map(([v, lbl]) => `<button class="${v === cur ? 'on' : ''}" data-${attr}="${esc(v)}" aria-pressed="${v === cur}"${fixed ? ' dir="auto"' : ''}>${esc(lbl)}</button>`).join('')}</div>`;
   el.innerHTML = `
     <h2 class="day">${esc(t('Language'))}</h2>
-    ${seg(languages(), getLang(), 'lang')}
+    ${seg(languages(), getLang(), 'lang', true)}
     <button class="btn wide" data-act="add-lang">${icon('sparkle')}<span>${esc(t('Add a language with AI'))}</span></button>
     <h2 class="day">${esc(t('Dates'))}</h2>
     ${seg([['auto', `${t('Automatic')} (${autoMonthFirst() ? '12/31' : '31/12'})`], ['dmy', '31/12/2026'], ['mdy', '12/31/2026']], getDateOrder(), 'date-order')}
     <h2 class="day">${esc(t('Layout'))}</h2>
-    ${seg([['auto', t('Automatic')], ['ltr', t('Left → right')], ['rtl', t('Right → left')]], getDirPref(), 'dir')}
+    ${seg([['auto', t('Automatic')], ['ltr', t('Left → right')], ['rtl', t('Right → left')]], getDirPref(), 'dir', true)}
     <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
     <h2 class="day">${esc(t('Names of the starting items'))}</h2>
     <button class="btn wide" data-act="translate">${esc(t('Use {lang} names for built-in items', { lang: langName() }))}</button>
