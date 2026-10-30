@@ -109,6 +109,10 @@ To change the order, tap **Reorder** there and drag a button by its dots.
   plus a full backup that you can restore.
 - **Languages:** English, Hebrew (right-to-left) and Russian, plus any
   other language with the help of an AI (below).
+- **Hebrew and Muslim dates, moon phase:** under today's date you can also
+  see the Hebrew date in Hebrew letters (on by itself in Israel), the
+  Muslim (Hijri) date in English or Arabic, and the moon's phase.
+  Settings → Language & dates → Calendars.
 - **Themes:** Dark, or **Girl**: light and pink, with soft watercolours and
   flowers (it also brings the Cycle tab). Settings → Theme, or on the very
   first screen.
@@ -202,6 +206,9 @@ David Adom **101**.
 - **פרטיות:** כל המידע נשאר בטלפון שלך. אין חשבון, ושום דבר לא נשלח לשום
   מקום. כדאי לגבות מדי פעם: הגדרות ← גיבוי וייצוא ← גיבוי מלא (JSON).
 - **שפה:** עברית, אנגלית ורוסית. לכל שפה אחרת: הגדרות ← שינויים בעזרת AI.
+- **תאריך עברי, תאריך מוסלמי ומופע הירח:** מתחת לתאריך של היום — התאריך העברי
+  באותיות (מופעל מעצמו בישראל), התאריך המוסלמי באנגלית או בערבית ומופע הירח:
+  הגדרות ← שפה ותאריכים ← לוחות שנה.
 - **ערכת נושא:** כהה, או "בנות" — בהירה וורודה עם צבעי מים ופרחים: הגדרות ← ערכת נושא
   (או כבר במסך הראשון).
 - **מים:** "שתיית מים" עם יעד יומי (3/8) — ב"הוספת כפתור" ← מוכנים. לכל כפתור
@@ -246,6 +253,10 @@ David Adom **101**.
   → Копия и экспорт → Полная копия (JSON).
 - **Язык:** русский, иврит, английский. Любой другой язык: Настройки →
   Изменить с помощью ИИ.
+- **Еврейская и мусульманская даты, фаза луны:** под сегодняшней датой
+  можно видеть еврейскую дату (буквами, в Израиле включена сама),
+  мусульманскую дату по-английски или по-арабски и фазу луны: Настройки →
+  Язык и даты → Календари.
 - **Тема:** тёмная или «Девичья» — светлая и розовая, с акварелью и
   цветами: Настройки → Тема (или прямо на первом экране).
 - **Вода:** «Стаканы воды» с целью на день (3/8) — «Новая кнопка» →

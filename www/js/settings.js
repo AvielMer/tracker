@@ -16,8 +16,9 @@ import {
   downloadFile, esc, localDate, readFileText,
 } from './util.js';
 import {
-  autoMonthFirst, getDateOrder, getDirPref, getLang, languages, numericDate, setDateOrder, setDirPref, setLang, t,
+  autoMonthFirst, getDateOrder, getDirPref, getLang, languages, longDate, numericDate, setDateOrder, setDirPref, setLang, t,
 } from './i18n.js';
+import { calendarPrefs, otherDates, setCalendarPref } from './calendars.js';
 import { openSetupAI, openTranslateAI } from './ai.js';
 import { remindText, remindTimes } from './reminders.js';
 import { restartWelcome } from './welcome.js';
@@ -519,6 +520,7 @@ function pageTabs(el, ctx) {
 // so English wasn't where it had been. A `fixed` row is always left to
 // right, and each name is still written in its own direction.
 function pageLanguage(el, ctx) {
+  const cal = calendarPrefs();
   const seg = (items, cur, attr, fixed = false) => `<div class="seg"${fixed ? ' dir="ltr"' : ''}>${items.map(([v, lbl]) => `<button class="${v === cur ? 'on' : ''}" data-${attr}="${esc(v)}" aria-pressed="${v === cur}"${fixed ? ' dir="auto"' : ''}>${esc(lbl)}</button>`).join('')}</div>`;
   el.innerHTML = `
     <h2 class="day">${esc(t('Language'))}</h2>
@@ -526,6 +528,18 @@ function pageLanguage(el, ctx) {
     <button class="btn wide" data-act="add-lang">${icon('sparkle')}<span>${esc(t('Add a language with AI'))}</span></button>
     <h2 class="day">${esc(t('Dates'))}</h2>
     ${seg([['auto', `${t('Automatic')} (${autoMonthFirst() ? '12/31' : '31/12'})`], ['dmy', '31/12/2026'], ['mdy', '12/31/2026']], getDateOrder(), 'date-order')}
+    <h2 class="day">${esc(t('Calendars'))}</h2>
+    <div class="seg-label">${esc(t('Hebrew date'))}</div>
+    ${seg([['off', t('Off')], ['he', 'עברית'], ['en', 'English']], cal.hebrew, 'cal-hebrew')}
+    <div class="seg-label">${esc(t('Muslim date'))}</div>
+    ${seg([['off', t('Off')], ['en', 'English'], ['ar', 'العربية']], cal.hijri, 'cal-hijri')}
+    <div class="seg-label">${esc(t('Moon phase'))}</div>
+    ${seg([['off', t('Off')], ['on', t('On')]], cal.moon, 'cal-moon')}
+    <div class="card pad cal-preview" aria-label="${esc(t('Today'))}">
+      <div class="eyebrow">${esc(longDate())}</div>
+      ${otherDates(new Date(), { weekday: true }).map((x) => `<div class="eyebrow"><bdi lang="${x.lang}">${esc(x.text)}</bdi></div>`).join('')}
+    </div>
+    <p class="small muted">${esc(t('CALENDARS_HINT'))}</p>
     <h2 class="day">${esc(t('Layout'))}</h2>
     ${seg([['auto', t('Automatic')], ['ltr', t('Left → right')], ['rtl', t('Right → left')]], getDirPref(), 'dir', true)}
     <p class="small muted">${esc(t('LAYOUT_HINT'))}</p>
@@ -543,6 +557,12 @@ function pageLanguage(el, ctx) {
   }));
   el.querySelectorAll('[data-date-order]').forEach((b) => b.addEventListener('click', async () => {
     await setDateOrder(b.dataset.dateOrder);
+    ctx.refresh();
+  }));
+  el.querySelectorAll('[data-cal-hebrew], [data-cal-hijri], [data-cal-moon]').forEach((b) => b.addEventListener('click', async () => {
+    const [kind, v] = b.dataset.calHebrew ? ['hebrew', b.dataset.calHebrew]
+      : b.dataset.calHijri ? ['hijri', b.dataset.calHijri] : ['moon', b.dataset.calMoon];
+    await setCalendarPref(kind, v);
     ctx.refresh();
   }));
   on(el, 'add-lang', () => openTranslateAI(ctx));

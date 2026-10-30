@@ -6,7 +6,7 @@
 // NOT in the list on purpose: fun/pack.js, the cute animations — the app
 // downloads them only when asked and keeps them itself (js/funpack.js).
 
-const VERSION = 'v27';
+const VERSION = 'v28';
 const CACHE = `tracker-${VERSION}`;
 
 const SHELL = [
@@ -22,6 +22,7 @@ const SHELL = [
   './js/ai.js',
   './js/alerts.js',
   './js/app.js',
+  './js/calendars.js',
   './js/bloom.js',
   './js/charts.js',
   './js/config.js',
@@ -37,6 +38,7 @@ const SHELL = [
   './js/i18n.js',
   './js/icons.js',
   './js/library.js',
+  './js/moon.js',
   './js/lists.js',
   './js/log.js',
   './js/record.js',

@@ -20,6 +20,7 @@ import { $, esc } from './util.js';
 import {
   initLang, longDate, setLanguagePack, t,
 } from './i18n.js';
+import { initCalendars, otherDates } from './calendars.js';
 import { loadDismissed } from './reminders.js';
 
 // The theme before anything is drawn (see theme.js).
@@ -101,6 +102,20 @@ function refresh() {
   const dated = (name === 'events' || name === 'cycle') && !pageTitle;
   eyebrow.hidden = !dated;
   eyebrow.textContent = dated ? longDate() : '';
+  // Under it, the Hebrew and Muslim dates and the moon if they're on
+  // (calendars.js; Settings → Language & dates → Calendars). <bdi>: each
+  // keeps its own direction while the line stays where the app's dates start.
+  const cal = $('#cal-lines');
+  const lines = dated ? otherDates(new Date(), { weekday: true }) : [];
+  cal.hidden = !lines.length;
+  cal.replaceChildren(...lines.map(({ text, lang }) => {
+    const line = document.createElement('div');
+    const b = document.createElement('bdi');
+    b.lang = lang;
+    b.textContent = text;
+    line.append(b);
+    return line;
+  }));
   $('#about-btn').setAttribute('aria-label', t('About this app'));
   // On a page with ‹ the title needs the room (About is in the Settings menu).
   $('#about-btn').hidden = !back.hidden;
@@ -233,6 +248,7 @@ async function start() {
   });
 
   await initLang();
+  await initCalendars();
   await initTheme();
   await initTabs();
   try {

@@ -32,6 +32,7 @@ import {
 import {
   dateLocale, fmtDay, getLang, t, weekStart,
 } from './i18n.js';
+import { otherDates } from './calendars.js';
 import {
   buildCycle, comingUp, cycleSettings, dayInfo, dayNum, isoOf, patterns,
 } from './cycleCalc.js';
@@ -461,7 +462,7 @@ function openDay(ctx, d, m, cs, periodEv, diaryEv) {
   const entries = state.entries.filter((e) => e.date === iso && ['event', 'event_start', 'event_end'].includes(e.kind));
   const acts = d <= today ? periodActions(m, d, today) : [];
   const root = ctx.openSheet(`
-    <div class="sheet-head"><div><b>${esc(title)}</b>${info?.cycleDay ? `<br><span class="muted small">${esc(t('Cycle day {n}', { n: info.cycleDay }))}</span>` : ''}</div>
+    <div class="sheet-head"><div><b>${esc(title)}</b>${otherDates(dateOf(d)).map((x) => `<br><bdi class="muted small" lang="${x.lang}">${esc(x.text)}</bdi>`).join('')}${info?.cycleDay ? `<br><span class="muted small">${esc(t('Cycle day {n}', { n: info.cycleDay }))}</span>` : ''}</div>
       <button class="ibtn ghost" data-act="close" aria-label="${esc(t('Close'))}">${icon('close')}</button></div>
     ${tags.length ? `<div class="cy-pills">${tags.join('')}</div>` : ''}
     ${ph ? `<p class="cy-note">${esc(t(`PHASE_${ph}`))}</p>` : ''}
