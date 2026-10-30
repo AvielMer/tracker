@@ -629,6 +629,27 @@ Example:
   input invisible on top (a tap still opens the phone's picker) — used in
   the Log editor and reminder rows. Wire them on an element redrawn with
   its sheet, never the persistent sheet body.
+- Other calendars and the moon (asked for as "add the Hebrew calendar in
+  Hebrew and an option to also see the Muslim calendar … the Arabic below
+  it", then "add moon phase also"): `calendars.js` + `moon.js` (pure, no
+  DOM — test it in node). Lines under today's date in the header of Events
+  and Cycle (#cal-lines, each in a <bdi lang> so it keeps its own
+  direction) and in the Cycle day sheet, and a preview in Settings →
+  Language & dates → Calendars:
+  - Hebrew date: kv "cal_hebrew" off / he / en; not set = he for phones in
+    Israel or the Hebrew app. "יום ו׳ י״ט בחשוון התשפ״ז": Intl he-u-ca-hebrew
+    gives digits, so hebrewNumeral() writes the letters (15 = ט״ו, 16 =
+    ט״ז; year = ה + the last three digits).
+  - Muslim date: kv "cal_hijri" off / en / ar (default off), Umm al-Qura
+    (Intl …-u-ca-islamic-umalqura): "19 Jumada I 1448 AH", Arabic with the
+    weekday.
+  - Moon: kv "cal_moon" off / on (default off): "🌖 Waning gibbous · 77%"
+    (lit at midday) in the app's language. moon.js elongation() = Meeus
+    eq. 48.4 (checked against eclipses: within ~25 min); a main phase
+    (new, first quarter, full, last quarter) is named on the one local day
+    it happens, other days get the shape in between.
+  - Days are midnight to midnight (they really begin at sunset; the hint
+    says so). Header order: date, Hebrew, Muslim, moon.
 - Event buttons can have "color": "#rrggbb" (validated; editor offers
   10 swatches in config.js COLORS). Missing color = plain gray button.
 - ts includes milliseconds (…T15:03:05.123+03:00) so entries made in
