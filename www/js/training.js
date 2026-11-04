@@ -23,7 +23,7 @@
 
 import * as storage from './storage.js';
 import {
-  circuitParts, hasOwnTimes, isCircuit, routineSteps,
+  circuitParts, hasOwnTimes, isCircuit, routineSteps, saveConfig,
 } from './config.js';
 import { openCircuitEditor } from './trainingEditor.js';
 import { makeRecord } from './record.js';
@@ -334,9 +334,12 @@ function renderSession(el, ctx) {
     const timedRunning = working && !!segsOf(ctx, s.work);
     const n = mine.length + 1;
     card = `<div class="card pad tr-card">
-      <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(ownTimes
-        ? t('goal {n} sets', { n: step.sets })
-        : t('goal {sets} × {reps}', { sets: step.sets, reps: (step.reps || '?') + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
+      <div class="tr-top">
+        <div class="tr-name">${esc(ex.name)}${step.sets ? `<span class="muted"> ${esc(ownTimes || !step.reps
+          ? t('goal {n} sets', { n: step.sets })
+          : t('goal {sets} × {reps}', { sets: step.sets, reps: step.reps + (ex.type === 'seconds' ? 's' : '') }))}</span>` : ''}</div>
+        ${working ? '' : `<button class="text-btn tr-out" data-act="take-out" aria-label="${esc(t('Take {name} out of this workout', { name: ex.name }))}">${icon('close')}<span>${t('Take out')}</span></button>`}
+      </div>
       ${circuit ? circuitPlanHtml(ctx, ex, d.value) : ''}
       <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
       <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
@@ -349,7 +352,8 @@ function renderSession(el, ctx) {
       </div>
       ${circuit && !working ? `<button class="linklike" data-act="edit-circuit">✎ ${t('Edit circuit')}</button>` : ''}`}
       ${ex.allowWeight ? `<div class="wstep"><span>${t('Extra weight')}</span>
-        <button class="ibtn" data-w="-2.5">−</button><b>${d.weight || 0} ${t('kg')}</b><button class="ibtn" data-w="2.5">+</button></div>` : ''}
+        <button class="ibtn" data-w="-2.5">−</button><b>${d.weight || 0} ${t('kg')}</b><button class="ibtn" data-w="2.5">+</button></div>`
+    : !circuit && !working ? `<button class="linklike add-weight" data-act="add-weight">${icon('plus')}<span>${t('Add extra weight')}</span></button>` : ''}
       <input class="input" data-act="note" value="${esc(d.note || '')}" placeholder="${esc(t('Note for this set (optional)'))}">
       ${working
         ? `<button class="btn primary wide big done-btn" data-act="primary">✓ ${t('Done — log set {n}', { n })}</button>
@@ -433,6 +437,21 @@ function renderSession(el, ctx) {
     if (v > 0) { d.value = Math.round(v); $('.step-val b').textContent = d.value; saveSession(ctx).catch(() => {}); }
   });
   $('[data-act="edit-circuit"]')?.addEventListener('click', () => openCircuitEditor(ctx, ex));
+  // Found by the user: in a workout from a routine there was no way to add
+  // weight, because only the exercise's editor had "Can add extra weight".
+  // Now one tap here turns it on for this exercise (kept in the setup, so
+  // the weight row is there next time too).
+  $('[data-act="add-weight"]')?.addEventListener('click', async () => {
+    if (ctx.state.configErrors.length && !confirm(t('CONFIG_ERRORS_CONFIRM'))) return;
+    const cfg = JSON.parse(JSON.stringify(ctx.state.config));
+    const item = cfg.exercises.find((x) => x.id === ex.id);
+    if (!item) return; // removed from the setup meanwhile
+    item.allowWeight = true;
+    const res = await saveConfig(cfg);
+    if (!res.ok) { ctx.toast(res.errors[0], { error: true }); return; }
+    await ctx.reloadConfig();
+    ctx.toast(t('Extra weight is on for {name}', { name: ex.name }));
+  });
   el.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => {
     d.weight = Math.max(0, Math.round(((d.weight || 0) + Number(b.dataset.w)) * 10) / 10);
     $('.wstep b').textContent = `${d.weight} ${t('kg')}`;
@@ -463,6 +482,7 @@ function renderSession(el, ctx) {
     if (last) logSet(ctx, ex, valueOf(last), last.weight, null, {});
   });
   $('[data-act="undo"]').addEventListener('click', () => undoLastSet(ctx, ex));
+  $('[data-act="take-out"]').addEventListener('click', () => takeOut(ctx, ex));
   $('[data-act="quick-log"]').addEventListener('click', async () => {
     const segs = ex.type === 'seconds' ? planSegments(ex, d.value) : null;
     const value = segs ? workSecs(segs) : d.value;
@@ -812,6 +832,37 @@ function openRestGoal(ctx) {
     ctx.closeSheet();
     ctx.refresh();
   }));
+}
+
+// Takes an exercise out of the open workout — asked for as "I can't take
+// out an exercise I added, and from a prefilled Full body session I want to
+// take one out". Only this workout changes: the routine and the exercise
+// list stay as they are, and sets already done stay in the log (and in the
+// summary). Undo puts it back in its place.
+async function takeOut(ctx, ex) {
+  const s = ctx.state.session;
+  const i = s.steps.findIndex((st) => st.id === ex.id);
+  if (i < 0) return;
+  const [step] = s.steps.splice(i, 1);
+  const wasCurrent = s.current === ex.id;
+  if (wasCurrent) {
+    // The next one still to do, else any one still to do, else a neighbour.
+    const todo = (st) => !(st.sets && sessionSets(ctx, st.id).length >= st.sets);
+    s.current = (s.steps.slice(i).find(todo) || s.steps.find(todo) || s.steps[Math.min(i, s.steps.length - 1)])?.id || null;
+  }
+  await saveSession(ctx).catch(() => {});
+  ctx.refresh();
+  const done = sessionSets(ctx, ex.id).length;
+  ctx.toast(t(done ? '{name} taken out of this workout — its sets stay in the log' : '{name} taken out of this workout', { name: ex.name }), {
+    actionLabel: t('Undo'),
+    onAction: async () => {
+      if (ctx.state.session !== s || s.steps.some((st) => st.id === step.id)) return;
+      s.steps.splice(Math.min(i, s.steps.length), 0, step);
+      if (wasCurrent) s.current = step.id;
+      await saveSession(ctx).catch(() => {});
+      ctx.refresh();
+    },
+  });
 }
 
 function openAddExercise(ctx) {

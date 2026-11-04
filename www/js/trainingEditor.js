@@ -6,6 +6,7 @@ import {
 } from './config.js';
 import { openExercisePicker } from './exercisePicker.js';
 import { remindEditorHtml, wireRemindEditor } from './reminders.js';
+import { icon } from './icons.js';
 import { esc } from './util.js';
 import { t } from './i18n.js';
 
@@ -19,6 +20,35 @@ async function commit(ctx, mutate, okMsg) {
   await ctx.reloadConfig();
   if (okMsg) ctx.toast(okMsg);
   return true;
+}
+
+// "Remove this exercise" — asked for as "I can't find how to take out an
+// exercise I added". Like buttons: only one never logged (one with sets is
+// hidden instead, with the eye in Settings → Exercises & routines, so its
+// history keeps its name), and not while it's in the open workout (take it
+// out there first). A routine may only name exercises that exist, so it is
+// taken out of the routines that have it too; the confirm says which.
+function removable(ctx, ex) {
+  const { entries, session } = ctx.state;
+  return !!ex && !entries.some((e) => e.kind === 'set' && e.item_id === ex.id)
+    && !session?.steps?.some((st) => st.id === ex.id);
+}
+
+const removeLink = () => `<button class="linklike danger" data-act="remove-ex">${icon('trash')}<span>${t('Remove this exercise')}</span></button>`;
+
+function wireRemove(root, ctx, ex) {
+  root.querySelector('[data-act="remove-ex"]')?.addEventListener('click', () => {
+    const inRoutines = ctx.state.config.routines.filter((r) => routineSteps(r).some((st) => st.id === ex.id));
+    const msg = inRoutines.length
+      ? t('REMOVE_EX_ROUTINES', { name: ex.name, list: inRoutines.map((r) => r.name).join(', ') })
+      : t('REMOVE_EX', { name: ex.name });
+    if (!confirm(msg)) return;
+    commit(ctx, (cfg) => {
+      cfg.exercises = cfg.exercises.filter((x) => x.id !== ex.id);
+      for (const r of cfg.routines) r.exercises = r.exercises.filter((st) => (typeof st === 'string' ? st : st?.id) !== ex.id);
+      return true;
+    }, t('Removed'));
+  });
 }
 
 // ex = existing exercise, or null for a new one. Circuits have their own
@@ -45,8 +75,10 @@ export function openExerciseEditor(ctx, ex) {
     <div class="sheet-actions">
       <button class="btn" data-act="cancel">${t('Cancel')}</button>
       <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
-    </div>`);
+    </div>
+    ${removable(ctx, ex) ? removeLink() : ''}`);
   const f = (k) => root.querySelector(`[data-f="${k}"]`);
+  wireRemove(root, ctx, ex);
   root.querySelectorAll('input[name="extype"]').forEach((r) => r.addEventListener('change', () => {
     root.querySelector('[data-circuit-tip]').hidden = root.querySelector('input[name="extype"]:checked').value !== 'seconds';
   }));
@@ -153,7 +185,9 @@ export function openCircuitEditor(ctx, ex, opts = {}) {
       <div class="sheet-actions">
         <button class="btn" data-act="cancel">${t('Cancel')}</button>
         <button class="btn primary" data-act="save">${isNew ? t('Add') : t('Save')}</button>
-      </div>`);
+      </div>
+      ${removable(ctx, ex) ? removeLink() : ''}`);
+    wireRemove(root, ctx, ex);
 
     const updateTotal = () => {
       root.querySelector('[data-total]').textContent = t('Total: {t}', { t: mmss(total()) });

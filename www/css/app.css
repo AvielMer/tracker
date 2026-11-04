@@ -343,6 +343,10 @@ main { padding: 4px 12px 8px; max-width: 720px; margin: 0 auto; }
 .tr-chip.done:not(.on) span { color: var(--ok); }
 .tr-chip.add { color: var(--accent); border: 1px dashed var(--line); background: transparent; }
 .tr-name { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+/* The card's top: the exercise, and "✕ Take out" (of this workout). */
+.tr-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.tr-top .tr-name { min-width: 0; word-break: break-word; }
+.tr-out { flex: none; margin-top: -6px; margin-inline-end: -6px; }
 .tr-name .muted { font-size: 14px; font-weight: 400; }
 .tr-hist { font-size: 15px; margin: 2px 0; word-break: break-word; }
 .stepper { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 10px; margin: 16px 0 10px; }
@@ -360,6 +364,8 @@ main { padding: 4px 12px 8px; max-width: 720px; margin: 0 auto; }
 .wstep { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 6px; }
 .wstep span { color: var(--muted); }
 .wstep b { min-width: 70px; text-align: center; }
+/* An exercise set up without weight: one tap turns the row above on. */
+.linklike.add-weight { margin: 0 auto 8px; }
 .btn.big { min-height: 64px; font-size: 20px; }
 .btn:disabled { opacity: .4; }
 .pick-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

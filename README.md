@@ -92,6 +92,9 @@ To change the order, tap **Reorder** there and drag a button by its dots.
     means "as many as you can in the time", and the app asks how many at
     the end.
   - A library of about 100 street-workout exercises comes built in.
+  - During a workout you can take an exercise out (✕ Take out at the top
+    of its card), add one with + Exercise, and add extra weight to any
+    exercise.
 - **Reminders:** any button or routine can remind you at set times and
   days (for example every evening at 21:00). In this web version a
   reminder shows as a card at the top of the Events screen when you open

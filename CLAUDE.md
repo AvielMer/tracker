@@ -220,6 +220,24 @@ Example:
   {"id", "sets", "reps"}. Settings → Exercises & routines has editors for exercises and
   routines, plus "Add missing preset exercises & routines" (merges
   default_config.json by id, changes nothing existing).
+  Changing a workout while it's open (asked for as "I can't take out an
+  exercise I added; from a prefilled Full body session I want to take one
+  out", and "in a preloaded session I couldn't add weight"):
+  - "✕ Take out" at the top of the exercise card (training.js takeOut):
+    drops it from the open session's steps only — the routine and the
+    exercise list stay, sets already done stay in the log and the summary.
+    Undo puts it back in its place; not shown during a running set; the
+    card moves to the next exercise still to do.
+  - "+ Add extra weight" on the card for an exercise without
+    "allowWeight" (not circuits): sets allowWeight in the config, so the
+    weight row is there from then on.
+  - A routine goal with sets but no reps reads "goal 3 sets" (was "3 × ?").
+  - "Remove this exercise" in the exercise and circuit editors
+    (trainingEditor.js removable/wireRemove): only for one never done and
+    not in the open workout (one with sets is hidden with the eye
+    instead); it is taken out of the routines that name it too (they may
+    only name existing exercises), and the confirm says which. Circuit
+    parts pointing at it keep working (an unknown "ex" is ignored).
 - Exercise library: `www/exercise_library.json` (~100 street-workout
   exercises, names in en/he/ru, categories, 2 circuits). Reference data
   only — copied into the config when picked (library circuits get
