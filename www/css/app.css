@@ -657,6 +657,8 @@ main > p.small { margin-inline: 4px; line-height: 1.5; }
   background: none; color: var(--muted); font: inherit; font-size: 15px; font-weight: 600;
 }
 .seg button.on { background: var(--accent); color: var(--on-accent); }
+/* Four short choices in one row (Sound: Off / Normal / Loud / Very loud). */
+.seg.tight button { min-width: 0; padding: 6px 4px; line-height: 1.2; }
 
 /* No buttons yet on the Events screen. */
 .empty-card {

@@ -30,7 +30,7 @@ import { makeRecord } from './record.js';
 import { esc, friendlyDay, hhmm, localDate } from './util.js';
 import { t } from './i18n.js';
 import {
-  keepAwake, setSoundOn, signal, unlockAudio,
+  hush, keepAwake, LEVELS, setLevel, setSoundOn, signal, unlockAudio,
 } from './alerts.js';
 import { openExercisePicker } from './exercisePicker.js';
 import { remindTimes } from './reminders.js';
@@ -54,13 +54,15 @@ export async function loadOpenSession(state) {
   try {
     state.session = (await storage.getValue(KEY)) || null;
     const sound = await storage.getValue('tr_sound');
+    const volume = await storage.getValue('tr_volume');
     const goal = await storage.getValue('tr_rest_goal');
-    state.trainingPrefs = { sound: sound ?? true, restGoal: goal ?? 90 };
+    state.trainingPrefs = { sound: sound ?? true, volume: LEVELS.includes(volume) ? volume : 'loud', restGoal: goal ?? 90 };
   } catch {
     state.session = null;
-    state.trainingPrefs = { sound: true, restGoal: 90 };
+    state.trainingPrefs = { sound: true, volume: 'loud', restGoal: 90 };
   }
   setSoundOn(state.trainingPrefs.sound);
+  setLevel(state.trainingPrefs.volume);
 }
 
 function saveSession(ctx) {
@@ -308,7 +310,7 @@ async function startSession(ctx, routine) {
 // --- open session ----------------------------------------------------------
 function renderSession(el, ctx) {
   const s = ctx.state.session;
-  const prefs = ctx.state.trainingPrefs || { sound: true, restGoal: 90 };
+  const prefs = ctx.state.trainingPrefs || { sound: true, volume: 'loud', restGoal: 90 };
   const working = s.phase === 'work' && s.work;
   const ex = s.current ? exercise(ctx, s.current) : null;
   keepAwake(true);
@@ -371,7 +373,7 @@ function renderSession(el, ctx) {
     <div class="tr-head">
       <div><b>${esc(s.item_name)}</b><br><span class="muted small">${t('started {time}', { time: hhmm(s.started.slice(11, 19)) })} · <span data-elapsed></span></span></div>
       <div class="tr-head-btns">
-        <button class="ibtn" data-act="sound" aria-label="${esc(prefs.sound ? t('Sound on') : t('Sound off'))}">${prefs.sound ? '🔔' : '🔕'}</button>
+        <button class="ibtn" data-act="sound" aria-label="${esc(t('Sound: {level}', { level: t(SOUND_NAMES[prefs.sound ? prefs.volume : 'off']) }))}">${!prefs.sound ? '🔕' : prefs.volume === 'normal' ? '🔔' : '🔊'}</button>
         <button class="btn" data-act="finish">${t('Finish')}</button>
       </div>
     </div>
@@ -399,14 +401,7 @@ function renderSession(el, ctx) {
   tick();
   tickTimer = setInterval(tick, 200);
 
-  $('[data-act="sound"]').addEventListener('click', async () => {
-    prefs.sound = !prefs.sound;
-    ctx.state.trainingPrefs = prefs;
-    setSoundOn(prefs.sound);
-    if (prefs.sound) { unlockAudio(); signal('tick'); }
-    await storage.setValue('tr_sound', prefs.sound).catch(() => {});
-    ctx.refresh();
-  });
+  $('[data-act="sound"]').addEventListener('click', () => openSound(ctx));
   $('[data-act="rest-goal"]').addEventListener('click', () => { if (!working) openRestGoal(ctx); });
   el.querySelectorAll('[data-ex]').forEach((b) => b.addEventListener('click', () => {
     if (working) { ctx.toast(t('Finish or cancel the current set first')); return; }
@@ -590,6 +585,7 @@ function updateTimer(ctx, el) {
 
 async function startWork(ctx, ex) {
   unlockAudio(); // sound is only allowed after a tap — this is the tap
+  hush(); // a "Very loud" end-of-rest alarm that is still repeating
   const s = ctx.state.session;
   const d = draft(ctx, ex);
   const now = Date.now();
@@ -818,6 +814,38 @@ async function undoLastSet(ctx, ex) {
   ctx.toast(t('Removed set {n} ({v})', { n: last.set_no, v: fmtSet(last) }));
 }
 
+// How loud the beeps are (alerts.js). Opened by the 🔔 / 🔊 in the workout's
+// header, which used to only turn the sound on and off.
+const SOUND_NAMES = { off: 'Off', normal: 'Normal', loud: 'Loud', max: 'Very loud' };
+
+function openSound(ctx) {
+  const prefs = ctx.state.trainingPrefs;
+  const cur = prefs.sound ? prefs.volume : 'off';
+  const root = ctx.openSheet(`
+    <div class="sheet-head"><b>${t('Sound')}</b></div>
+    <div class="seg tight">${Object.entries(SOUND_NAMES).map(([v, name]) => `<button class="${v === cur ? 'on' : ''}" data-vol="${v}" aria-pressed="${v === cur}">${esc(t(name))}</button>`).join('')}</div>
+    <button class="btn wide" data-act="test">${icon('play')}<span>${t('Test the alarm')}</span></button>
+    <p class="small muted">${esc(t('SOUND_HINT'))}</p>
+    <div class="sheet-actions"><button class="btn" data-act="close">${t('Close')}</button></div>`);
+  root.querySelector('[data-act="close"]').addEventListener('click', () => { hush(); ctx.closeSheet(); });
+  // The end-of-rest alarm: the one to hear from across the room.
+  root.querySelector('[data-act="test"]').addEventListener('click', () => { unlockAudio(); hush(); signal('rest'); });
+  root.querySelectorAll('[data-vol]').forEach((b) => b.addEventListener('click', async () => {
+    const v = b.dataset.vol;
+    prefs.sound = v !== 'off';
+    if (prefs.sound) prefs.volume = v;
+    setSoundOn(prefs.sound);
+    setLevel(prefs.volume);
+    unlockAudio();
+    hush();
+    if (prefs.sound) signal('switch'); // a taste of the new level
+    await storage.setValue('tr_sound', prefs.sound).catch(() => {});
+    await storage.setValue('tr_volume', prefs.volume).catch(() => {});
+    openSound(ctx);
+    ctx.refresh(); // the bell in the header
+  }));
+}
+
 function openRestGoal(ctx) {
   const prefs = ctx.state.trainingPrefs;
   const root = ctx.openSheet(`
@@ -915,6 +943,7 @@ function openFinish(ctx) {
       }
       ctx.state.entries = ctx.state.entries.filter((e) => e.id !== s.id);
       ctx.state.session = null;
+      hush();
       keepAwake(false);
       ctx.closeSheet();
       ctx.refresh();
@@ -940,6 +969,7 @@ function openFinish(ctx) {
     }
     ctx.state.entries.push(end);
     ctx.state.session = null;
+    hush();
     keepAwake(false);
     ctx.refresh();
     const done = ctx.openSheet(`
