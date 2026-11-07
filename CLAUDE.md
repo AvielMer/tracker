@@ -184,8 +184,19 @@ Example:
   rest. Phase is saved in the session ("phase", "work", "rest_from"), so a
   set in progress survives closing the app. Same big button for Start and
   Done → taps within 1.2 s of each other are ignored. Rest goal (kv
-  "tr_rest_goal", default 90 s) beeps once when reached; sound toggle (kv
-  "tr_sound"). Exercises in seconds: Start = 5 s "get ready" (3-2-1 ticks),
+  "tr_rest_goal", default 90 s) beeps once when reached. Sound (asked for
+  as "the alarm is not loud enough — I'm not always near the phone when
+  it's time to switch"): the 🔊 / 🔔 / 🔕 in the workout header opens a
+  Sound sheet: Off / Normal / Loud / Very loud (kv "tr_sound" on/off, kv
+  "tr_volume" normal|loud|max, default loud), "Test the alarm" (the
+  end-of-rest alarm) and a tip that the beeps follow the phone's media
+  volume. alerts.js: Normal = the old soft sine beeps (gain 0.3, fading);
+  Loud = a square-like wave (odd harmonics) at 2–3 kHz, gain 0.95, held at
+  full strength and longer; Very loud = Loud + the rest/end alarm and its
+  vibration repeat 3× (2.4 s apart) and go/switch/pause play twice. hush()
+  stops repeats: Start set, closing the sheet, Finish/Discard. STEP 5
+  (APK): a native sound on the alarm stream could be louder still.
+  Exercises in seconds: Start = 5 s "get ready" (3-2-1 ticks),
   countdown of the stepper's seconds, auto-logged with a beep.
   Circuits (type seconds + "parts"; asked for as "plank 30 s, legs up 30 s
   without stopping, a sound at every switch"): "parts": [{"name",

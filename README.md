@@ -85,7 +85,8 @@ To change the order, tap **Reorder** there and drag a button by its dots.
   Log and Stats). The app opens on the first one. Settings → Tabs.
 - **Training:** pick a routine or a free session.
   - ▶ Start set and ✓ Done time each set and your rest, with a beep when
-    the rest is over.
+    the rest is over. The 🔊 in a workout sets how loud: Normal, Loud, or
+    Very loud (the alarm repeats, to hear it from across the room).
   - Timed holds count down by themselves.
   - **Circuits** run several exercises in a row without stopping, with a
     beep at every switch, rounds and pauses. In a circuit, a reps exercise
