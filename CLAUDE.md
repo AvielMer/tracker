@@ -169,7 +169,10 @@ Example:
 - Step 3 done: Log screen → tap an entry → edit date, time, every
   value it has (or its button asks for) and the note, or Delete (with
   Undo in the toast). Moving an entry to another day renumbers only
-  that entry's nth_today; other entries are never touched.
+  that entry's nth_today; other entries are never touched. Number fields
+  must be above 0, except a set's weight: 0 (or empty) removes it (found
+  by the user: 0 was refused, so a set done with 10 kg by mistake could
+  only be "fixed" to +0.1 kg).
 - Step 2 done (training): Training tab → routine or Free session.
   Open session = kv "open_session" in storage (routine, steps, current
   exercise, stepper drafts); every set is appended to the log at once,
@@ -243,6 +246,10 @@ Example:
     "allowWeight" (not circuits): sets allowWeight in the config, so the
     weight row is there from then on.
   - A routine goal with sets but no reps reads "goal 3 sets" (was "3 × ?").
+  - The card's Today and Last time lines end with "· Total: 43" (reps, or
+    "120s" when all are holds) once there are 2+ sets — asked for as "I
+    want to see how much I did in total". training.js setsTotal() is the
+    same sum the Finish summary uses.
   - "Remove this exercise" in the exercise and circuit editors
     (trainingEditor.js removable/wireRemove): only for one never done and
     not in the open workout (one with sets is hidden with the eye

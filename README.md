@@ -84,6 +84,7 @@ To change the order, tap **Reorder** there and drag a button by its dots.
 - **Your tabs:** show, hide and reorder the tabs (for example only Cycle,
   Log and Stats). The app opens on the first one. Settings → Tabs.
 - **Training:** pick a routine or a free session.
+  - Each exercise shows today's sets and their total, and last time's.
   - ▶ Start set and ✓ Done time each set and your rest, with a beep when
     the rest is over. The 🔊 in a workout sets how loud: Normal, Loud, or
     Very loud (the alarm repeats, to hear it from across the room).

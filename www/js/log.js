@@ -205,7 +205,10 @@ export function openDetails(ctx, e) {
       let v = raw === '' ? null : raw;
       if (v != null && type === 'num') {
         v = Number(raw.replace(',', '.'));
-        if (!(v > 0)) { ctx.toast(t('{label}: please type a number', { label: t(lbl) })); return; }
+        // 0 kg = no extra weight. Found by the user: 0 was refused, so a set
+        // done with weight by mistake could only be "fixed" to +0.1 kg.
+        if (k === 'weight' && v === 0) v = null;
+        else if (!(v > 0)) { ctx.toast(t('{label}: please type a number', { label: t(lbl) })); return; }
         if (k === 'intensity' && v > 10) { ctx.toast(t('Intensity goes from 1 to 10')); return; }
         if (k === 'mood' && !(Number.isInteger(v) && v <= 5)) { ctx.toast(t('Mood goes from 1 to 5')); return; }
       }

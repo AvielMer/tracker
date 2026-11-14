@@ -349,6 +349,8 @@ main { padding: 4px 12px 8px; max-width: 720px; margin: 0 auto; }
 .tr-out { flex: none; margin-top: -6px; margin-inline-end: -6px; }
 .tr-name .muted { font-size: 14px; font-weight: 400; }
 .tr-hist { font-size: 15px; margin: 2px 0; word-break: break-word; }
+/* "· Total: 43" at the end of the Today / Last time line stays in one piece. */
+.tr-total { white-space: nowrap; }
 .stepper { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 10px; margin: 16px 0 10px; }
 .step-btn {
   border: 0; border-radius: 18px; background: var(--card2); color: var(--text);
