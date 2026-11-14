@@ -151,6 +151,23 @@ function fmtSet(e) {
   return s;
 }
 
+// What sets add up to: reps, or seconds when none of them counts reps (a
+// hold). The same sum in the Finish summary and on the card.
+function setsTotal(list) {
+  return {
+    total: list.reduce((n, e) => n + (valueOf(e) || 0), 0),
+    secs: list.every((e) => e.reps == null),
+  };
+}
+
+// " · Total: 43" (or "120s") after two sets or more — asked for as "I want
+// to see how much I did in total".
+function totalHtml(list) {
+  if (list.length < 2) return '';
+  const { total, secs } = setsTotal(list);
+  return ` <span class="tr-total">· ${t('Total')}: <b>${total}${secs ? 's' : ''}</b></span>`;
+}
+
 function mmss(ms) {
   const tt = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(tt / 3600);
@@ -343,8 +360,8 @@ function renderSession(el, ctx) {
         ${working ? '' : `<button class="text-btn tr-out" data-act="take-out" aria-label="${esc(t('Take {name} out of this workout', { name: ex.name }))}">${icon('close')}<span>${t('Take out')}</span></button>`}
       </div>
       ${circuit ? circuitPlanHtml(ctx, ex, d.value) : ''}
-      <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b></div>
-      <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}</div>
+      <div class="tr-hist">${t('Today:')} <b>${today.length ? today.map(fmtSet).join('  ') : '—'}</b>${totalHtml(today)}</div>
+      <div class="tr-hist muted">${t('Last time')}${last.length ? ` (${esc(friendlyDay(last[0].date))})` : ''}: ${last.length ? last.map(fmtSet).join('  ') : '—'}${totalHtml(last)}</div>
       ${ownTimes
         ? `<button class="btn wide" data-act="edit-circuit" ${working ? 'disabled' : ''}>✎ ${t('Edit circuit')}</button>`
         : `<div class="stepper${timedRunning ? ' locked' : ''}">
@@ -916,8 +933,7 @@ function summaryHtml(ctx, sets) {
     byEx.get(e.item_id).push(e);
   }
   return `<table class="kv summary">${[...byEx].map(([id, list]) => {
-    const secs = list.every((e) => e.reps == null);
-    const total = list.reduce((n, e) => n + (valueOf(e) || 0), 0);
+    const { total, secs } = setsTotal(list);
     return `<tr><th>${esc(exercise(ctx, id).name)}<br><span class="small">${list.map(fmtSet).join('  ')}</span></th>
       <td>${t('Sets')}: <b>${list.length}</b><br>${t('Total')}: <b>${total}</b> ${secs ? t('sec') : t('reps')}</td></tr>`;
   }).join('')}</table>`;
